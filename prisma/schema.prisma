@@ -1,0 +1,594 @@
+// Diamond Booking — Prisma Schema
+// Database: PostgreSQL (Supabase / Neon)
+// Run: npx prisma generate && npx prisma db push
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Optional: for Supabase connection pooling
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  ADMIN
+  STAFF
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIALING
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAUSED
+  UNPAID
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+// ─────────────────────────────────────────────
+// MODEL: User
+// Business owners, staff, and the super admin
+// ─────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  password      String?   // null for OAuth users
+
+  role          Role      @default(OWNER)
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+
+  // NextAuth
+  accounts      Account[]
+  sessions      Session[]
+
+  // Relations
+  business      Business?
+  subscription  Subscription?
+
+  // Audit
+  auditLogs     AuditLog[] @relation("AuditLogUser")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Account (NextAuth)
+// ─────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Session (NextAuth)
+// ─────────────────────────────────────────────
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: VerificationToken (NextAuth)
+// ─────────────────────────────────────────────
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: PasswordResetToken
+// ─────────────────────────────────────────────
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+  @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Business
+// The tenant entity — each business owner gets one
+// ─────────────────────────────────────────────
+
+model Business {
+  id          String  @id @default(cuid())
+  ownerId     String  @unique
+  owner       User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Identity
+  name        String
+  slug        String  @unique // e.g. "janes-salon" → /book/janes-salon
+  description String? @db.Text
+  industry    String? // e.g. "salon", "barbershop", "clinic"
+
+  // Contact
+  phone       String?
+  email       String?
+  website     String?
+
+  // Address
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  country     String  @default("US")
+
+  // Branding
+  logoUrl         String?
+  coverImageUrl   String?
+  primaryColor    String  @default("#1a1f36")
+  welcomeMessage  String? @db.Text
+
+  // Config
+  timezone    String  @default("America/New_York")
+  currency    String  @default("USD")
+
+  // Booking settings
+  advanceBookingDays   Int     @default(30)  // how far ahead clients can book
+  minimumNoticeHours   Int     @default(2)   // min notice before appointment
+  slotIncrementMinutes Int     @default(15)  // granularity of time slots
+  bufferMinutes        Int     @default(0)   // buffer between appointments
+  autoConfirm          Boolean @default(true)
+  cancellationPolicy   String? @db.Text
+
+  // Notifications
+  notifyNewBooking     Boolean @default(true)
+  notifyCancellation   Boolean @default(true)
+  notifyReminders      Boolean @default(true) // PROFESSIONAL+ only
+
+  // Admin controls
+  isActive     Boolean @default(true)
+  isFeatured   Boolean @default(false)
+  adminNotes   String? @db.Text  // Super Admin only
+  onboardingComplete Boolean @default(false)
+
+  // Relations
+  businessHours BusinessHours[]
+  staff         Staff[]
+  services      Service[]
+  bookings      Booking[]
+  customers     Customer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([ownerId])
+  @@index([isActive])
+  @@map("businesses")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: BusinessHours
+// Operating hours per day of week
+// ─────────────────────────────────────────────
+
+model BusinessHours {
+  id         String  @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  dayOfWeek  Int     // 0=Sunday, 1=Monday ... 6=Saturday
+  openTime   String  // "09:00" (24h format, local time)
+  closeTime  String  // "17:00"
+  isClosed   Boolean @default(false)
+
+  @@unique([businessId, dayOfWeek])
+  @@map("business_hours")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Staff
+// Team members who perform services
+// ─────────────────────────────────────────────
+
+model Staff {
+  id         String  @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name       String
+  email      String?
+  phone      String?
+  avatarUrl  String?
+  bio        String? @db.Text
+  isActive   Boolean @default(true)
+  sortOrder  Int     @default(0)
+
+  // Custom schedule (if null, inherits from BusinessHours)
+  availability StaffAvailability[]
+
+  // Many-to-many with Services
+  services   StaffService[]
+
+  // Bookings
+  bookings   Booking[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([businessId, isActive])
+  @@map("staff")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: StaffAvailability
+// Per-staff schedule overrides (e.g. stylist only works Mon/Wed/Fri)
+// ─────────────────────────────────────────────
+
+model StaffAvailability {
+  id        String @id @default(cuid())
+  staffId   String
+  staff     Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  dayOfWeek Int     // 0-6
+  openTime  String  // "09:00"
+  closeTime String  // "17:00"
+  isClosed  Boolean @default(false)
+
+  @@unique([staffId, dayOfWeek])
+  @@map("staff_availability")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Service
+// Services offered by the business
+// ─────────────────────────────────────────────
+
+model Service {
+  id          String  @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String? @db.Text
+  duration    Int     // minutes: 15, 30, 45, 60, 90, 120...
+  price       Decimal @db.Decimal(10, 2)
+  currency    String  @default("USD")
+  color       String  @default("#1a1f36") // calendar display color
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  // Many-to-many with Staff
+  staff       StaffService[]
+
+  // Bookings
+  bookings    Booking[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([businessId, isActive])
+  @@map("services")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: StaffService
+// Junction: which staff can perform which service
+// ─────────────────────────────────────────────
+
+model StaffService {
+  id        String  @id @default(cuid())
+  staffId   String
+  serviceId String
+  staff     Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, serviceId])
+  @@map("staff_services")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Customer
+// End-clients who book appointments
+// ─────────────────────────────────────────────
+
+model Customer {
+  id         String  @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name       String
+  email      String
+  phone      String?
+  notes      String? @db.Text
+
+  // Relations
+  bookings   Booking[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, email]) // one customer record per business per email
+  @@index([businessId])
+  @@index([email])
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Booking
+// An appointment
+// ─────────────────────────────────────────────
+
+model Booking {
+  id          String  @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id])
+
+  staffId     String
+  staff       Staff    @relation(fields: [staffId], references: [id])
+
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  // Timing (always stored in UTC)
+  date        DateTime @db.Date   // date only (UTC)
+  startTime   DateTime            // full UTC datetime
+  endTime     DateTime            // full UTC datetime
+
+  // Status & details
+  status      BookingStatus @default(PENDING)
+  notes       String?  @db.Text
+  totalPrice  Decimal  @db.Decimal(10, 2)
+
+  // Source
+  source      String   @default("booking_page") // "booking_page" | "manual" | "api"
+
+  // Reminders
+  reminderSentAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([date])
+  @@index([businessId, date])
+  @@index([staffId, date])
+  @@index([customerId])
+  @@index([status])
+  @@map("bookings")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: Subscription
+// SaaS billing per business owner
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String             @unique
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId      String?            @unique
+  stripeSubscriptionId  String?            @unique
+
+  plan                  SubscriptionPlan   @default(FREE)
+  status                SubscriptionStatus @default(TRIALING)
+
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  trialStart            DateTime?
+  trialEnd              DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  cancelledAt           DateTime?
+
+  // Manual override by Super Admin
+  isComped              Boolean   @default(false)
+  compExpiresAt         DateTime?
+  compNote              String?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([plan, status])
+  @@map("subscriptions")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: PlanConfig
+// Reference table for subscription plan details
+// ─────────────────────────────────────────────
+
+model PlanConfig {
+  id                  String           @id @default(cuid())
+  plan                SubscriptionPlan @unique
+
+  displayName         String           // "Free", "Starter", etc.
+  stripePriceIdMonthly String?
+  stripePriceIdYearly  String?
+  priceMonthly        Decimal          @db.Decimal(10, 2)
+  priceYearly         Decimal          @db.Decimal(10, 2)
+
+  // Limits (-1 = unlimited)
+  maxStaff            Int              @default(1)
+  maxServices         Int              @default(3)
+  maxBookingsPerMonth Int              @default(20)
+
+  // Feature flags
+  removesBranding     Boolean          @default(false)
+  emailReminders      Boolean          @default(false)
+  customDomain        Boolean          @default(false)
+  apiAccess           Boolean          @default(false)
+  prioritySupport     Boolean          @default(false)
+
+  features            String[]         // display list for pricing page
+
+  isActive            Boolean          @default(true)
+  sortOrder           Int              @default(0)
+
+  updatedAt           DateTime         @updatedAt
+
+  @@map("plan_configs")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: PlatformSettings
+// Singleton — global platform configuration
+// ─────────────────────────────────────────────
+
+model PlatformSettings {
+  id               Int     @id @default(1) // always 1
+
+  platformName     String  @default("Diamond Booking")
+  supportEmail     String  @default("support@diamondbooking.com")
+  maintenanceMode  Boolean @default(false)
+  maintenanceMessage String @default("Diamond Booking is undergoing maintenance. We'll be back shortly.")
+
+  defaultTrialDays Int     @default(14)
+
+  termsUrl         String?
+  privacyUrl       String?
+
+  // Super Admin notification preferences
+  notifyNewSignup       Boolean @default(true)
+  notifyPaymentFailure  Boolean @default(true)
+  notifySubscriptionEnd Boolean @default(true)
+  notifyBusinessSuspend Boolean @default(true)
+
+  updatedAt        DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: AuditLog
+// Immutable record of all important actions
+// DO NOT add update/delete operations on this model
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+
+  // Who performed the action
+  userId      String?
+  user        User?    @relation("AuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  userEmail   String?  // denormalized in case user is deleted
+
+  // What happened
+  action      String   // e.g. "BUSINESS_SUSPENDED", "PLAN_CHANGED", "USER_DELETED"
+
+  // What was affected
+  targetType  String   // "User" | "Business" | "Subscription" | "Booking"
+  targetId    String
+  targetName  String?  // denormalized display name
+
+  // Details
+  metadata    Json     @default("{}") // { oldValues, newValues, context }
+  ipAddress   String?
+  userAgent   String?
+
+  // Impersonation context
+  isImpersonated    Boolean @default(false)
+  impersonatorId    String? // original Super Admin ID during impersonation
+  impersonatorEmail String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([targetType, targetId])
+  @@index([impersonatorId])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// MODEL: BroadcastEmail
+// Log of emails sent by Super Admin to users
+// ─────────────────────────────────────────────
+
+model BroadcastEmail {
+  id           String   @id @default(cuid())
+  subject      String
+  body         String   @db.Text
+  recipientType String  // "all" | "plan:STARTER" | "custom"
+  recipientCount Int    @default(0)
+  sentAt       DateTime?
+  scheduledFor DateTime?
+  status       String   @default("draft") // "draft" | "sent" | "scheduled" | "failed"
+
+  createdAt    DateTime @default(now())
+
+  @@map("broadcast_emails")
+}

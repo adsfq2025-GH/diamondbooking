@@ -1,0 +1,305 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Google Fonts ─── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  :root {
+    /* ── Light theme (business owner dashboard) ── */
+    --background: 0 0% 100%;
+    --foreground: 224 40% 16%;       /* #1a1f36 navy */
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 40% 16%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 40% 16%;
+
+    --primary: 224 40% 16%;          /* navy */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 40% 16%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 38 62% 55%;            /* gold */
+    --accent-foreground: 224 40% 16%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 224 40% 16%;
+
+    --radius: 0.625rem;
+
+    /* ── Brand-specific tokens ── */
+    --color-navy: #1a1f36;
+    --color-gold: #d4a843;
+    --color-gold-light: #f5dda1;
+    --color-gold-dark: #b88a2a;
+    --color-success: #16a34a;
+    --color-warning: #f59e0b;
+    --color-danger: #dc2626;
+    --color-info: #2563eb;
+
+    /* ── Font families ── */
+    --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Dark theme (super admin dashboard) ── */
+  .dark {
+    --background: 226 15% 8%;        /* #0f1117 */
+    --foreground: 220 20% 94%;       /* #f0f0f0 */
+
+    --card: 226 15% 13%;             /* #1e2231 */
+    --card-foreground: 220 20% 94%;
+
+    --popover: 226 15% 13%;
+    --popover-foreground: 220 20% 94%;
+
+    --primary: 38 62% 55%;           /* gold becomes primary in dark */
+    --primary-foreground: 226 15% 8%;
+
+    --secondary: 226 15% 18%;        /* #2a2f3a */
+    --secondary-foreground: 220 20% 94%;
+
+    --muted: 226 15% 18%;
+    --muted-foreground: 220 14% 55%; /* #8892a4 */
+
+    --accent: 38 62% 55%;
+    --accent-foreground: 226 15% 8%;
+
+    --destructive: 0 63% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 226 15% 22%;           /* #2a2f3a */
+    --input: 226 15% 22%;
+    --ring: 38 62% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* ── Skeleton shimmer ── */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted rounded-md;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.6) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200px 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* ── Status badges ── */
+  .badge-success {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: #dcfce7;
+    color: #15803d;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: #fef3c7;
+    color: #b45309;
+  }
+
+  .badge-danger {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .badge-info {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .badge-neutral {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: #f1f5f9;
+    color: #475569;
+  }
+
+  /* ── Admin dark badges ── */
+  .dark .badge-success {
+    background-color: rgba(22, 163, 74, 0.2);
+    color: #4ade80;
+  }
+
+  .dark .badge-warning {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+  }
+
+  .dark .badge-danger {
+    background-color: rgba(220, 38, 38, 0.2);
+    color: #f87171;
+  }
+
+  .dark .badge-info {
+    background-color: rgba(37, 99, 235, 0.2);
+    color: #93c5fd;
+  }
+
+  /* ── Plan tier badges ── */
+  .badge-free {
+    @apply badge-neutral;
+  }
+
+  .badge-starter {
+    @apply badge-info;
+  }
+
+  .badge-professional {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .badge-enterprise {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: #f3e8ff;
+    color: #7e22ce;
+  }
+
+  /* ── Dashboard card ── */
+  .dashboard-card {
+    @apply bg-card rounded-lg border border-border shadow-card p-6;
+  }
+
+  /* ── Stat card ── */
+  .stat-card {
+    @apply dashboard-card flex flex-col gap-2;
+  }
+
+  .stat-label {
+    @apply text-sm font-medium text-muted-foreground;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold font-heading text-foreground;
+  }
+
+  .stat-change-positive {
+    @apply text-xs font-medium text-green-600;
+  }
+
+  .stat-change-negative {
+    @apply text-xs font-medium text-red-500;
+  }
+
+  /* ── Admin specific ── */
+  .admin-card {
+    @apply bg-admin-surface rounded-lg border border-admin-border p-6;
+  }
+
+  /* ── Page header ── */
+  .page-header {
+    @apply mb-8;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold font-heading text-foreground;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted-foreground mt-1;
+  }
+
+  /* ── Data table ── */
+  .data-table {
+    @apply w-full text-sm;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 border-b border-border;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-muted/50;
+  }
+
+  /* ── Gold accent line ── */
+  .gold-accent {
+    @apply border-l-4;
+    border-left-color: var(--color-gold);
+  }
+
+  /* ── Booking step indicator ── */
+  .step-active {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .step-complete {
+    background-color: var(--color-gold);
+    @apply text-primary;
+  }
+
+  .step-inactive {
+    @apply bg-muted text-muted-foreground;
+  }
+}
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-border;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
+
+/* ── Print styles ── */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
