@@ -8,9 +8,11 @@ import { cn, getInitials } from "@/lib/utils";
 import {
   LayoutDashboard, CalendarDays, BookOpen, Scissors,
   Users, UserCheck, Settings, CreditCard, LogOut,
-  Diamond, ExternalLink, ChevronRight,
+  ExternalLink, ChevronRight, BadgePercent, DollarSign, Crown, Zap,
 } from "lucide-react";
 import Image from "next/image";
+
+const APP_ICON_SRC = "/brand/logohead.webp";
 
 const NAV = [
   { href: "/dashboard",           label: "Overview",    icon: LayoutDashboard, exact: true },
@@ -19,6 +21,10 @@ const NAV = [
   { href: "/dashboard/services",  label: "Services",    icon: Scissors },
   { href: "/dashboard/staff",     label: "Staff",       icon: Users },
   { href: "/dashboard/clients",   label: "Clients",     icon: UserCheck },
+  { href: "/dashboard/pricing",   label: "Pricing",     icon: DollarSign },
+  { href: "/dashboard/promotions",label: "Promotions",  icon: BadgePercent },
+  { href: "/dashboard/memberships",label:"Memberships", icon: Crown },
+  { href: "/dashboard/automations",label:"Automations", icon: Zap },
   { href: "/dashboard/settings",  label: "Settings",    icon: Settings },
   { href: "/dashboard/billing",   label: "Billing",     icon: CreditCard },
 ];
@@ -41,9 +47,13 @@ export function DashboardSidebar({ business, user }: SidebarProps) {
         {business?.logoUrl ? (
           <Image src={business.logoUrl} alt={business.name} width={32} height={32} className="w-8 h-8 rounded-lg object-cover" />
         ) : (
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Diamond className="w-4 h-4 text-primary" />
-          </div>
+          <Image
+            src={APP_ICON_SRC}
+            alt="Diamond Booking"
+            width={32}
+            height={32}
+            className="w-8 h-8 rounded-lg object-contain"
+          />
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold font-heading text-foreground truncate">

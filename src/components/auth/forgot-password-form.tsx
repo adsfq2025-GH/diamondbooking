@@ -52,7 +52,7 @@ export function ForgotPasswordForm() {
           {...register("email")}
         />
       </div>
-      <Button type="submit" className="w-full" loading={isSubmitting}>
+      <Button type="submit" variant="gold" size="lg" className="w-full" loading={isSubmitting}>
         Send reset link
       </Button>
     </form>

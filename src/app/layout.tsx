@@ -44,6 +44,10 @@ export const metadata: Metadata = {
     description:
       "Let your clients book appointments 24/7. Set up in minutes. Start for free.",
   },
+  icons: {
+    icon: "/brand/favicon.ico",
+    shortcut: "/brand/favicon.ico",
+  },
   twitter: {
     card: "summary_large_image",
   },

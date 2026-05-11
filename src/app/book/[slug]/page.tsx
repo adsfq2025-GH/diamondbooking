@@ -54,6 +54,11 @@ export default async function BookingPage({ params }: Props) {
     },
   });
 
+  const businessConfig = await prisma.businessConfig.findUnique({
+    where: { businessId: business.id },
+    select: { config: true },
+  });
+
   // Check sub is active
   const owner = await prisma.user.findUnique({
     where: { id: business.ownerId },
@@ -94,6 +99,7 @@ export default async function BookingPage({ params }: Props) {
         cancellationPolicy:  business.cancellationPolicy,
         businessHours:       business.businessHours,
       }}
+      config={businessConfig?.config ?? {}}
       services={services.map((s) => ({
         id:          s.id,
         name:        s.name,

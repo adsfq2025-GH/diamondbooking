@@ -3,6 +3,7 @@
 
 import { PrismaClient, Role, SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { INDUSTRY_TEMPLATES } from "../src/lib/industry/templates";
 
 const prisma = new PrismaClient();
 
@@ -192,7 +193,47 @@ async function main() {
   }
 
   // ──────────────────────────────────────────
-  // 4. DEMO DATA (optional — comment out for production)
+  // 4. INDUSTRY TEMPLATES
+  // ──────────────────────────────────────────
+  for (const tpl of INDUSTRY_TEMPLATES) {
+    await prisma.industryTemplate.upsert({
+      where: { key: tpl.key },
+      update: {
+        name: tpl.name,
+        category: tpl.category,
+        description: tpl.description ?? null,
+        defaultConfig: tpl.defaultConfig as unknown as object,
+        isActive: true,
+        sortOrder: tpl.sortOrder ?? 0,
+      },
+      create: {
+        key: tpl.key,
+        name: tpl.name,
+        category: tpl.category,
+        description: tpl.description ?? null,
+        defaultConfig: tpl.defaultConfig as unknown as object,
+        isActive: true,
+        sortOrder: tpl.sortOrder ?? 0,
+      },
+    });
+  }
+  console.log(`✅ Industry templates initialized (${INDUSTRY_TEMPLATES.length})`);
+
+  // Ensure every business has a config row
+  const businesses = await prisma.business.findMany({ select: { id: true, industry: true } });
+  for (const b of businesses) {
+    const industryKey = b.industry && typeof b.industry === "string" ? b.industry : "generic";
+    const template = INDUSTRY_TEMPLATES.find((t) => t.key === industryKey) ?? INDUSTRY_TEMPLATES[0];
+    await prisma.businessConfig.upsert({
+      where: { businessId: b.id },
+      update: { industryKey: template.key },
+      create: { businessId: b.id, industryKey: template.key, config: template.defaultConfig as unknown as object },
+    });
+  }
+  console.log("✅ Business configs initialized");
+
+  // ──────────────────────────────────────────
+  // 5. DEMO DATA (optional — comment out for production)
   // Creates 3 sample businesses so the Super Admin dashboard has data
   // ──────────────────────────────────────────
   if (process.env.SEED_DEMO_DATA === "true") {

@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { canAcceptBooking } from "@/lib/plan-limits";
 import { createAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { computeQuote } from "@/lib/pricing/engine";
+import { sendBookingConfirmation, sendNewBookingNotification } from "@/lib/email";
+import { Prisma } from "@prisma/client";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -17,6 +20,11 @@ const schema = z.object({
   customerEmail: z.string().email(),
   customerPhone: z.string().optional(),
   notes:         z.string().max(500).optional(),
+  intake:        z.record(z.unknown()).optional(),
+  addOnKeys:     z.array(z.string()).optional(),
+  isCommercial:  z.boolean().optional(),
+  recurringInterval: z.string().optional(),
+  promoCode:     z.string().trim().min(1).max(50).optional(),
 });
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -24,7 +32,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const business = await prisma.business.findUnique({
     where: { slug, isActive: true },
-    include: { owner: { select: { subscription: { select: { plan: true, status: true } } } } },
+    include: { owner: { select: { email: true, subscription: { select: { plan: true, status: true } } } } },
   });
   if (!business) {
     return NextResponse.json({ success: false, error: "Business not found" }, { status: 404 });
@@ -51,7 +59,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
   }
 
-  const { serviceId, staffId, date, startTime, endTime, customerName, customerEmail, customerPhone, notes } = parsed.data;
+  const {
+    serviceId,
+    staffId,
+    date,
+    startTime,
+    endTime,
+    customerName,
+    customerEmail,
+    customerPhone,
+    notes,
+    intake,
+    addOnKeys,
+    isCommercial,
+    recurringInterval,
+    promoCode,
+  } = parsed.data;
 
   // Verify service belongs to this business
   const service = await prisma.service.findFirst({
@@ -94,25 +117,94 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
   });
 
-  // Create booking
-  const booking = await prisma.booking.create({
-    data: {
-      businessId: business.id,
-      serviceId,
-      staffId,
-      customerId: customer.id,
-      date: new Date(date),
-      startTime: slotStart,
-      endTime:   slotEnd,
-      status: business.autoConfirm ? "CONFIRMED" : "PENDING",
-      notes: notes ?? null,
-      totalPrice: service.price,
-      source: "booking_page",
-    },
-    include: {
-      service: { select: { name: true, duration: true } },
-      staff:   { select: { name: true } },
-    },
+  const [config, activeMembership] = await Promise.all([
+    prisma.businessConfig.findUnique({ where: { businessId: business.id }, select: { config: true } }),
+    prisma.customerMembership.findFirst({
+      where: { businessId: business.id, customerId: customer.id, status: "ACTIVE" },
+      select: { membershipPlan: { select: { discountPercent: true } } },
+    }),
+  ]);
+
+  const now = new Date();
+  const promotion =
+    promoCode
+      ? await prisma.promotion.findFirst({
+          where: {
+            businessId: business.id,
+            code: promoCode,
+            isActive: true,
+            OR: [{ startsAt: null }, { startsAt: { lte: now } }],
+            AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
+          },
+          select: { id: true, type: true, percentOff: true, amountOff: true },
+        })
+      : null;
+
+  const promo =
+    promotion?.type === "PERCENT" || promotion?.type === "FIXED"
+      ? {
+          type: promotion.type,
+          percentOff: promotion.percentOff,
+          amountOff: promotion.amountOff ? Number(promotion.amountOff) : null,
+        }
+      : undefined;
+
+  const quote = computeQuote({
+    basePrice: Number(service.price),
+    currency: service.currency,
+    intake: intake ?? {},
+    addOnKeys: addOnKeys ?? [],
+    isCommercial: isCommercial ?? false,
+    recurringInterval,
+    promo,
+    membership: activeMembership ? { discountPercent: activeMembership.membershipPlan.discountPercent } : undefined,
+    config: config?.config ?? {},
+  });
+
+  const intakeJson = (intake ?? {}) as Prisma.InputJsonValue;
+
+  const booking = await prisma.$transaction(async (tx) => {
+    const created = await tx.booking.create({
+      data: {
+        businessId: business.id,
+        serviceId,
+        staffId,
+        customerId: customer.id,
+        date: new Date(date),
+        startTime: slotStart,
+        endTime: slotEnd,
+        status: business.autoConfirm ? "CONFIRMED" : "PENDING",
+        notes: notes ?? null,
+        totalPrice: quote.total,
+        intakeData: intakeJson,
+        pricingData: quote,
+        promoCode: promoCode ?? null,
+        recurringInterval: recurringInterval ?? null,
+        isCommercial: isCommercial ?? false,
+        source: "booking_page",
+      },
+      include: {
+        service: { select: { name: true, duration: true } },
+        staff: { select: { name: true } },
+      },
+    });
+
+    if (promotion) {
+      await tx.promotion.update({
+        where: { id: promotion.id },
+        data: { usageCount: { increment: 1 } },
+      });
+      await tx.promotionRedemption.create({
+        data: {
+          promotionId: promotion.id,
+          businessId: business.id,
+          customerId: customer.id,
+          bookingId: created.id,
+        },
+      });
+    }
+
+    return created;
   });
 
   await createAuditLog({
@@ -123,8 +215,33 @@ export async function POST(req: NextRequest, { params }: Params) {
     metadata: { businessId: business.id, source: "booking_page" },
   });
 
-  // TODO: Send confirmation emails via Resend
-  // await sendBookingConfirmation({ booking, customer, business });
+  await Promise.all([
+    sendBookingConfirmation({
+      customerName,
+      customerEmail,
+      businessName: business.name,
+      serviceName: booking.service.name,
+      staffName: booking.staff.name,
+      startTime: booking.startTime,
+      timezone: business.timezone,
+      bookingId: booking.id,
+      notes: booking.notes ?? undefined,
+    }),
+    business.owner.email
+      ? sendNewBookingNotification({
+          customerName,
+          customerEmail,
+          businessName: business.name,
+          serviceName: booking.service.name,
+          staffName: booking.staff.name,
+          startTime: booking.startTime,
+          timezone: business.timezone,
+          bookingId: booking.id,
+          notes: booking.notes ?? undefined,
+          ownerEmail: business.owner.email,
+        })
+      : Promise.resolve(),
+  ]);
 
   return NextResponse.json({
     success: true,

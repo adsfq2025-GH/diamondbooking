@@ -1,11 +1,12 @@
 // src/components/dashboard/onboarding-wizard.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 import {
-  Diamond, Building2, Clock, Scissors, Users, Palette,
+  Building2, Clock, Scissors, Users, Palette,
   Code2, Check, Plus, Trash2, ChevronRight, ChevronDown,
   Copy, CheckCheck, Sparkles, Package,
 } from "lucide-react";
@@ -77,6 +78,8 @@ const SERVICE_COLORS = [
   "#1a1f36","#d4a843","#16a34a","#2563eb",
   "#9333ea","#e11d48","#ea580c","#0891b2",
 ];
+
+const HEADER_LOGO_SRC = "/brand/header-logo-white-.webp";
 
 const FONT_OPTIONS = [
   { value: "Plus Jakarta Sans", label: "Plus Jakarta Sans" },
@@ -184,10 +187,11 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   // Step 1
   const [bizName, setBizName]           = useState("");
   const [bizSlug, setBizSlug]           = useState("");
-  const [industry, setIndustry]         = useState("salon");
+  const [industry, setIndustry]         = useState("generic");
   const [phone, setPhone]               = useState("");
   const [timezone, setTimezone]         = useState("America/New_York");
   const [description, setDescription]  = useState("");
+  const [industryOptions, setIndustryOptions] = useState(INDUSTRY_OPTIONS);
 
   // Step 2
   const [hours, setHours] = useState<DayAvail[]>(defaultAvail());
@@ -236,6 +240,24 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     catch (e: unknown) { setError(e instanceof Error ? e.message : "Something went wrong"); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/industry/templates");
+        const json = await res.json();
+        if (!res.ok || !Array.isArray(json.data)) return;
+        setIndustryOptions(
+          json.data.map((t: { key: string; name: string; category: string }) => ({
+            value: t.key,
+            label: `${t.name} — ${t.category}`,
+          }))
+        );
+      } catch {
+      }
+    };
+    void load();
+  }, []);
 
   // ── step submitters ────────────────────────────────────────────────────────
 
@@ -392,10 +414,14 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2.5 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-[#1a1f36] flex items-center justify-center">
-            <Diamond className="w-5 h-5 text-[#d4a843]" />
-          </div>
-          <span className="text-xl font-bold text-[#1a1f36]">Diamond Booking</span>
+          <Image
+            src={HEADER_LOGO_SRC}
+            alt="Diamond Booking"
+            width={220}
+            height={44}
+            className="h-[108px] w-auto"
+            priority
+          />
         </div>
         <p className="text-sm text-gray-500">Let's get your booking page live — takes about 3 minutes</p>
       </div>
@@ -476,7 +502,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Industry</label>
                   <select className={inp + " appearance-none"} value={industry} onChange={(e) => setIndustry(e.target.value)}>
-                    {INDUSTRY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {industryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
 

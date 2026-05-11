@@ -34,7 +34,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-primary/5 flex">
       {inMaintenance && <MaintenanceBanner />}
       <DashboardSidebar business={business} user={session.user} />
       <div className="flex-1 flex flex-col min-w-0">

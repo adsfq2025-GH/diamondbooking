@@ -54,6 +54,23 @@ enum BillingInterval {
   YEARLY
 }
 
+enum PromotionType {
+  PERCENT
+  FIXED
+  FREE_ADDON
+}
+
+enum MembershipInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum MembershipStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+}
+
 // ─────────────────────────────────────────────
 // MODEL: User
 // Business owners, staff, and the super admin
@@ -65,25 +82,25 @@ model User {
   emailVerified DateTime?
   name          String?
   image         String?
-  password      String?   // null for OAuth users
+  password      String? // null for OAuth users
 
-  role          Role      @default(OWNER)
-  isActive      Boolean   @default(true)
-  lastLoginAt   DateTime?
+  role        Role      @default(OWNER)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
 
   // NextAuth
-  accounts      Account[]
-  sessions      Session[]
+  accounts Account[]
+  sessions Session[]
 
   // Relations
-  business      Business?
-  subscription  Subscription?
+  business     Business?
+  subscription Subscription?
 
   // Audit
-  auditLogs     AuditLog[] @relation("AuditLogUser")
+  auditLogs AuditLog[] @relation("AuditLogUser")
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([email])
   @@index([role])
@@ -108,7 +125,7 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
 
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -124,7 +141,7 @@ model Session {
   userId       String
   expires      DateTime
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
@@ -165,9 +182,9 @@ model PasswordResetToken {
 // ─────────────────────────────────────────────
 
 model Business {
-  id          String  @id @default(cuid())
-  ownerId     String  @unique
-  owner       User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Identity
   name        String
@@ -176,60 +193,99 @@ model Business {
   industry    String? // e.g. "salon", "barbershop", "clinic"
 
   // Contact
-  phone       String?
-  email       String?
-  website     String?
+  phone   String?
+  email   String?
+  website String?
 
   // Address
-  address     String?
-  city        String?
-  state       String?
-  zipCode     String?
-  country     String  @default("US")
+  address String?
+  city    String?
+  state   String?
+  zipCode String?
+  country String  @default("US")
 
   // Branding
-  logoUrl         String?
-  coverImageUrl   String?
-  primaryColor    String  @default("#1a1f36")
-  welcomeMessage  String? @db.Text
+  logoUrl        String?
+  coverImageUrl  String?
+  primaryColor   String  @default("#1a1f36")
+  welcomeMessage String? @db.Text
 
   // Config
-  timezone    String  @default("America/New_York")
-  currency    String  @default("USD")
+  timezone String @default("America/New_York")
+  currency String @default("USD")
 
   // Booking settings
-  advanceBookingDays   Int     @default(30)  // how far ahead clients can book
-  minimumNoticeHours   Int     @default(2)   // min notice before appointment
-  slotIncrementMinutes Int     @default(15)  // granularity of time slots
-  bufferMinutes        Int     @default(0)   // buffer between appointments
+  advanceBookingDays   Int     @default(30) // how far ahead clients can book
+  minimumNoticeHours   Int     @default(2) // min notice before appointment
+  slotIncrementMinutes Int     @default(15) // granularity of time slots
+  bufferMinutes        Int     @default(0) // buffer between appointments
   autoConfirm          Boolean @default(true)
   cancellationPolicy   String? @db.Text
 
   // Notifications
-  notifyNewBooking     Boolean @default(true)
-  notifyCancellation   Boolean @default(true)
-  notifyReminders      Boolean @default(true) // PROFESSIONAL+ only
+  notifyNewBooking   Boolean @default(true)
+  notifyCancellation Boolean @default(true)
+  notifyReminders    Boolean @default(true) // PROFESSIONAL+ only
 
   // Admin controls
-  isActive     Boolean @default(true)
-  isFeatured   Boolean @default(false)
-  adminNotes   String? @db.Text  // Super Admin only
+  isActive           Boolean @default(true)
+  isFeatured         Boolean @default(false)
+  adminNotes         String? @db.Text // Super Admin only
   onboardingComplete Boolean @default(false)
 
   // Relations
-  businessHours BusinessHours[]
-  staff         Staff[]
-  services      Service[]
-  bookings      Booking[]
-  customers     Customer[]
+  businessHours   BusinessHours[]
+  staff           Staff[]
+  services        Service[]
+  bookings        Booking[]
+  customers       Customer[]
+  config          BusinessConfig?
+  promotions      Promotion[]
+  membershipPlans MembershipPlan[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  PromotionRedemption PromotionRedemption[]
+  CustomerMembership  CustomerMembership[]
 
   @@index([slug])
   @@index([ownerId])
   @@index([isActive])
   @@map("businesses")
+}
+
+model BusinessConfig {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  industryKey    String
+  config         Json   @default("{}")
+  pricingVersion Int    @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([industryKey])
+  @@map("business_configs")
+}
+
+model IndustryTemplate {
+  id            String  @id @default(cuid())
+  key           String  @unique
+  name          String
+  category      String
+  description   String? @db.Text
+  defaultConfig Json    @default("{}")
+  isActive      Boolean @default(true)
+  sortOrder     Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive, sortOrder])
+  @@map("industry_templates")
 }
 
 // ─────────────────────────────────────────────
@@ -238,14 +294,14 @@ model Business {
 // ─────────────────────────────────────────────
 
 model BusinessHours {
-  id         String  @id @default(cuid())
+  id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  dayOfWeek  Int     // 0=Sunday, 1=Monday ... 6=Saturday
-  openTime   String  // "09:00" (24h format, local time)
-  closeTime  String  // "17:00"
-  isClosed   Boolean @default(false)
+  dayOfWeek Int // 0=Sunday, 1=Monday ... 6=Saturday
+  openTime  String // "09:00" (24h format, local time)
+  closeTime String // "17:00"
+  isClosed  Boolean @default(false)
 
   @@unique([businessId, dayOfWeek])
   @@map("business_hours")
@@ -257,29 +313,29 @@ model BusinessHours {
 // ─────────────────────────────────────────────
 
 model Staff {
-  id         String  @id @default(cuid())
+  id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  name       String
-  email      String?
-  phone      String?
-  avatarUrl  String?
-  bio        String? @db.Text
-  isActive   Boolean @default(true)
-  sortOrder  Int     @default(0)
+  name      String
+  email     String?
+  phone     String?
+  avatarUrl String?
+  bio       String? @db.Text
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
 
   // Custom schedule (if null, inherits from BusinessHours)
   availability StaffAvailability[]
 
   // Many-to-many with Services
-  services   StaffService[]
+  services StaffService[]
 
   // Bookings
-  bookings   Booking[]
+  bookings Booking[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId])
   @@index([businessId, isActive])
@@ -292,13 +348,13 @@ model Staff {
 // ─────────────────────────────────────────────
 
 model StaffAvailability {
-  id        String @id @default(cuid())
-  staffId   String
-  staff     Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
-  dayOfWeek Int     // 0-6
-  openTime  String  // "09:00"
-  closeTime String  // "17:00"
+  dayOfWeek Int // 0-6
+  openTime  String // "09:00"
+  closeTime String // "17:00"
   isClosed  Boolean @default(false)
 
   @@unique([staffId, dayOfWeek])
@@ -311,13 +367,13 @@ model StaffAvailability {
 // ─────────────────────────────────────────────
 
 model Service {
-  id          String  @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   name        String
   description String? @db.Text
-  duration    Int     // minutes: 15, 30, 45, 60, 90, 120...
+  duration    Int // minutes: 15, 30, 45, 60, 90, 120...
   price       Decimal @db.Decimal(10, 2)
   currency    String  @default("USD")
   color       String  @default("#1a1f36") // calendar display color
@@ -325,13 +381,13 @@ model Service {
   sortOrder   Int     @default(0)
 
   // Many-to-many with Staff
-  staff       StaffService[]
+  staff StaffService[]
 
   // Bookings
-  bookings    Booking[]
+  bookings Booking[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId])
   @@index([businessId, isActive])
@@ -360,20 +416,22 @@ model StaffService {
 // ─────────────────────────────────────────────
 
 model Customer {
-  id         String  @id @default(cuid())
+  id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  name       String
-  email      String
-  phone      String?
-  notes      String? @db.Text
+  name  String
+  email String
+  phone String?
+  notes String? @db.Text
 
   // Relations
-  bookings   Booking[]
+  bookings Booking[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  PromotionRedemption PromotionRedemption[]
+  CustomerMembership  CustomerMembership[]
 
   @@unique([businessId, email]) // one customer record per business per email
   @@index([businessId])
@@ -387,37 +445,43 @@ model Customer {
 // ─────────────────────────────────────────────
 
 model Booking {
-  id          String  @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  serviceId   String
-  service     Service  @relation(fields: [serviceId], references: [id])
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
 
-  staffId     String
-  staff       Staff    @relation(fields: [staffId], references: [id])
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id])
 
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
 
   // Timing (always stored in UTC)
-  date        DateTime @db.Date   // date only (UTC)
-  startTime   DateTime            // full UTC datetime
-  endTime     DateTime            // full UTC datetime
+  date      DateTime @db.Date // date only (UTC)
+  startTime DateTime // full UTC datetime
+  endTime   DateTime // full UTC datetime
 
   // Status & details
-  status      BookingStatus @default(PENDING)
-  notes       String?  @db.Text
-  totalPrice  Decimal  @db.Decimal(10, 2)
+  status            BookingStatus @default(PENDING)
+  notes             String?       @db.Text
+  totalPrice        Decimal       @db.Decimal(10, 2)
+  intakeData        Json          @default("{}")
+  pricingData       Json          @default("{}")
+  promoCode         String?
+  recurringInterval String?
+  isCommercial      Boolean       @default(false)
 
   // Source
-  source      String   @default("booking_page") // "booking_page" | "manual" | "api"
+  source String @default("booking_page") // "booking_page" | "manual" | "api"
 
   // Reminders
   reminderSentAt DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  PromotionRedemption PromotionRedemption?
 
   @@index([businessId])
   @@index([date])
@@ -428,36 +492,141 @@ model Booking {
   @@map("bookings")
 }
 
+model Promotion {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name String
+  code String?
+  type PromotionType
+
+  percentOff   Int?
+  amountOff    Decimal? @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  freeAddonKey String?
+
+  isActive Boolean   @default(true)
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  appliesTo       Json     @default("{}") // { services: [id], addOns: [key], customerType: "residential"|"commercial" }
+  minSubtotal     Decimal? @db.Decimal(10, 2)
+  newCustomerOnly Boolean  @default(false)
+  memberOnly      Boolean  @default(false)
+  stackable       Boolean  @default(false)
+
+  usageLimit Int?
+  usageCount Int  @default(0)
+
+  redemptions PromotionRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, code])
+  @@index([businessId, isActive])
+  @@index([startsAt, endsAt])
+  @@map("promotions")
+}
+
+model PromotionRedemption {
+  id          String    @id @default(cuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  bookingId String?  @unique
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, promotionId])
+  @@map("promotion_redemptions")
+}
+
+model MembershipPlan {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name            String
+  interval        MembershipInterval
+  price           Decimal            @db.Decimal(10, 2)
+  currency        String             @default("USD")
+  discountPercent Int                @default(0)
+  perks           Json               @default("{}")
+  priorityBooking Boolean            @default(false)
+  isActive        Boolean            @default(true)
+
+  memberships CustomerMembership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId, isActive])
+  @@map("membership_plans")
+}
+
+model CustomerMembership {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  membershipPlanId String
+  membershipPlan   MembershipPlan @relation(fields: [membershipPlanId], references: [id], onDelete: Cascade)
+
+  status    MembershipStatus @default(ACTIVE)
+  startedAt DateTime         @default(now())
+  endsAt    DateTime?
+
+  stripeSubscriptionId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([customerId, membershipPlanId])
+  @@index([businessId, status])
+  @@map("customer_memberships")
+}
+
 // ─────────────────────────────────────────────
 // MODEL: Subscription
 // SaaS billing per business owner
 // ─────────────────────────────────────────────
 
 model Subscription {
-  id                    String             @id @default(cuid())
-  userId                String             @unique
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  stripeCustomerId      String?            @unique
-  stripeSubscriptionId  String?            @unique
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
 
-  plan                  SubscriptionPlan   @default(FREE)
-  status                SubscriptionStatus @default(TRIALING)
+  plan   SubscriptionPlan   @default(FREE)
+  status SubscriptionStatus @default(TRIALING)
 
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  trialStart            DateTime?
-  trialEnd              DateTime?
-  cancelAtPeriodEnd     Boolean            @default(false)
-  cancelledAt           DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  cancelledAt        DateTime?
 
   // Manual override by Super Admin
-  isComped              Boolean   @default(false)
-  compExpiresAt         DateTime?
-  compNote              String?
+  isComped      Boolean   @default(false)
+  compExpiresAt DateTime?
+  compNote      String?
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
@@ -471,33 +640,33 @@ model Subscription {
 // ─────────────────────────────────────────────
 
 model PlanConfig {
-  id                  String           @id @default(cuid())
-  plan                SubscriptionPlan @unique
+  id   String           @id @default(cuid())
+  plan SubscriptionPlan @unique
 
-  displayName         String           // "Free", "Starter", etc.
+  displayName          String // "Free", "Starter", etc.
   stripePriceIdMonthly String?
   stripePriceIdYearly  String?
-  priceMonthly        Decimal          @db.Decimal(10, 2)
-  priceYearly         Decimal          @db.Decimal(10, 2)
+  priceMonthly         Decimal @db.Decimal(10, 2)
+  priceYearly          Decimal @db.Decimal(10, 2)
 
   // Limits (-1 = unlimited)
-  maxStaff            Int              @default(1)
-  maxServices         Int              @default(3)
-  maxBookingsPerMonth Int              @default(20)
+  maxStaff            Int @default(1)
+  maxServices         Int @default(3)
+  maxBookingsPerMonth Int @default(20)
 
   // Feature flags
-  removesBranding     Boolean          @default(false)
-  emailReminders      Boolean          @default(false)
-  customDomain        Boolean          @default(false)
-  apiAccess           Boolean          @default(false)
-  prioritySupport     Boolean          @default(false)
+  removesBranding Boolean @default(false)
+  emailReminders  Boolean @default(false)
+  customDomain    Boolean @default(false)
+  apiAccess       Boolean @default(false)
+  prioritySupport Boolean @default(false)
 
-  features            String[]         // display list for pricing page
+  features String[] // display list for pricing page
 
-  isActive            Boolean          @default(true)
-  sortOrder           Int              @default(0)
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
 
-  updatedAt           DateTime         @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@map("plan_configs")
 }
@@ -508,17 +677,17 @@ model PlanConfig {
 // ─────────────────────────────────────────────
 
 model PlatformSettings {
-  id               Int     @id @default(1) // always 1
+  id Int @id @default(1) // always 1
 
-  platformName     String  @default("Diamond Booking")
-  supportEmail     String  @default("support@diamondbooking.com")
-  maintenanceMode  Boolean @default(false)
-  maintenanceMessage String @default("Diamond Booking is undergoing maintenance. We'll be back shortly.")
+  platformName       String  @default("Diamond Booking")
+  supportEmail       String  @default("support@diamondbooking.com")
+  maintenanceMode    Boolean @default(false)
+  maintenanceMessage String  @default("Diamond Booking is undergoing maintenance. We'll be back shortly.")
 
-  defaultTrialDays Int     @default(14)
+  defaultTrialDays Int @default(14)
 
-  termsUrl         String?
-  privacyUrl       String?
+  termsUrl   String?
+  privacyUrl String?
 
   // Super Admin notification preferences
   notifyNewSignup       Boolean @default(true)
@@ -526,7 +695,7 @@ model PlatformSettings {
   notifySubscriptionEnd Boolean @default(true)
   notifyBusinessSuspend Boolean @default(true)
 
-  updatedAt        DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@map("platform_settings")
 }
@@ -538,32 +707,32 @@ model PlatformSettings {
 // ─────────────────────────────────────────────
 
 model AuditLog {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Who performed the action
-  userId      String?
-  user        User?    @relation("AuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
-  userEmail   String?  // denormalized in case user is deleted
+  userId    String?
+  user      User?   @relation("AuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String? // denormalized in case user is deleted
 
   // What happened
-  action      String   // e.g. "BUSINESS_SUSPENDED", "PLAN_CHANGED", "USER_DELETED"
+  action String // e.g. "BUSINESS_SUSPENDED", "PLAN_CHANGED", "USER_DELETED"
 
   // What was affected
-  targetType  String   // "User" | "Business" | "Subscription" | "Booking"
-  targetId    String
-  targetName  String?  // denormalized display name
+  targetType String // "User" | "Business" | "Subscription" | "Booking"
+  targetId   String
+  targetName String? // denormalized display name
 
   // Details
-  metadata    Json     @default("{}") // { oldValues, newValues, context }
-  ipAddress   String?
-  userAgent   String?
+  metadata  Json    @default("{}") // { oldValues, newValues, context }
+  ipAddress String?
+  userAgent String?
 
   // Impersonation context
   isImpersonated    Boolean @default(false)
   impersonatorId    String? // original Super Admin ID during impersonation
   impersonatorEmail String?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([action])
   @@index([createdAt])
@@ -579,16 +748,16 @@ model AuditLog {
 // ─────────────────────────────────────────────
 
 model BroadcastEmail {
-  id           String   @id @default(cuid())
-  subject      String
-  body         String   @db.Text
-  recipientType String  // "all" | "plan:STARTER" | "custom"
-  recipientCount Int    @default(0)
-  sentAt       DateTime?
-  scheduledFor DateTime?
-  status       String   @default("draft") // "draft" | "sent" | "scheduled" | "failed"
+  id             String    @id @default(cuid())
+  subject        String
+  body           String    @db.Text
+  recipientType  String // "all" | "plan:STARTER" | "custom"
+  recipientCount Int       @default(0)
+  sentAt         DateTime?
+  scheduledFor   DateTime?
+  status         String    @default("draft") // "draft" | "sent" | "scheduled" | "failed"
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@map("broadcast_emails")
 }

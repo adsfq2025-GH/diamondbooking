@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn, getInitials } from "@/lib/utils";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Building2,
@@ -16,9 +17,10 @@ import {
   Settings,
   Activity,
   LogOut,
-  Diamond,
   ChevronRight,
 } from "lucide-react";
+
+const APP_ICON_SRC = "/brand/logohead.webp";
 
 const NAV_ITEMS = [
   { href: "/superadmin",              label: "Overview",            icon: LayoutDashboard,  exact: true  },
@@ -48,9 +50,13 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
     <aside className="w-64 shrink-0 flex flex-col border-r border-border bg-card min-h-screen">
       {/* Logo */}
       <div className="h-16 flex items-center gap-3 px-5 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center shrink-0">
-          <Diamond className="w-4 h-4 text-accent" />
-        </div>
+        <Image
+          src={APP_ICON_SRC}
+          alt="Diamond Booking"
+          width={32}
+          height={32}
+          className="w-8 h-8 rounded-lg object-contain"
+        />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold font-heading text-foreground truncate">
             Diamond Booking

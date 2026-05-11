@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Diamond, ChevronRight, Clock, DollarSign, User, ChevronLeft, Check, Calendar, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Clock, DollarSign, User, ChevronLeft, Check, Calendar, CheckCircle2 } from "lucide-react";
 import { formatTimeDisplay } from "@/lib/utils";
 import Image from "next/image";
 
@@ -40,6 +40,33 @@ interface BookingSelection {
   name:    string; email: string; phone: string; notes: string;
 }
 
+type BookingConfig = {
+  addOns?: Array<{ key: string; name: string; price: number; extraMinutes?: number }>;
+  intakeFields?: Array<{
+    key: string;
+    label: string;
+    type: "text" | "number" | "select" | "boolean";
+    required?: boolean;
+    options?: Array<{ value: string; label: string }>;
+  }>;
+  customerTypes?: {
+    enabled: boolean;
+    options: Array<"residential" | "commercial">;
+  };
+  recurring?: {
+    enabled: boolean;
+    intervals: Array<{ key: string; label: string; discountPercent: number }>;
+  };
+};
+
+type Quote = {
+  currency: string;
+  subtotal: number;
+  discounts: number;
+  total: number;
+  breakdown: Array<{ label: string; amount: number }>;
+};
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -59,8 +86,13 @@ function getFirstDayOfMonth(year: number, month: number) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function BookingFlow({ business, services }: { business: BusinessData; services: ServiceData[] }) {
+export function BookingFlow({ business, services, config }: { business: BusinessData; services: ServiceData[]; config: unknown }) {
   const primary = business.primaryColor || "#1a1f36";
+  const cfg = (config ?? {}) as BookingConfig;
+  const intakeFields = (cfg.intakeFields ?? []).filter((f) => f.key !== "customerType");
+  const addOns = cfg.addOns ?? [];
+  const recurring = cfg.recurring?.enabled ? cfg.recurring : undefined;
+  const customerTypes = cfg.customerTypes?.enabled ? cfg.customerTypes : undefined;
 
   const [step, setStep]       = useState<Step>(1);
   const [loading, setLoading] = useState(false);
@@ -68,6 +100,14 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [bookingId, setBookingId]       = useState<string | null>(null);
   const [error, setError]     = useState("");
+
+  const [intake, setIntake] = useState<Record<string, unknown>>({});
+  const [addOnKeys, setAddOnKeys] = useState<string[]>([]);
+  const [isCommercial, setIsCommercial] = useState(false);
+  const [recurringInterval, setRecurringInterval] = useState<string>("");
+  const [promoCode, setPromoCode] = useState("");
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
   const now = new Date();
   const [calYear,  setCalYear]  = useState(now.getFullYear());
@@ -113,21 +153,28 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
     if (!sel.service || !sel.slot || !sel.name || !sel.email) {
       setError("Please fill in all required fields"); return;
     }
+    const serviceId = sel.service.id;
+    const slot = sel.slot;
     setError(""); setLoading(true);
     try {
       const res = await fetch(`/api/public/book/${business.slug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceId:     sel.service.id,
-          staffId:       sel.slot.staffId,
+          serviceId,
+          staffId:       slot.staffId,
           date:          sel.date,
-          startTime:     sel.slot.startUTC,
-          endTime:       sel.slot.endUTC,
+          startTime:     slot.startUTC,
+          endTime:       slot.endUTC,
           customerName:  sel.name,
           customerEmail: sel.email,
           customerPhone: sel.phone || undefined,
           notes:         sel.notes || undefined,
+          intake,
+          addOnKeys,
+          isCommercial,
+          recurringInterval: recurringInterval || undefined,
+          promoCode: promoCode.trim() || undefined,
         }),
       });
       const json = await res.json();
@@ -140,6 +187,37 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!sel.service) return;
+    const serviceId = sel.service.id;
+    const controller = new AbortController();
+    const load = async () => {
+      setQuoteLoading(true);
+      try {
+        const res = await fetch(`/api/public/quote/${business.slug}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            serviceId,
+            intake,
+            addOnKeys,
+            isCommercial,
+            recurringInterval: recurringInterval || undefined,
+            promoCode: promoCode.trim() || undefined,
+            customerEmail: sel.email || undefined,
+          }),
+          signal: controller.signal,
+        });
+        const json = await res.json();
+        if (res.ok) setQuote(json.data);
+      } finally {
+        setQuoteLoading(false);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [sel.service, sel.email, business.slug, intake, addOnKeys, isCommercial, recurringInterval, promoCode]);
 
   const inp = "w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all"
             + ` focus:ring-[${primary}]/20`;
@@ -159,9 +237,13 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
             <Image src={business.logoUrl} alt={business.name} width={56} height={56}
               className="w-14 h-14 rounded-2xl object-cover mx-auto mb-3 ring-4 ring-white/20" />
           ) : (
-            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center mx-auto mb-3">
-              <Diamond className="w-7 h-7 text-white" />
-            </div>
+            <Image
+              src="/brand/logohead.webp"
+              alt="Diamond Booking"
+              width={56}
+              height={56}
+              className="w-14 h-14 rounded-2xl object-contain mx-auto mb-3 ring-4 ring-white/20"
+            />
           )}
           <h1 className="text-xl font-bold text-white">{business.name}</h1>
           {business.welcomeMessage && (
@@ -213,7 +295,16 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
             {services.map((s) => (
               <button
                 key={s.id}
-                onClick={() => { setSel((p) => ({ ...p, service: s, staff: s.staff.length === 1 ? s.staff[0] : null })); setStep(2); }}
+                onClick={() => {
+                  setSel((p) => ({ ...p, service: s, staff: s.staff.length === 1 ? s.staff[0] : null }));
+                  setIntake({});
+                  setAddOnKeys([]);
+                  setIsCommercial(false);
+                  setRecurringInterval("");
+                  setPromoCode("");
+                  setQuote(null);
+                  setStep(2);
+                }}
                 className="w-full flex items-center gap-4 p-4 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-300 transition-all text-left group"
               >
                 <div className="w-3 h-10 rounded-full shrink-0" style={{ background: s.color }} />
@@ -410,7 +501,7 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
                 ["Date",        new Date(sel.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })],
                 ["Time",        formatTimeDisplay(sel.slot.startTime)],
                 ["Duration",    `${sel.service.duration} min`],
-                ...(sel.service.price > 0 ? [["Price", formatCurrency(sel.service.price, sel.service.currency)]] : []),
+                ...(sel.service.price > 0 ? [["Total", quote ? formatCurrency(quote.total, quote.currency) : formatCurrency(sel.service.price, sel.service.currency)]] : []),
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-gray-500">{label}</span>
@@ -418,6 +509,171 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
                 </div>
               ))}
             </div>
+
+            {(customerTypes || intakeFields.length > 0 || addOns.length > 0 || recurring) && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Service Options</p>
+
+                {customerTypes && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer Type</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setIsCommercial(false); setIntake((p) => ({ ...p, customerType: "residential" })); }}
+                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${!isCommercial ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"}`}
+                        style={!isCommercial ? { background: primary } : {}}
+                      >
+                        Residential
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsCommercial(true); setIntake((p) => ({ ...p, customerType: "commercial" })); }}
+                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${isCommercial ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"}`}
+                        style={isCommercial ? { background: primary } : {}}
+                      >
+                        Commercial
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {intakeFields.map((field) => (
+                  <div key={field.key} className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      {field.label}{field.required ? " *" : ""}
+                    </label>
+                    {field.type === "text" && (
+                      <input
+                        className={inp}
+                        value={String(intake[field.key] ?? "")}
+                        onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value }))}
+                      />
+                    )}
+                    {field.type === "number" && (
+                      <input
+                        className={inp}
+                        type="number"
+                        min={0}
+                        value={String(intake[field.key] ?? "")}
+                        onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value === "" ? "" : Number(e.target.value) }))}
+                      />
+                    )}
+                    {field.type === "boolean" && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIntake((p) => ({ ...p, [field.key]: true }))}
+                          className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                            intake[field.key] === true ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                          }`}
+                          style={intake[field.key] === true ? { background: primary } : {}}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIntake((p) => ({ ...p, [field.key]: false }))}
+                          className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                            intake[field.key] === false ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                          }`}
+                          style={intake[field.key] === false ? { background: primary } : {}}
+                        >
+                          No
+                        </button>
+                      </div>
+                    )}
+                    {field.type === "select" && (
+                      <select
+                        className={inp}
+                        value={String(intake[field.key] ?? "")}
+                        onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value }))}
+                      >
+                        <option value="">Select…</option>
+                        {(field.options ?? []).map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                ))}
+
+                {addOns.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add-ons</p>
+                    <div className="space-y-2">
+                      {addOns.map((a) => {
+                        const checked = addOnKeys.includes(a.key);
+                        return (
+                          <button
+                            key={a.key}
+                            type="button"
+                            onClick={() =>
+                              setAddOnKeys((prev) =>
+                                prev.includes(a.key) ? prev.filter((k) => k !== a.key) : [...prev, a.key]
+                              )
+                            }
+                            className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                              checked ? "border-transparent text-white" : "border-gray-200 bg-white hover:border-gray-400"
+                            }`}
+                            style={checked ? { background: primary } : {}}
+                          >
+                            <span className="text-sm font-semibold">{a.name}</span>
+                            <span className={`text-sm font-bold ${checked ? "text-white" : ""}`}>
+                              +{formatCurrency(a.price, quote?.currency ?? business.currency)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {recurring && recurring.intervals.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Recurring</label>
+                    <select
+                      className={inp}
+                      value={recurringInterval}
+                      onChange={(e) => setRecurringInterval(e.target.value)}
+                    >
+                      <option value="">One-time</option>
+                      {recurring.intervals.map((i) => (
+                        <option key={i.key} value={i.key}>
+                          {i.label} ({i.discountPercent}% off)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Promo Code</label>
+                  <input className={inp} value={promoCode} onChange={(e) => setPromoCode(e.target.value)} placeholder="Optional" />
+                </div>
+
+                <div className="border-t border-gray-100 pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-gray-700">Total</p>
+                    <p className="text-sm font-black" style={{ color: primary }}>
+                      {quoteLoading ? "Calculating…" : quote ? formatCurrency(quote.total, quote.currency) : formatCurrency(sel.service.price, sel.service.currency)}
+                    </p>
+                  </div>
+                  {!!quote?.breakdown?.length && (
+                    <div className="space-y-1">
+                      {quote.breakdown.map((line) => (
+                        <div key={line.label} className="flex justify-between text-xs text-gray-500">
+                          <span className="truncate pr-2">{line.label}</span>
+                          <span className={line.amount < 0 ? "text-emerald-600 font-semibold" : "text-gray-700"}>
+                            {formatCurrency(line.amount, quote.currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Form */}
             <div className="space-y-3">
@@ -496,6 +752,12 @@ export function BookingFlow({ business, services }: { business: BusinessData; se
             <button
               onClick={() => {
                 setSel({ service: null, staff: null, date: "", slot: null, name: "", email: "", phone: "", notes: "" });
+                setIntake({});
+                setAddOnKeys([]);
+                setIsCommercial(false);
+                setRecurringInterval("");
+                setPromoCode("");
+                setQuote(null);
                 setStep(1);
               }}
               className="text-sm font-semibold underline text-gray-500 hover:text-gray-700"

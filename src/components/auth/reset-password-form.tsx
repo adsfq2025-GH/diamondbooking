@@ -82,10 +82,9 @@ export function ResetPasswordForm() {
         <Label htmlFor="confirmPassword">Confirm new password</Label>
         <Input id="confirmPassword" type="password" error={errors.confirmPassword?.message} {...register("confirmPassword")} />
       </div>
-      <Button type="submit" className="w-full" loading={isSubmitting}>
+      <Button type="submit" variant="gold" size="lg" className="w-full" loading={isSubmitting}>
         Reset password
       </Button>
     </form>
   );
 }
-

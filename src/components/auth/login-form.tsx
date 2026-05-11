@@ -73,6 +73,7 @@ export function LoginForm({ callbackUrl, error: urlError }: LoginFormProps) {
       <Button
         type="button"
         variant="outline"
+        size="lg"
         className="w-full"
         onClick={handleGoogle}
         loading={googleLoading}
@@ -141,7 +142,7 @@ export function LoginForm({ callbackUrl, error: urlError }: LoginFormProps) {
           </div>
         </div>
 
-        <Button type="submit" className="w-full" loading={isSubmitting}>
+        <Button type="submit" variant="gold" size="lg" className="w-full" loading={isSubmitting}>
           Sign in
         </Button>
       </form>

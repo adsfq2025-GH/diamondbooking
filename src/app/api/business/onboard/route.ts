@@ -12,6 +12,7 @@ const schema = z.object({
   industry: z.string().optional(),
   phone: z.string().optional(),
   timezone: z.string().optional(),
+  description: z.string().max(500).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -27,6 +28,25 @@ export async function POST(req: NextRequest) {
     // Check if business already exists
     const existing = await prisma.business.findUnique({ where: { ownerId: session.user.id } });
     if (existing) {
+      const cfg = await prisma.businessConfig.findUnique({ where: { businessId: existing.id }, select: { id: true } });
+      if (!cfg) {
+        const industryKey = (existing.industry as string | null) ?? "generic";
+        const template = await prisma.industryTemplate.findFirst({
+          where: { key: industryKey, isActive: true },
+          select: { key: true, defaultConfig: true },
+        });
+        const fallback = await prisma.industryTemplate.findFirst({
+          where: { key: "generic", isActive: true },
+          select: { key: true, defaultConfig: true },
+        });
+        await prisma.businessConfig.create({
+          data: {
+            businessId: existing.id,
+            industryKey: template?.key ?? fallback?.key ?? industryKey,
+            config: template?.defaultConfig ?? fallback?.defaultConfig ?? {},
+          },
+        });
+      }
       return NextResponse.json({ success: true, data: existing });
     }
 
@@ -45,7 +65,26 @@ export async function POST(req: NextRequest) {
         industry: parsed.data.industry,
         phone: parsed.data.phone,
         timezone: parsed.data.timezone ?? "America/New_York",
+        description: parsed.data.description ?? null,
         onboardingComplete: false,
+      },
+    });
+
+    const industryKey = parsed.data.industry ?? "generic";
+    const template = await prisma.industryTemplate.findFirst({
+      where: { key: industryKey, isActive: true },
+      select: { key: true, defaultConfig: true },
+    });
+    const fallback = await prisma.industryTemplate.findFirst({
+      where: { key: "generic", isActive: true },
+      select: { key: true, defaultConfig: true },
+    });
+
+    await prisma.businessConfig.create({
+      data: {
+        businessId: business.id,
+        industryKey: template?.key ?? fallback?.key ?? industryKey,
+        config: template?.defaultConfig ?? fallback?.defaultConfig ?? {},
       },
     });
 
