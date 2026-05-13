@@ -1,1 +1,12 @@
-{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run vercel-build",
+  "crons": [
+    {
+      "path": "/api/automations/run",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
