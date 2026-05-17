@@ -11,7 +11,7 @@
     "start": "next start",
     "vercel-build": "node scripts/vercel-build.mjs",
     "postinstall": "prisma generate",
-    "lint": "next lint --dir src",
+    "lint": "eslint .",
     "test": "echo \"No tests yet\" && exit 0",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
-    "@types/node": "^25",
+    "@types/node": "^25.8.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.5.0",
