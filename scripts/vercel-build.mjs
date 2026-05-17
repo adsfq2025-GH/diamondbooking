@@ -11,5 +11,5 @@ if (process.env.VERCEL_ENV === "production") {
   run("npx", ["prisma", "migrate", "deploy"]);
 }
 
+run("npx", ["prisma", "generate"]);
 run("npx", ["next", "build"]);
-
