@@ -6,12 +6,13 @@
     "node": "20.x"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
+  "lint": "eslint .",
+  "test": "echo \"No tests yet\" && exit 0",
+  "build": "prisma generate && next build",
     "start": "next start",
     "vercel-build": "node scripts/vercel-build.mjs",
     "postinstall": "prisma generate",
-    "lint": "next lint",
+    "lint": "eslint .",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
