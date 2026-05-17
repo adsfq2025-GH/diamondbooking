@@ -8,19 +8,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
       - run: npm install
-      - run: npm run lint
+      - run: npm run lint -- --max-warnings=50
       - run: npm run test
   deploy-staging:
     if: github.ref == 'refs/heads/staging'
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
       - name: Deploy to Vercel Staging
@@ -32,7 +32,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
       - name: Deploy to Vercel Production
