@@ -2,7 +2,7 @@
 // Core scheduling logic — generates available time slots for a given date/service/staff
 
 import { prisma } from "@/lib/prisma";
-import { parseISO, format, addMinutes, isBefore, isAfter, startOfDay, endOfDay } from "date-fns";
+import { format, addMinutes, addDays, isBefore, isAfter } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 export interface SlotResult {
@@ -64,8 +64,12 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
 
   // ── Parse the requested date in business timezone ──────────────────────────
   const tz = business.timezone;
-  const requestedDate = parseISO(date); // treat as local date
-  const dayOfWeek = requestedDate.getDay();
+  const [y, m, d] = date.split("-").map((x) => Number(x));
+  if (!y || !m || !d) return [];
+  const dateLocal = new Date(y, m - 1, d, 0, 0, 0, 0);
+  const requestedUtcMidnight = fromZonedTime(dateLocal, tz);
+  const requestedLocal = toZonedTime(requestedUtcMidnight, tz);
+  const dayOfWeek = requestedLocal.getDay();
 
   // ── Determine which staff to check ────────────────────────────────────────
   const staffList =
@@ -93,10 +97,12 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
   // ── Time window constraints ────────────────────────────────────────────────
   const now = new Date();
   const minBookingTime = new Date(now.getTime() + business.minimumNoticeHours * 60 * 60 * 1000);
-  const maxDate = addMinutes(now, business.advanceBookingDays * 24 * 60);
+  const nowLocal = toZonedTime(now, tz);
+  const todayLocalMidnight = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate(), 0, 0, 0, 0);
+  const maxLocalDate = addDays(todayLocalMidnight, business.advanceBookingDays);
 
   // Can't book in the past or beyond advance window
-  if (isAfter(requestedDate, maxDate)) return [];
+  if (isAfter(requestedLocal, maxLocalDate)) return [];
 
   const slots: SlotResult[] = [];
 
@@ -109,15 +115,17 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
     const dayHours = staffAvail ?? bizHours;
     if (!dayHours || dayHours.isClosed) continue;
 
-    const windowStart = localTimeToUTC(dayHours.openTime, requestedDate, tz);
-    const windowEnd   = localTimeToUTC(dayHours.closeTime, requestedDate, tz);
+    const windowStart = localTimeToUTC(dayHours.openTime, dateLocal, tz);
+    const windowEnd   = localTimeToUTC(dayHours.closeTime, dateLocal, tz);
 
     // ── Load existing bookings for this staff on this date ─────────────────
     const existingBookings = await prisma.booking.findMany({
       where: {
+        businessId: business.id,
         staffId: staffMember.id,
-        date: { equals: startOfDay(requestedDate) },
         status: { in: ["CONFIRMED", "PENDING"] },
+        startTime: { lt: windowEnd },
+        endTime: { gt: windowStart },
       },
       select: { startTime: true, endTime: true },
     });

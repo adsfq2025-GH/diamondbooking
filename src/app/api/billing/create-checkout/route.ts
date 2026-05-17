@@ -4,7 +4,11 @@ import { requireOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-02-24.acacia" });
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
+  return new Stripe(key);
+}
 
 const PLAN_PRICES: Record<string, { monthly?: string; yearly?: string }> = {
   STARTER:      { monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,      yearly: process.env.STRIPE_PRICE_STARTER_YEARLY },
@@ -22,15 +26,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const plan     = searchParams.get("plan") ?? "STARTER";
     const interval = searchParams.get("interval") ?? "monthly";
-    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
 
     const priceId = PLAN_PRICES[plan]?.[interval as "monthly" | "yearly"];
     if (!priceId) {
       return NextResponse.redirect(`${appUrl}/dashboard/billing?error=invalid_plan`);
     }
 
+    const stripe = getStripe();
+
     // Get or create Stripe customer
-    let subscription = await prisma.subscription.findUnique({ where: { userId: session.user.id } });
+    const subscription = await prisma.subscription.findUnique({ where: { userId: session.user.id } });
     let stripeCustomerId = subscription?.stripeCustomerId;
 
     if (!stripeCustomerId) {
@@ -41,9 +47,10 @@ export async function GET(req: NextRequest) {
         metadata: { userId: session.user.id },
       });
       stripeCustomerId = customer.id;
-      await prisma.subscription.update({
+      await prisma.subscription.upsert({
         where: { userId: session.user.id },
-        data:  { stripeCustomerId },
+        create: { userId: session.user.id, stripeCustomerId, plan: "FREE", status: "ACTIVE" },
+        update: { stripeCustomerId },
       });
     }
 
@@ -64,7 +71,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(checkoutSession.url!);
   } catch (err) {
     console.error("[create-checkout]", err);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
     return NextResponse.redirect(`${appUrl}/dashboard/billing?error=checkout_failed`);
   }
 }

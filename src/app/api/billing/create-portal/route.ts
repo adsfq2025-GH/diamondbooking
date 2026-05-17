@@ -4,7 +4,11 @@ import { requireOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-02-24.acacia" });
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
+  return new Stripe(key);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,12 +18,13 @@ export async function GET(req: NextRequest) {
 
     const session      = await requireOwner();
     const subscription = await prisma.subscription.findUnique({ where: { userId: session.user.id } });
-    const appUrl       = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl       = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
 
     if (!subscription?.stripeCustomerId) {
       return NextResponse.redirect(`${appUrl}/dashboard/billing`);
     }
 
+    const stripe = getStripe();
     const portal = await stripe.billingPortal.sessions.create({
       customer:   subscription.stripeCustomerId,
       return_url: `${appUrl}/dashboard/billing`,

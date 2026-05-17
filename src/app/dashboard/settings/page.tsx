@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { BusinessSettingsForm } from "@/components/dashboard/business-settings-form";
 import { BusinessHoursForm } from "@/components/dashboard/business-hours-form";
+import { WidgetAccessCard } from "@/components/dashboard/widget-access-card";
 
 export const metadata = { title: "Settings" };
 
@@ -37,6 +38,10 @@ export default async function SettingsPage() {
         <h3 className="text-base font-semibold font-heading mb-1">Booking Preferences</h3>
         <p className="text-sm text-muted-foreground mb-5">Configure how clients can book with you.</p>
         <BookingPrefsForm business={business} />
+      </div>
+
+      <div className="bg-card border border-border rounded-xl p-6">
+        <WidgetAccessCard slug={business.slug} />
       </div>
     </div>
   );
@@ -84,7 +89,7 @@ function BookingPrefsForm({ business }: { business: { id: string; advanceBooking
         <select name="autoConfirm" defaultValue={String(business.autoConfirm)}
           className="px-3 py-2 text-sm border border-border rounded-lg bg-background">
           <option value="true">Yes — confirm automatically</option>
-          <option value="false">No — I'll confirm manually</option>
+          <option value="false">No — I&apos;ll confirm manually</option>
         </select>
       </div>
 

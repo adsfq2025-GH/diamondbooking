@@ -7,6 +7,12 @@ import { z } from "zod";
 import { computeQuote } from "@/lib/pricing/engine";
 import { sendBookingConfirmation, sendNewBookingNotification } from "@/lib/email";
 import { Prisma } from "@prisma/client";
+import { isPromotionEligible, normalizePromoCode } from "@/lib/promotions/eligibility";
+import { getAutomationsConfig } from "@/lib/automations/config";
+import { scheduleRemindersForBooking } from "@/lib/automations/scheduler";
+import { buildBookingSms, sendSms } from "@/lib/sms";
+import { addDays } from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -20,19 +26,31 @@ const schema = z.object({
   customerEmail: z.string().email(),
   customerPhone: z.string().optional(),
   notes:         z.string().max(500).optional(),
-  intake:        z.record(z.unknown()).optional(),
+  intake: z.record(z.string(), z.unknown()).optional(),
   addOnKeys:     z.array(z.string()).optional(),
   isCommercial:  z.boolean().optional(),
   recurringInterval: z.string().optional(),
   promoCode:     z.string().trim().min(1).max(50).optional(),
 });
 
+function hash32(input: string) {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h | 0;
+}
+
 export async function POST(req: NextRequest, { params }: Params) {
   const { slug } = await params;
 
   const business = await prisma.business.findUnique({
     where: { slug, isActive: true },
-    include: { owner: { select: { email: true, subscription: { select: { plan: true, status: true } } } } },
+    include: {
+      businessHours: true,
+      owner: { select: { email: true, subscription: { select: { plan: true, status: true } } } },
+    },
   });
   if (!business) {
     return NextResponse.json({ success: false, error: "Business not found" }, { status: 404 });
@@ -56,7 +74,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const body   = await req.json();
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
+    return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
   const {
@@ -85,24 +103,59 @@ export async function POST(req: NextRequest, { params }: Params) {
   // Verify staff belongs to this business and can perform service
   const staff = await prisma.staff.findFirst({
     where: { id: staffId, businessId: business.id, isActive: true, services: { some: { serviceId } } },
+    include: { availability: true },
   });
   if (!staff) return NextResponse.json({ success: false, error: "Staff member not available" }, { status: 404 });
 
-  // Verify slot is still available (double-check against DB)
   const slotStart = new Date(startTime);
   const slotEnd   = new Date(endTime);
 
-  const conflict = await prisma.booking.findFirst({
-    where: {
-      staffId,
-      status: { in: ["CONFIRMED", "PENDING"] },
-      OR: [
-        { startTime: { lt: slotEnd },   endTime: { gt: slotStart } },
-      ],
-    },
-  });
-  if (conflict) {
-    return NextResponse.json({ success: false, error: "This time slot is no longer available" }, { status: 409 });
+  if (Number.isNaN(slotStart.getTime()) || Number.isNaN(slotEnd.getTime())) {
+    return NextResponse.json({ success: false, error: "Invalid time selection" }, { status: 400 });
+  }
+
+  const tz = business.timezone;
+  const [y, m, d] = date.split("-").map((x) => Number(x));
+  if (!y || !m || !d) return NextResponse.json({ success: false, error: "Invalid date" }, { status: 400 });
+  const dateLocal = new Date(y, m - 1, d, 0, 0, 0, 0);
+
+  const nowUtc = new Date();
+  const minBookingTime = new Date(nowUtc.getTime() + business.minimumNoticeHours * 60 * 60 * 1000);
+  if (slotStart < minBookingTime) {
+    return NextResponse.json({ success: false, error: "This time is too soon to book" }, { status: 400 });
+  }
+
+  const nowLocal = toZonedTime(nowUtc, tz);
+  const todayLocalMidnight = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate(), 0, 0, 0, 0);
+  const maxLocalDate = addDays(todayLocalMidnight, business.advanceBookingDays);
+  if (toZonedTime(fromZonedTime(dateLocal, tz), tz) > maxLocalDate) {
+    return NextResponse.json({ success: false, error: "This date is outside the booking window" }, { status: 400 });
+  }
+
+  const dayOfWeek = toZonedTime(fromZonedTime(dateLocal, tz), tz).getDay();
+  const staffAvail = staff.availability.find((a) => a.dayOfWeek === dayOfWeek);
+  const bizHours = business.businessHours.find((h) => h.dayOfWeek === dayOfWeek);
+  const dayHours = staffAvail ?? bizHours;
+  if (!dayHours || dayHours.isClosed) {
+    return NextResponse.json({ success: false, error: "Selected date is not available" }, { status: 400 });
+  }
+
+  const openUtc = fromZonedTime(
+    new Date(y, m - 1, d, Number(dayHours.openTime.split(":")[0] ?? 0), Number(dayHours.openTime.split(":")[1] ?? 0), 0, 0),
+    tz
+  );
+  const closeUtc = fromZonedTime(
+    new Date(y, m - 1, d, Number(dayHours.closeTime.split(":")[0] ?? 0), Number(dayHours.closeTime.split(":")[1] ?? 0), 0, 0),
+    tz
+  );
+
+  if (slotStart < openUtc || slotEnd > closeUtc) {
+    return NextResponse.json({ success: false, error: "Selected time is outside availability" }, { status: 400 });
+  }
+
+  const expectedMs = service.duration * 60_000;
+  if (slotEnd.getTime() - slotStart.getTime() !== expectedMs) {
+    return NextResponse.json({ success: false, error: "Invalid slot duration" }, { status: 400 });
   }
 
   // Upsert customer (unique per business+email)
@@ -126,28 +179,83 @@ export async function POST(req: NextRequest, { params }: Params) {
   ]);
 
   const now = new Date();
+  const normalizedPromoCode = normalizePromoCode(promoCode);
+  const customerType = (isCommercial ?? false) ? "commercial" : "residential";
+  const priorBookings = await prisma.booking.count({ where: { businessId: business.id, customerId: customer.id } });
+  const isNewCustomer = priorBookings === 0;
+  const isMember = !!activeMembership;
+
+  const baseSubtotal = computeQuote({
+    basePrice: Number(service.price),
+    currency: service.currency,
+    intake: intake ?? {},
+    addOnKeys: addOnKeys ?? [],
+    isCommercial: isCommercial ?? false,
+    recurringInterval: undefined,
+    promo: undefined,
+    membership: undefined,
+    config: config?.config ?? {},
+  }).subtotal;
+
   const promotion =
-    promoCode
+    normalizedPromoCode
       ? await prisma.promotion.findFirst({
           where: {
             businessId: business.id,
-            code: promoCode,
+            code: normalizedPromoCode,
             isActive: true,
             OR: [{ startsAt: null }, { startsAt: { lte: now } }],
             AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
           },
-          select: { id: true, type: true, percentOff: true, amountOff: true },
+          select: {
+            id: true,
+            type: true,
+            percentOff: true,
+            amountOff: true,
+            freeAddonKey: true,
+            appliesTo: true,
+            minSubtotal: true,
+            newCustomerOnly: true,
+            memberOnly: true,
+            stackable: true,
+            usageLimit: true,
+            usageCount: true,
+          },
         })
       : null;
 
+  const eligiblePromotion =
+    promotion &&
+    isPromotionEligible({
+      promotion: {
+        usageLimit: promotion.usageLimit,
+        usageCount: promotion.usageCount,
+        minSubtotal: promotion.minSubtotal ? Number(promotion.minSubtotal) : null,
+        newCustomerOnly: promotion.newCustomerOnly,
+        memberOnly: promotion.memberOnly,
+        appliesTo: promotion.appliesTo,
+      },
+      baseSubtotal,
+      serviceId,
+      addOnKeys: addOnKeys ?? [],
+      customerType,
+      isNewCustomer,
+      isMember,
+      hasCustomerContext: true,
+    })
+      ? promotion
+      : null;
+
   const promo =
-    promotion?.type === "PERCENT" || promotion?.type === "FIXED"
+    eligiblePromotion && (eligiblePromotion.type === "PERCENT" || eligiblePromotion.type === "FIXED")
       ? {
-          type: promotion.type,
-          percentOff: promotion.percentOff,
-          amountOff: promotion.amountOff ? Number(promotion.amountOff) : null,
+          type: eligiblePromotion.type,
+          percentOff: eligiblePromotion.percentOff,
+          amountOff: eligiblePromotion.amountOff ? Number(eligiblePromotion.amountOff) : null,
         }
-      : undefined;
+      : eligiblePromotion && eligiblePromotion.type === "FREE_ADDON"
+        ? { type: "FREE_ADDON" as const, freeAddonKey: eligiblePromotion.freeAddonKey ?? null }
+        : undefined;
 
   const quote = computeQuote({
     basePrice: Number(service.price),
@@ -155,57 +263,106 @@ export async function POST(req: NextRequest, { params }: Params) {
     intake: intake ?? {},
     addOnKeys: addOnKeys ?? [],
     isCommercial: isCommercial ?? false,
-    recurringInterval,
+    recurringInterval: normalizedPromoCode && eligiblePromotion && !eligiblePromotion.stackable ? undefined : recurringInterval,
     promo,
-    membership: activeMembership ? { discountPercent: activeMembership.membershipPlan.discountPercent } : undefined,
+    membership:
+      normalizedPromoCode && eligiblePromotion && !eligiblePromotion.stackable
+        ? undefined
+        : activeMembership
+          ? { discountPercent: activeMembership.membershipPlan.discountPercent }
+          : undefined,
     config: config?.config ?? {},
   });
 
   const intakeJson = (intake ?? {}) as Prisma.InputJsonValue;
 
-  const booking = await prisma.$transaction(async (tx) => {
-    const created = await tx.booking.create({
-      data: {
-        businessId: business.id,
-        serviceId,
-        staffId,
-        customerId: customer.id,
-        date: new Date(date),
-        startTime: slotStart,
-        endTime: slotEnd,
-        status: business.autoConfirm ? "CONFIRMED" : "PENDING",
-        notes: notes ?? null,
-        totalPrice: quote.total,
-        intakeData: intakeJson,
-        pricingData: quote,
-        promoCode: promoCode ?? null,
-        recurringInterval: recurringInterval ?? null,
-        isCommercial: isCommercial ?? false,
-        source: "booking_page",
-      },
-      include: {
-        service: { select: { name: true, duration: true } },
-        staff: { select: { name: true } },
-      },
-    });
+  type BookingWithRelations = Prisma.BookingGetPayload<{
+    include: {
+      service: { select: { name: true; duration: true } };
+      staff: { select: { name: true } };
+    };
+  }>;
 
-    if (promotion) {
-      await tx.promotion.update({
-        where: { id: promotion.id },
-        data: { usageCount: { increment: 1 } },
-      });
-      await tx.promotionRedemption.create({
-        data: {
-          promotionId: promotion.id,
+  let booking: BookingWithRelations;
+  try {
+    booking = await prisma.$transaction(async (tx) => {
+      const key1 = hash32(`${business.id}:${staffId}`);
+      const key2 = Math.floor(slotStart.getTime() / 60_000);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${key1}, ${key2})`;
+
+      const conflict = await tx.booking.findFirst({
+        where: {
           businessId: business.id,
+          staffId,
+          status: { in: ["CONFIRMED", "PENDING"] },
+          startTime: { lt: slotEnd },
+          endTime: { gt: slotStart },
+        },
+        select: { id: true },
+      });
+      if (conflict) {
+        throw new Error("SLOT_CONFLICT");
+      }
+
+      const created = await tx.booking.create({
+        data: {
+          businessId: business.id,
+          serviceId,
+          staffId,
           customerId: customer.id,
-          bookingId: created.id,
+          date: new Date(Date.UTC(slotStart.getUTCFullYear(), slotStart.getUTCMonth(), slotStart.getUTCDate())),
+          startTime: slotStart,
+          endTime: slotEnd,
+          status: business.autoConfirm ? "CONFIRMED" : "PENDING",
+          notes: notes ?? null,
+          totalPrice: quote.total,
+          intakeData: intakeJson,
+          pricingData: quote,
+          promoCode: normalizedPromoCode ?? null,
+          recurringInterval: recurringInterval ?? null,
+          isCommercial: isCommercial ?? false,
+          source: "booking_page",
+        },
+        include: {
+          service: { select: { name: true, duration: true } },
+          staff: { select: { name: true } },
         },
       });
-    }
 
-    return created;
-  });
+      if (eligiblePromotion) {
+        const where =
+          eligiblePromotion.usageLimit != null
+            ? { id: eligiblePromotion.id, usageCount: { lt: eligiblePromotion.usageLimit } }
+            : { id: eligiblePromotion.id };
+        const updated = await tx.promotion.updateMany({
+          where,
+          data: { usageCount: { increment: 1 } },
+        });
+        if (updated.count !== 1) {
+          throw new Error("PROMO_USAGE_LIMIT_REACHED");
+        }
+
+        await tx.promotionRedemption.create({
+          data: {
+            promotionId: eligiblePromotion.id,
+            businessId: business.id,
+            customerId: customer.id,
+            bookingId: created.id,
+          },
+        });
+      }
+
+      return created;
+    });
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === "SLOT_CONFLICT") {
+      return NextResponse.json({ success: false, error: "This time slot is no longer available" }, { status: 409 });
+    }
+    if (e instanceof Error && e.message === "PROMO_USAGE_LIMIT_REACHED") {
+      return NextResponse.json({ success: false, error: "Promotion usage limit reached" }, { status: 400 });
+    }
+    throw e;
+  }
 
   await createAuditLog({
     action: "BOOKING_CREATED",
@@ -215,18 +372,25 @@ export async function POST(req: NextRequest, { params }: Params) {
     metadata: { businessId: business.id, source: "booking_page" },
   });
 
+  const automations = getAutomationsConfig(config?.config ?? {});
+
+  const notifyEmailConfirmation = automations.notifications.email && automations.notifications.confirmation.email;
+  const notifySmsConfirmation = automations.notifications.sms && automations.notifications.confirmation.sms;
+
   await Promise.all([
-    sendBookingConfirmation({
-      customerName,
-      customerEmail,
-      businessName: business.name,
-      serviceName: booking.service.name,
-      staffName: booking.staff.name,
-      startTime: booking.startTime,
-      timezone: business.timezone,
-      bookingId: booking.id,
-      notes: booking.notes ?? undefined,
-    }),
+    notifyEmailConfirmation
+      ? sendBookingConfirmation({
+          customerName,
+          customerEmail,
+          businessName: business.name,
+          serviceName: booking.service.name,
+          staffName: booking.staff.name,
+          startTime: booking.startTime,
+          timezone: business.timezone,
+          bookingId: booking.id,
+          notes: booking.notes ?? undefined,
+        })
+      : Promise.resolve(),
     business.owner.email
       ? sendNewBookingNotification({
           customerName,
@@ -242,6 +406,29 @@ export async function POST(req: NextRequest, { params }: Params) {
         })
       : Promise.resolve(),
   ]);
+
+  if (notifySmsConfirmation && customerPhone) {
+    const bookingUrl = process.env.NEXT_PUBLIC_APP_URL
+      ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/book/${business.slug}`
+      : undefined;
+    const body = buildBookingSms({
+      type: "BOOKING_CONFIRMATION",
+      businessName: business.name,
+      serviceName: booking.service.name,
+      staffName: booking.staff.name,
+      startTime: booking.startTime,
+      timezone: business.timezone,
+      customerName,
+      bookingUrl,
+    });
+    try {
+      await sendSms({ to: customerPhone, body });
+    } catch (e) {
+      console.error("[sms] Confirmation failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  await scheduleRemindersForBooking({ bookingId: booking.id });
 
   return NextResponse.json({
     success: true,

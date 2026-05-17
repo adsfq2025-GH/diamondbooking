@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980">
+  <defs>
+    <style>
+      .bg { fill: #0b1020; }
+      .title { font: 700 28px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #ffffff; }
+      .subtitle { font: 500 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #b7c2ff; opacity: 0.95; }
+      .laneTitle { font: 700 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #dbe0ff; }
+      .lane { fill: #0f1733; stroke: #2b3a7a; stroke-width: 1.5; }
+      .card { fill: #111b3b; stroke: #3c53b5; stroke-width: 1.5; }
+      .card2 { fill: #101a33; stroke: #2f4294; stroke-width: 1.2; }
+      .cardTitle { font: 700 13px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #ffffff; }
+      .cardText { font: 500 12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #d2d8ff; }
+      .pill { fill: #1b2a66; stroke: #4662d6; stroke-width: 1; }
+      .pillText { font: 700 11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #e8ecff; }
+      .arrow { stroke: #9fb2ff; stroke-width: 2; fill: none; }
+      .arrowMuted { stroke: #5e72c9; stroke-width: 2; fill: none; opacity: 0.75; }
+      .arrowBold { stroke: #f7d36a; stroke-width: 3; fill: none; }
+      .note { font: 600 11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #f7d36a; }
+      .small { font: 500 11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #cdd5ff; opacity: 0.92; }
+    </style>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#9fb2ff"/>
+    </marker>
+    <marker id="arrowHeadBold" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#f7d36a"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="980"/>
+
+  <text class="title" x="40" y="52">Diamond Booking — Critical User Flows (Dev + Prod)</text>
+  <text class="subtitle" x="40" y="78">Registration → Onboarding → Public Booking → Notifications → Subscriptions → Webhooks → Automations</text>
+
+  <!-- Lanes -->
+  <g transform="translate(40,110)">
+    <rect class="lane" x="0" y="0" width="1520" height="120" rx="16"/>
+    <text class="laneTitle" x="18" y="28">Visitor / Owner</text>
+  </g>
+  <g transform="translate(40,250)">
+    <rect class="lane" x="0" y="0" width="1520" height="190" rx="16"/>
+    <text class="laneTitle" x="18" y="28">Next.js App (UI + Route Handlers)</text>
+  </g>
+  <g transform="translate(40,460)">
+    <rect class="lane" x="0" y="0" width="1520" height="140" rx="16"/>
+    <text class="laneTitle" x="18" y="28">Auth (NextAuth v5)</text>
+  </g>
+  <g transform="translate(40,620)">
+    <rect class="lane" x="0" y="0" width="1520" height="150" rx="16"/>
+    <text class="laneTitle" x="18" y="28">Database (Postgres via Prisma)</text>
+  </g>
+  <g transform="translate(40,790)">
+    <rect class="lane" x="0" y="0" width="1520" height="150" rx="16"/>
+    <text class="laneTitle" x="18" y="28">Stripe + Webhooks + Automations</text>
+  </g>
+
+  <!-- Cards: Visitor / Owner -->
+  <g transform="translate(90,140)">
+    <rect class="card" x="0" y="0" width="270" height="70" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Sign up / Sign in</text>
+    <text class="cardText" x="16" y="46">Owner creates account</text>
+  </g>
+  <g transform="translate(400,140)">
+    <rect class="card" x="0" y="0" width="270" height="70" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Complete onboarding</text>
+    <text class="cardText" x="16" y="46">Business + hours + config</text>
+  </g>
+  <g transform="translate(710,140)">
+    <rect class="card" x="0" y="0" width="270" height="70" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Share booking page</text>
+    <text class="cardText" x="16" y="46">/book/&lt;businessSlug&gt;</text>
+  </g>
+  <g transform="translate(1020,140)">
+    <rect class="card" x="0" y="0" width="270" height="70" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Client books online</text>
+    <text class="cardText" x="16" y="46">Select service → staff → slot</text>
+  </g>
+  <g transform="translate(1330,140)">
+    <rect class="card" x="0" y="0" width="180" height="70" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Owner upgrades</text>
+    <text class="cardText" x="16" y="46">Monthly / yearly</text>
+  </g>
+
+  <!-- Cards: Next.js App -->
+  <g transform="translate(90,290)">
+    <rect class="card2" x="0" y="0" width="270" height="120" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Auth pages</text>
+    <text class="cardText" x="16" y="46">/auth/register</text>
+    <text class="cardText" x="16" y="64">/auth/login</text>
+    <rect class="pill" x="16" y="78" width="140" height="26" rx="13"/>
+    <text class="pillText" x="26" y="96">Credentials / Google</text>
+  </g>
+  <g transform="translate(400,290)">
+    <rect class="card2" x="0" y="0" width="270" height="120" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Onboarding UI</text>
+    <text class="cardText" x="16" y="46">/onboarding</text>
+    <text class="cardText" x="16" y="64">Creates business + config</text>
+    <rect class="pill" x="16" y="78" width="190" height="26" rx="13"/>
+    <text class="pillText" x="26" y="96">POST /api/business/onboard</text>
+  </g>
+  <g transform="translate(710,290)">
+    <rect class="card2" x="0" y="0" width="270" height="120" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Public booking UI</text>
+    <text class="cardText" x="16" y="46">/book/[slug]</text>
+    <text class="cardText" x="16" y="64">Loads business + services</text>
+    <rect class="pill" x="16" y="78" width="230" height="26" rx="13"/>
+    <text class="pillText" x="26" y="96">GET /api/public/business/[slug]</text>
+  </g>
+  <g transform="translate(1020,290)">
+    <rect class="card2" x="0" y="0" width="270" height="120" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Availability + Booking APIs</text>
+    <text class="cardText" x="16" y="46">GET /api/public/availability/[slug]</text>
+    <text class="cardText" x="16" y="64">POST /api/public/book/[slug]</text>
+    <rect class="pill" x="16" y="78" width="210" height="26" rx="13"/>
+    <text class="pillText" x="26" y="96">Timezone + conflict safe</text>
+  </g>
+  <g transform="translate(1330,290)">
+    <rect class="card2" x="0" y="0" width="180" height="120" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Billing UI</text>
+    <text class="cardText" x="16" y="46">/dashboard/billing</text>
+    <text class="cardText" x="16" y="64">Monthly + yearly buttons</text>
+    <rect class="pill" x="16" y="78" width="150" height="26" rx="13"/>
+    <text class="pillText" x="26" y="96">GET /api/billing/*</text>
+  </g>
+
+  <!-- Cards: Auth -->
+  <g transform="translate(90,500)">
+    <rect class="card2" x="0" y="0" width="580" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">NextAuth v5 (JWT strategy)</text>
+    <text class="cardText" x="16" y="46">Session token includes: userId, role, businessId, businessSlug</text>
+    <text class="cardText" x="16" y="64">Guards: /dashboard (OWNER), /superadmin (SUPER_ADMIN)</text>
+  </g>
+  <g transform="translate(710,500)">
+    <rect class="card2" x="0" y="0" width="800" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Tenant isolation invariant</text>
+    <text class="cardText" x="16" y="46">All tenant queries must be scoped by businessId derived from session</text>
+    <text class="cardText" x="16" y="64">Never accept businessId from client payload</text>
+  </g>
+
+  <!-- Cards: DB -->
+  <g transform="translate(90,660)">
+    <rect class="card2" x="0" y="0" width="430" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Core records</text>
+    <text class="cardText" x="16" y="46">User, Business, BusinessHours, BusinessConfig</text>
+    <text class="cardText" x="16" y="64">Service, Staff, StaffService, Customer, Booking</text>
+  </g>
+  <g transform="translate(540,660)">
+    <rect class="card2" x="0" y="0" width="470" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Booking correctness</text>
+    <text class="cardText" x="16" y="46">Availability uses real overlap checks (UTC)</text>
+    <text class="cardText" x="16" y="64">Create uses advisory lock + in-tx conflict check</text>
+  </g>
+  <g transform="translate(1030,660)">
+    <rect class="card2" x="0" y="0" width="480" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Subscription + plan gating</text>
+    <text class="cardText" x="16" y="46">Subscription row stores plan + status + Stripe IDs</text>
+    <text class="cardText" x="16" y="64">Plan limits enforced on staff/services/bookings</text>
+  </g>
+
+  <!-- Cards: Stripe + Webhooks + Automations -->
+  <g transform="translate(90,830)">
+    <rect class="card2" x="0" y="0" width="470" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Stripe Checkout / Portal</text>
+    <text class="cardText" x="16" y="46">Checkout creates subscription (monthly/yearly)</text>
+    <text class="cardText" x="16" y="64">Portal manages payment + cancellations</text>
+  </g>
+  <g transform="translate(580,830)">
+    <rect class="card2" x="0" y="0" width="470" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Stripe Webhook (source of truth)</text>
+    <text class="cardText" x="16" y="46">Signature verified + idempotent events</text>
+    <text class="cardText" x="16" y="64">Updates Subscription plan/status/period</text>
+  </g>
+  <g transform="translate(1070,830)">
+    <rect class="card2" x="0" y="0" width="440" height="90" rx="14"/>
+    <text class="cardTitle" x="16" y="24">Automations (email/SMS reminders)</text>
+    <text class="cardText" x="16" y="46">Booking schedules reminders</text>
+    <text class="cardText" x="16" y="64">Cron triggers /api/automations/run</text>
+  </g>
+
+  <!-- Flow arrows (top lane) -->
+  <path class="arrowBold" d="M360 175 L400 175" marker-end="url(#arrowHeadBold)"/>
+  <path class="arrowBold" d="M670 175 L710 175" marker-end="url(#arrowHeadBold)"/>
+  <path class="arrowBold" d="M980 175 L1020 175" marker-end="url(#arrowHeadBold)"/>
+  <path class="arrowBold" d="M1290 175 L1330 175" marker-end="url(#arrowHeadBold)"/>
+
+  <!-- Cross-lane arrows: registration -->
+  <path class="arrow" d="M225 210 L225 290" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M225 410 L225 500" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M380 545 L520 705" marker-end="url(#arrowHead)"/>
+
+  <!-- Cross-lane arrows: onboarding -->
+  <path class="arrow" d="M535 210 L535 290" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M535 410 L535 660" marker-end="url(#arrowHead)"/>
+
+  <!-- Cross-lane arrows: public booking -->
+  <path class="arrow" d="M845 210 L845 290" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M845 410 L1160 660" marker-end="url(#arrowHead)"/>
+
+  <!-- Cross-lane arrows: availability + booking create -->
+  <path class="arrow" d="M1155 410 L1155 660" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M1155 750 L1155 830" marker-end="url(#arrowHead)"/>
+
+  <!-- Cross-lane arrows: billing -->
+  <path class="arrow" d="M1420 210 L1420 290" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M1420 410 L1420 660" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M1420 750 L325 830" marker-end="url(#arrowHead)"/>
+
+  <!-- Stripe -> webhook -> DB -->
+  <path class="arrow" d="M560 875 L580 875" marker-end="url(#arrowHead)"/>
+  <path class="arrow" d="M1050 875 L1030 705" marker-end="url(#arrowHead)"/>
+
+  <!-- Booking -> reminders -->
+  <path class="arrowMuted" d="M1010 705 L1210 830" marker-end="url(#arrowHead)"/>
+
+  <!-- Notes -->
+  <text class="note" x="90" y="948">Debugging tip:</text>
+  <text class="small" x="188" y="948">If bookings look wrong, trace: /api/public/availability → /api/public/book → DB bookings overlap checks → automations scheduler.</text>
+</svg>
+

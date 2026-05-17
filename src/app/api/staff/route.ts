@@ -59,20 +59,34 @@ export async function POST(req: NextRequest) {
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0]?.message },
+        { success: false, error: parsed.error.issues[0]?.message },
         { status: 400 }
       );
     }
 
     const { serviceIds, availability, email, ...data } = parsed.data;
+    const normalizedServiceIds = serviceIds?.length ? Array.from(new Set(serviceIds)) : [];
+
+    if (normalizedServiceIds.length) {
+      const services = await prisma.service.findMany({
+        where: { businessId: business.id, id: { in: normalizedServiceIds } },
+        select: { id: true },
+      });
+      if (services.length !== normalizedServiceIds.length) {
+        return NextResponse.json(
+          { success: false, error: "Invalid service selection" },
+          { status: 400 }
+        );
+      }
+    }
 
     const member = await prisma.staff.create({
       data: {
         ...data,
         email:      email || null,
         businessId: business.id,
-        ...(serviceIds?.length
-          ? { services: { create: serviceIds.map((sid) => ({ serviceId: sid })) } }
+        ...(normalizedServiceIds.length
+          ? { services: { create: normalizedServiceIds.map((sid) => ({ serviceId: sid })) } }
           : {}),
         ...(availability?.length
           ? { availability: { create: availability } }

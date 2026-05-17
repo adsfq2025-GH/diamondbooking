@@ -13,7 +13,7 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
 
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect("/auth/login?callbackUrl=%2Fdashboard");
   if (session.user.role === "SUPER_ADMIN") redirect("/superadmin");
 
   // Check maintenance mode

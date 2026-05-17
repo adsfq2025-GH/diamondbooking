@@ -97,7 +97,7 @@ const TESTIMONIALS = [
 
 const PLANS = [
   {
-    name: "Basic",
+    name: "Starter",
     price: 29,
     desc: "Perfect for small businesses starting with online booking",
     features: [
@@ -116,11 +116,11 @@ const PLANS = [
     featured: false,
   },
   {
-    name: "Pro",
-    price: 79,
+    name: "Professional",
+    price: 59,
     desc: "Advanced features for growing businesses",
     features: [
-      "Everything in Basic",
+      "Everything in Starter",
       "Group bookings & recurring bookings",
       "Appointment approval rules",
       "Buffer time settings",
@@ -136,11 +136,11 @@ const PLANS = [
     featured: true,
   },
   {
-    name: "Elite",
-    price: 199,
+    name: "Enterprise",
+    price: 119,
     desc: "Complete automation and advanced integrations",
     features: [
-      "Everything in Pro",
+      "Everything in Professional",
       "Zapier connector & API integrations",
       "WhatsApp booking bot",
       "Live booking bot",
@@ -427,7 +427,7 @@ export default function LandingPage() {
                 Choose Your Perfect Plan
               </h2>
               <p className="mt-2 text-sm text-primary/70">
-                Start with Basic and upgrade as your business grows.
+                Monthly or yearly billing available. Start with Starter and upgrade as your business grows.
               </p>
             </div>
 

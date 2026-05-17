@@ -114,7 +114,7 @@ export function DashboardSidebar({ business, user }: SidebarProps) {
             <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => signOut({ callbackUrl: "/auth/login" })}
             className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Sign out"
           >

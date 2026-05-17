@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { getUsageStats } from "@/lib/plan-limits";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +83,7 @@ export default async function BillingPage() {
             </div>
             {plan !== "ENTERPRISE" && (
               <Button asChild variant="gold" size="sm">
-                <Link href="/dashboard/billing/upgrade">
+                <Link href="#upgrade">
                   <Zap className="w-3.5 h-3.5 mr-1.5" /> Upgrade
                 </Link>
               </Button>
@@ -130,8 +130,8 @@ export default async function BillingPage() {
               <Link href="/api/billing/create-portal">Manage Payment Method</Link>
             </Button>
             {plan !== "FREE" && (
-              <Button variant="ghost" size="sm" className="text-muted-foreground">
-                Cancel Subscription
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                <Link href="/api/billing/create-portal">Cancel Subscription</Link>
               </Button>
             )}
           </div>
@@ -140,7 +140,7 @@ export default async function BillingPage() {
 
       {/* Upgrade options */}
       {UPGRADES.length > 0 && plan !== "ENTERPRISE" && (
-        <div>
+        <div id="upgrade">
           <h3 className="text-base font-semibold font-heading mb-4">Upgrade Your Plan</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {UPGRADES.map((u) => (
@@ -163,16 +163,23 @@ export default async function BillingPage() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  asChild
-                  className="w-full"
-                  variant={u.popular ? "gold" : "outline"}
-                  size="sm"
-                >
-                  <Link href={`/api/billing/create-checkout?plan=${u.plan}&interval=monthly`}>
-                    Upgrade to {u.name}
-                  </Link>
-                </Button>
+                <div className="grid gap-2">
+                  <Button
+                    asChild
+                    className="w-full"
+                    variant={u.popular ? "gold" : "outline"}
+                    size="sm"
+                  >
+                    <Link href={`/api/billing/create-checkout?plan=${u.plan}&interval=monthly`}>
+                      Upgrade Monthly
+                    </Link>
+                  </Button>
+                  <Button asChild className="w-full" variant="outline" size="sm">
+                    <Link href={`/api/billing/create-checkout?plan=${u.plan}&interval=yearly`}>
+                      Upgrade Yearly
+                    </Link>
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

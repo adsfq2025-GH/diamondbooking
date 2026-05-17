@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatCurrency, formatDateTime, formatTime, cn } from "@/lib/utils";
+import { formatCurrency, formatTime, cn } from "@/lib/utils";
 import { CalendarDays, Users, TrendingUp, DollarSign, Clock, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +80,11 @@ const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "destructi
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.businessId) redirect("/onboarding");
+
+  const business = await prisma.business.findUnique({
+    where: { id: session.user.businessId },
+    select: { slug: true },
+  });
 
   const { stats, upcomingBookings } = await getDashboardData(session.user.businessId);
 
@@ -178,19 +183,35 @@ export default async function DashboardPage() {
                 { label: "Create Booking", href: "/dashboard/bookings/new", desc: "Book an appointment manually" },
                 { label: "Add Service", href: "/dashboard/services/new", desc: "Create a new service offering" },
                 { label: "Add Staff", href: "/dashboard/staff/new", desc: "Invite a team member" },
-                { label: "View Booking Page", href: "#", desc: "See your public booking link", external: true },
+                { label: "View Booking Page", href: business?.slug ? `/book/${business.slug}` : "/dashboard/settings", desc: "See your public booking link", external: true },
               ].map((action) => (
-                <Link
-                  key={action.href}
-                  href={action.href}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary transition-colors group"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{action.label}</p>
-                    <p className="text-xs text-muted-foreground">{action.desc}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                </Link>
+                action.external ? (
+                  <a
+                    key={action.label}
+                    href={action.href}
+                    target={action.href.startsWith("/book/") ? "_blank" : undefined}
+                    rel={action.href.startsWith("/book/") ? "noopener noreferrer" : undefined}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary transition-colors group"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{action.label}</p>
+                      <p className="text-xs text-muted-foreground">{action.desc}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  </a>
+                ) : (
+                  <Link
+                    key={action.label}
+                    href={action.href}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary transition-colors group"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{action.label}</p>
+                      <p className="text-xs text-muted-foreground">{action.desc}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  </Link>
+                )
               ))}
             </CardContent>
           </Card>

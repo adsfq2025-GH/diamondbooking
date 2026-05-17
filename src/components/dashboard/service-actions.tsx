@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2, EyeOff, Eye } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 interface ServiceActionsProps {

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (!session.user.businessId) return NextResponse.json({ success: false, error: "Business not found" }, { status: 404 });
 
   const parsed = createSchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message }, { status: 400 });
 
   const plan = await prisma.membershipPlan.create({
     data: {

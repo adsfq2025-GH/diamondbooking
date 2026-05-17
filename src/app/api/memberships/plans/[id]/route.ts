@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
   const parsed = patchSchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message }, { status: 400 });
 
   const updated = await prisma.membershipPlan.update({
     where: { id, businessId: session.user.businessId },
