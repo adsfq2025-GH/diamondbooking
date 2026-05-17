@@ -23,10 +23,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
-      - name: Deploy to Vercel Staging
+     - name: Deploy to Vercel Production
         run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_STAGING }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PRODUCTION }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   deploy-production:
     if: github.ref == 'refs/heads/main'
     needs: test
@@ -39,3 +40,4 @@ jobs:
         run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PRODUCTION }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
