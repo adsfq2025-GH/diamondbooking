@@ -3,6 +3,14 @@
   "framework": "nextjs",
   "installCommand": "npm ci",
   "buildCommand": "npm run vercel-build",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "diamond-booking.com" }],
+      "destination": "https://www.diamond-booking.com/$1",
+      "permanent": true
+    }
+  ],
   "crons": [
     {
       "path": "/api/automations/run",

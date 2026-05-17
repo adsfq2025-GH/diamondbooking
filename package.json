@@ -12,6 +12,7 @@
     "vercel-build": "node scripts/vercel-build.mjs",
     "postinstall": "prisma generate",
     "lint": "eslint .",
+    "audit:links": "node scripts/audit-links.mjs",
     "test": "echo \"No tests yet\" && exit 0",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",

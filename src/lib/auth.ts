@@ -283,7 +283,20 @@ export const config: NextAuthConfig = {
     async redirect({ url, baseUrl }) {
       // Allow relative URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (new URL(url).origin === baseUrl) return url;
+      try {
+        const target = new URL(url);
+        const base = new URL(baseUrl);
+        if (target.origin === base.origin) return url;
+
+        const sameProdPair =
+          base.protocol === "https:" &&
+          target.protocol === "https:" &&
+          ((base.hostname === "diamond-booking.com" && target.hostname === "www.diamond-booking.com") ||
+            (base.hostname === "www.diamond-booking.com" && target.hostname === "diamond-booking.com"));
+        if (sameProdPair) return url;
+      } catch {
+        // fall through
+      }
       return baseUrl;
     },
   },
