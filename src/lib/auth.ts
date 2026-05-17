@@ -256,25 +256,27 @@ export const config: NextAuthConfig = {
 
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.id) {
-        const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + 14);
+        try {
+          const trialEnd = new Date();
+          trialEnd.setDate(trialEnd.getDate() + 14);
 
-        await prisma.subscription.upsert({
-          where: { userId: user.id },
-          update: {},
-          create: {
-            userId: user.id,
-            plan: "FREE",
-            status: "TRIALING",
-            trialStart: new Date(),
-            trialEnd,
-          },
-        });
+          await prisma.subscription.upsert({
+            where: { userId: user.id },
+            update: {},
+            create: {
+              userId: user.id,
+              plan: "FREE",
+              status: "TRIALING",
+              trialStart: new Date(),
+              trialEnd,
+            },
+          });
 
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        });
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+          });
+        } catch {}
       }
 
       return true;
