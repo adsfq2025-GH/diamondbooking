@@ -1,9 +1,8 @@
-name: Deploy Pipeline
+name: CI
 on:
   pull_request:
     branches: [main, staging]
-  push:
-    branches: [main, staging]
+  workflow_dispatch: {}
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -12,32 +11,6 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
-      - run: npm install
-      - run: npm run lint || true
+      - run: npm ci
+      - run: npm run lint
       - run: npm run test
-  deploy-staging:
-    if: github.ref == 'refs/heads/staging'
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-      - name: Deploy to Vercel Staging
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_STAGING }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  deploy-production:
-    if: github.ref == 'refs/heads/main'
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-      - name: Deploy to Vercel Production
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PRODUCTION }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
