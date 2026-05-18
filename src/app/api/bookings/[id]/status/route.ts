@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
+import { cancelScheduledNotifications, scheduleCancellationNotifications, scheduleFollowUpNotifications } from "@/lib/automations/scheduler";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,6 +39,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
       targetName: `${booking.customer.name} — ${booking.service.name}`,
       metadata: { oldStatus: booking.status, newStatus: status },
     });
+
+    if (status === "CANCELLED") {
+      await cancelScheduledNotifications({ bookingId: id });
+      await scheduleCancellationNotifications({ bookingId: id });
+    }
+    if (status === "COMPLETED") {
+      await scheduleFollowUpNotifications({ bookingId: id });
+    }
 
     return NextResponse.json({ success: true, data: updated });
   } catch {

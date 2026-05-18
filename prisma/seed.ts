@@ -22,6 +22,19 @@ async function main() {
     );
   }
 
+  const normalizedAdminEmail = adminEmail.toLowerCase();
+
+  const existingByEmail = await prisma.user.findUnique({
+    where: { email: normalizedAdminEmail },
+    select: { id: true, email: true, role: true },
+  });
+
+  if (existingByEmail && existingByEmail.role !== Role.SUPER_ADMIN) {
+    throw new Error(
+      `❌ SUPER_ADMIN_EMAIL (${normalizedAdminEmail}) already exists as role ${existingByEmail.role}. Use a dedicated admin email (recommended) or manually change the user's role to SUPER_ADMIN.`
+    );
+  }
+
   const existingAdmin = await prisma.user.findFirst({
     where: { role: Role.SUPER_ADMIN },
   });
@@ -32,7 +45,7 @@ async function main() {
     const hashedPassword = await bcrypt.hash(adminPassword, 12);
     const admin = await prisma.user.create({
       data: {
-        email: adminEmail,
+        email: normalizedAdminEmail,
         name: "Platform Admin",
         password: hashedPassword,
         role: Role.SUPER_ADMIN,
@@ -241,10 +254,11 @@ async function main() {
   }
 
   console.log("\n🎉 Seed completed successfully!");
-  console.log(`\n📌 Login at: ${process.env.NEXTAUTH_URL}/login`);
-  console.log(`   Email:    ${adminEmail}`);
+  const authBaseUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "";
+  console.log(`\n📌 Login at: ${authBaseUrl}/auth/login`);
+  console.log(`   Email:    ${normalizedAdminEmail}`);
   console.log(`   Password: [as set in SUPER_ADMIN_PASSWORD]`);
-  console.log(`   Redirect: /superadmin`);
+  console.log(`   Redirect after login: /superadmin (SUPER_ADMIN role only)`);
 }
 
 async function seedDemoData() {

@@ -8,7 +8,7 @@ import Image from "next/image";
 import {
   Building2, Clock, Scissors, Users, Palette,
   Code2, Check, Plus, Trash2, ChevronRight, ChevronDown,
-  Copy, CheckCheck, Sparkles, Package,
+  Copy, CheckCheck, Sparkles,
 } from "lucide-react";
 import {
   generateSlug,
@@ -17,6 +17,7 @@ import {
   DURATION_OPTIONS,
   TIMEZONE_OPTIONS,
 } from "@/lib/utils";
+import { PricingBuilder } from "@/components/dashboard/pricing-builder";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -26,13 +27,6 @@ interface Service {
   duration: number;
   price: string;
   color: string;
-}
-
-interface AddOn {
-  id: string;
-  name: string;
-  price: string;
-  extraMinutes: number;
 }
 
 interface DayAvail {
@@ -68,7 +62,7 @@ const STEPS = [
   { n: 1, label: "Business", icon: Building2 },
   { n: 2, label: "Hours",    icon: Clock },
   { n: 3, label: "Services", icon: Scissors },
-  { n: 4, label: "Add-ons",  icon: Package },
+  { n: 4, label: "Pricing",  icon: Sparkles },
   { n: 5, label: "Staff",    icon: Users },
   { n: 6, label: "Widget",   icon: Palette },
   { n: 7, label: "Go Live",  icon: Code2 },
@@ -201,9 +195,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     { id: "s1", name: "", duration: 60, price: "", color: SERVICE_COLORS[0] },
   ]);
 
-  // Step 4
-  const [addOns, setAddOns] = useState<AddOn[]>([]);
-
   // Step 5
   const [staff, setStaff]               = useState<StaffMember[]>([
     { id: "m1", name: "", email: "", availability: defaultAvail() },
@@ -303,22 +294,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       setStep(4);
     });
 
-  const submit4 = () =>
-    go(async () => {
-      const valid = addOns.filter((a) => a.name.trim());
-      if (valid.length) {
-        await Promise.all(
-          valid.map((a) =>
-            fetch("/api/services", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: a.name, duration: a.extraMinutes, price: parseFloat(a.price) || 0 }),
-            })
-          )
-        );
-      }
-      setStep(5);
-    });
+  const submit4 = () => setStep(5);
 
   const submit5 = () =>
     go(async () => {
@@ -385,9 +361,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const setServiceField = (id: string, k: keyof Service, v: string | number) =>
     setServices((p) => p.map((s) => (s.id === id ? { ...s, [k]: v } : s)));
 
-  const setAddOnField = (id: string, k: keyof AddOn, v: string | number) =>
-    setAddOns((p) => p.map((a) => (a.id === id ? { ...a, [k]: v } : a)));
-
   const setStaffField = (id: string, k: keyof Omit<StaffMember, "availability">, v: string) =>
     setStaff((p) => p.map((s) => (s.id === id ? { ...s, [k]: v } : s)));
 
@@ -423,7 +396,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
             priority
           />
         </div>
-        <p className="text-sm text-gray-500">Let's get your booking page live — takes about 3 minutes</p>
+        <p className="text-sm text-gray-500">Let&apos;s get your booking page live — takes about 3 minutes</p>
       </div>
 
       {/* Step indicator */}
@@ -693,92 +666,23 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
             </div>
           )}
 
-          {/* ────────────────────── STEP 4 — Add-ons ────────────────────── */}
+          {/* ────────────────────── STEP 4 — Pricing ────────────────────── */}
           {step === 4 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add-ons & upsells</h2>
+                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Pricing & intake</h2>
                 <p className="text-sm text-gray-500">
-                  Optional extras clients can tack onto any booking — treatments, products, upgrades.
+                  Customize your booking questions, add-ons, commercial pricing, and recurring discounts. This is what powers live pricing on the booking widget.
                 </p>
               </div>
 
-              <div className="space-y-3">
-                {addOns.length === 0 ? (
-                  <div className="text-center py-10 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500 mb-0.5">No add-ons yet</p>
-                    <p className="text-xs text-gray-400">
-                      Try: deep conditioning, scalp massage, express blowout, product bundles…
-                    </p>
-                  </div>
-                ) : (
-                  addOns.map((a) => (
-                    <div key={a.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50/40">
-                      <div className="space-y-2">
-                        <input
-                          className={inp}
-                          placeholder="Add-on name  (e.g. Deep Conditioning Treatment)"
-                          value={a.name}
-                          onChange={(e) => setAddOnField(a.id, "name", e.target.value)}
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Extra Time</label>
-                            <select
-                              className={inp + " appearance-none"}
-                              value={a.extraMinutes}
-                              onChange={(e) => setAddOnField(a.id, "extraMinutes", Number(e.target.value))}
-                            >
-                              {[0, 10, 15, 20, 30, 45, 60].map((m) => (
-                                <option key={m} value={m}>{m === 0 ? "No extra time" : `+${m} min`}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price</label>
-                            <div className="flex items-center gap-2">
-                              <div className="relative flex-1">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                                <input
-                                  className={inp + " pl-7"}
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  value={a.price}
-                                  onChange={(e) => setAddOnField(a.id, "price", e.target.value)}
-                                />
-                              </div>
-                              <button
-                                onClick={() => setAddOns((p) => p.filter((x) => x.id !== a.id))}
-                                className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                <button
-                  onClick={() =>
-                    setAddOns((p) => [...p, { id: `a${Date.now()}`, name: "", price: "", extraMinutes: 15 }])
-                  }
-                  className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#1a1f36]/30 hover:text-[#1a1f36] transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Add an add-on
-                </button>
-              </div>
+              <PricingBuilder />
 
               <NavRow
                 onBack={() => setStep(3)}
                 onNext={submit4}
                 loading={loading}
-                nextLabel={addOns.length === 0 ? "Skip — no add-ons" : "Continue"}
+                nextLabel="Continue"
               />
             </div>
           )}
@@ -788,7 +692,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add your team</h2>
-                <p className="text-sm text-gray-500">Set each person's name and their individual weekly availability</p>
+                <p className="text-sm text-gray-500">Set each person&apos;s name and their individual weekly availability</p>
               </div>
 
               <div className="space-y-3">
@@ -1166,7 +1070,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   <p className="text-xs font-bold text-blue-800">How to install</p>
                   <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
                     <li>Copy the code above</li>
-                    <li>Paste it into your website's HTML where you want the booking calendar to appear</li>
+                    <li>Paste it into your website&apos;s HTML where you want the booking calendar to appear</li>
                     <li>Works with Squarespace, WordPress, Wix, Webflow, or any custom site</li>
                     <li>The widget auto-loads with your brand colors and services</li>
                   </ol>
@@ -1179,11 +1083,9 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
                     `${services.filter((s) => s.name).length} service${services.filter((s) => s.name).length !== 1 ? "s" : ""}`,
-                    addOns.filter((a) => a.name).length > 0
-                      ? `${addOns.filter((a) => a.name).length} add-on${addOns.filter((a) => a.name).length !== 1 ? "s" : ""}`
-                      : null,
                     `${staff.filter((s) => s.name).length || 1} team member${(staff.filter((s) => s.name).length || 1) !== 1 ? "s" : ""}`,
                     "Weekly schedule",
+                    "Live pricing & intake rules",
                     "Custom widget style",
                     "Embeddable booking calendar",
                     "Public booking page",

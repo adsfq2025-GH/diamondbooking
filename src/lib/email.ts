@@ -166,6 +166,30 @@ export async function sendBookingReminder(data: BookingEmailData) {
   }
 }
 
+export async function sendFollowUpEmail(data: BookingEmailData) {
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: data.customerEmail,
+      subject: `Thanks for visiting ${data.businessName}`,
+      html: `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:40px 20px;background:#f5f5f5;font-family:Arial,sans-serif">
+  <div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:32px">
+    <p style="margin:0 0 16px;font-size:20px;font-weight:700;color:#1a1f36">Thanks, ${data.customerName}</p>
+    <p style="font-size:14px;color:#555">We hope you enjoyed your ${data.serviceName} with ${data.businessName}.</p>
+    <p style="font-size:14px;color:#555">If you have feedback or need anything else, just reply to this email.</p>
+    <p style="margin:24px 0 0;font-size:12px;color:#bbb">Sent via Diamond Booking</p>
+  </div>
+</body>
+</html>`,
+    });
+  } catch (err) {
+    console.error("[email] Follow-up failed:", err);
+  }
+}
+
 // ── Email: Booking cancellation ───────────────────────────────────────────────
 
 export async function sendCancellationEmail(data: BookingEmailData) {

@@ -1,4 +1,5 @@
 import { BusinessConfigEditor } from "@/components/dashboard/business-config-editor";
+import { PricingBuilder } from "@/components/dashboard/pricing-builder";
 
 export const metadata = { title: "Pricing & Intake" };
 export const dynamic = "force-dynamic";
@@ -12,8 +13,8 @@ export default function PricingPage() {
           Configure live pricing and customer-facing booking fields.
         </p>
       </div>
+      <PricingBuilder />
       <BusinessConfigEditor />
     </div>
   );
 }
-

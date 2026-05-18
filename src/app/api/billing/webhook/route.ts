@@ -3,8 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
+import { Prisma } from "@prisma/client";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-02-24.acacia" });
+type StripeSubscription = Stripe.Subscription & {
+  current_period_start: number;
+  current_period_end: number;
+};
+
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
+  return new Stripe(key);
+}
 
 function buildStripePlanMap(): Record<string, string> {
   const entries: Array<[string | undefined, string]> = [
@@ -19,24 +29,92 @@ function buildStripePlanMap(): Record<string, string> {
   return Object.fromEntries(entries.filter(([k]) => !!k) as Array<[string, string]>);
 }
 
+function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status) {
+  switch (status) {
+    case "active":
+      return "ACTIVE";
+    case "trialing":
+      return "TRIALING";
+    case "past_due":
+      return "PAST_DUE";
+    case "canceled":
+      return "CANCELLED";
+    case "unpaid":
+      return "UNPAID";
+    case "incomplete":
+      return "INCOMPLETE";
+    case "incomplete_expired":
+      return "INCOMPLETE_EXPIRED";
+    case "paused":
+      return "PAUSED";
+    default:
+      return null;
+  }
+}
+
+async function getUserIdFromStripeCustomer(stripe: Stripe, customerId: string) {
+  const customer = await stripe.customers.retrieve(customerId);
+  if ("deleted" in customer && customer.deleted) return null;
+  return customer.metadata?.userId ?? null;
+}
+
+function getStripeSubscriptionPlan(stripeSub: Stripe.Subscription, STRIPE_PLAN_MAP: Record<string, string>) {
+  const priceId = stripeSub.items.data[0]?.price.id;
+  return priceId ? STRIPE_PLAN_MAP[priceId] ?? null : null;
+}
+
+async function runIdempotentWebhookEvent<T>(
+  event: Stripe.Event,
+  work: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T | null> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.stripeWebhookEvent.create({
+        data: {
+          stripeEventId: event.id,
+          type: event.type,
+          livemode: event.livemode,
+          stripeCreated: new Date(event.created * 1000),
+        },
+      });
+      return await work(tx);
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const target = (err.meta as { target?: string[] | string } | undefined)?.target;
+      const isStripeEventId =
+        (Array.isArray(target) && target.includes("stripeEventId")) ||
+        target === "stripeEventId";
+      if (isStripeEventId) return null;
+    }
+    throw err;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body      = await req.text();
   const signature = req.headers.get("stripe-signature");
   const STRIPE_PLAN_MAP = buildStripePlanMap();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!signature) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
+  if (!webhookSecret) {
+    return NextResponse.json({ error: "Missing webhook secret" }, { status: 500 });
+  }
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!);
+    const stripe = getStripe();
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     console.error("[webhook] Signature verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   try {
+    const stripe = getStripe();
     switch (event.type) {
 
       // ── Checkout completed → activate subscription ──────────────────────
@@ -50,51 +128,123 @@ export async function POST(req: NextRequest) {
 
         if (!userId) { console.error("[webhook] No userId in checkout session"); break; }
 
-        const stripeSub = await stripe.subscriptions.retrieve(session.subscription as string);
-        const priceId   = stripeSub.items.data[0]?.price.id;
-        const plan      = STRIPE_PLAN_MAP[priceId] ?? "STARTER";
+        const stripeSub = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        ) as unknown as StripeSubscription;
+        const plan = getStripeSubscriptionPlan(stripeSub, STRIPE_PLAN_MAP) ?? "STARTER";
+        const status = mapStripeSubscriptionStatus(stripeSub.status) ?? "ACTIVE";
 
-        await prisma.subscription.update({
-          where: { userId },
-          data: {
-            stripeSubscriptionId: stripeSub.id,
-            stripeCustomerId:     session.customer as string,
-            plan:                 plan as never,
-            status:               "ACTIVE",
-            currentPeriodStart:   new Date(stripeSub.current_period_start * 1000),
-            currentPeriodEnd:     new Date(stripeSub.current_period_end   * 1000),
-            cancelAtPeriodEnd:    stripeSub.cancel_at_period_end,
-          },
+        const subscription = await runIdempotentWebhookEvent(event, async (tx) => {
+          return await tx.subscription.upsert({
+            where: { userId },
+            create: {
+              userId,
+              stripeSubscriptionId: stripeSub.id,
+              stripeCustomerId: session.customer as string,
+              plan: plan as never,
+              status: status as never,
+              currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+              currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+              cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+              trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+              trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+              cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+            },
+            update: {
+              stripeSubscriptionId: stripeSub.id,
+              stripeCustomerId: session.customer as string,
+              plan: plan as never,
+              status: status as never,
+              currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+              currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+              cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+              trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+              trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+              cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+            },
+          });
         });
+        if (!subscription) return NextResponse.json({ received: true });
 
         await createAuditLog({
+          userId,
           action: "SUBSCRIPTION_CREATED",
           targetType: "Subscription",
-          targetId: userId,
+          targetId: subscription.id,
           metadata: { plan, stripeSubscriptionId: stripeSub.id },
         });
         break;
       }
 
-      // ── Invoice paid → renew period ────────────────────────────────────
-      case "invoice.paid": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subId   = invoice.subscription as string;
-        if (!subId) break;
+      // ── Invoice paid/succeeded → renew period ──────────────────────────
+      case "invoice.paid":
+      case "invoice.payment_succeeded": {
+         const invoice = event.data.object as Stripe.Invoice;
+         const subId =
+           invoice.parent?.type === "subscription_details"
+             ? (invoice.parent.subscription_details?.subscription as string)
+             : null;
+         if (!subId) break;
 
-        const stripeSub = await stripe.subscriptions.retrieve(subId);
-        const sub       = await prisma.subscription.findFirst({ where: { stripeSubscriptionId: subId } });
-        if (!sub) break;
+        const stripeSub = await stripe.subscriptions.retrieve(
+          subId
+        ) as unknown as StripeSubscription;
+        const status = mapStripeSubscriptionStatus(stripeSub.status) ?? "ACTIVE";
+        const plan = getStripeSubscriptionPlan(stripeSub, STRIPE_PLAN_MAP);
+        const customerId = stripeSub.customer as string;
+        const userId = await getUserIdFromStripeCustomer(stripe, customerId);
 
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            status:             "ACTIVE",
-            currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
-            currentPeriodEnd:   new Date(stripeSub.current_period_end   * 1000),
-            cancelAtPeriodEnd:  stripeSub.cancel_at_period_end,
-          },
+        const result = await runIdempotentWebhookEvent(event, async (tx) => {
+          let sub = await tx.subscription.findFirst({ where: { stripeSubscriptionId: subId } });
+          if (!sub) {
+            if (!userId) return null;
+            sub = await tx.subscription.upsert({
+              where: { userId },
+              create: {
+                userId,
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: stripeSub.id,
+                plan: (plan ?? "STARTER") as never,
+                status: status as never,
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+              update: {
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: stripeSub.id,
+                ...(plan ? { plan: plan as never } : {}),
+                status: status as never,
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+            });
+          } else {
+            await tx.subscription.update({
+              where: { id: sub.id },
+              data: {
+                ...(plan ? { plan: plan as never } : {}),
+                status: status as never,
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+            });
+          }
+          return sub;
         });
+        if (!result) return NextResponse.json({ received: true });
+        const sub = result;
 
         await createAuditLog({
           action: "PAYMENT_SUCCEEDED",
@@ -108,16 +258,71 @@ export async function POST(req: NextRequest) {
       // ── Invoice payment failed → mark past_due ─────────────────────────
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subId   = invoice.subscription as string;
+        const subId =
+          invoice.parent?.type === "subscription_details"
+            ? (invoice.parent.subscription_details?.subscription as string)
+            : null;
         if (!subId) break;
 
-        const sub = await prisma.subscription.findFirst({ where: { stripeSubscriptionId: subId } });
-        if (!sub) break;
+        const stripeSub = await stripe.subscriptions.retrieve(
+          subId
+        ) as unknown as StripeSubscription;                                     
+        const status = mapStripeSubscriptionStatus(stripeSub.status) ?? "PAST_DUE";
+        const plan = getStripeSubscriptionPlan(stripeSub, STRIPE_PLAN_MAP);
+        const customerId = stripeSub.customer as string;
+        const userId = await getUserIdFromStripeCustomer(stripe, customerId);
 
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { status: "PAST_DUE" },
+        const result = await runIdempotentWebhookEvent(event, async (tx) => {
+          let sub = await tx.subscription.findFirst({ where: { stripeSubscriptionId: subId } });
+          if (!sub) {
+            if (!userId) return null;
+            sub = await tx.subscription.upsert({
+              where: { userId },
+              create: {
+                userId,
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: stripeSub.id,
+                plan: (plan ?? "STARTER") as never,
+                status: status as never,
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+              update: {
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: stripeSub.id,
+                ...(plan ? { plan: plan as never } : {}),
+                status: status as never,
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+            });
+          } else {
+            await tx.subscription.update({
+              where: { id: sub.id },
+              data: {
+                ...(plan ? { plan: plan as never } : {}),
+                status: status as never,
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+            });
+          }
+          return sub;
         });
+        if (!result) return NextResponse.json({ received: true });
+        const sub = result;
 
         await createAuditLog({
           action: "PAYMENT_FAILED",
@@ -130,48 +335,114 @@ export async function POST(req: NextRequest) {
 
       // ── Subscription updated (plan change, cancel, etc.) ──────────────
       case "customer.subscription.updated": {
-        const stripeSub = event.data.object as Stripe.Subscription;
-        const sub       = await prisma.subscription.findFirst({ where: { stripeSubscriptionId: stripeSub.id } });
-        if (!sub) break;
+        const stripeSub = event.data.object as StripeSubscription;
+        const status = mapStripeSubscriptionStatus(stripeSub.status);
+        const plan = getStripeSubscriptionPlan(stripeSub, STRIPE_PLAN_MAP);
+        const customerId = stripeSub.customer as string;
+        const userId = await getUserIdFromStripeCustomer(stripe, customerId);
 
-        const priceId = stripeSub.items.data[0]?.price.id;
-        const plan    = STRIPE_PLAN_MAP[priceId] ?? sub.plan;
+        const result = await runIdempotentWebhookEvent(event, async (tx) => {
+          let sub = await tx.subscription.findFirst({ where: { stripeSubscriptionId: stripeSub.id } });
+          if (!sub) {
+            if (!userId) return null;
+            sub = await tx.subscription.upsert({
+              where: { userId },
+              create: {
+                userId,
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: stripeSub.id,
+                plan: (plan ?? "STARTER") as never,
+                status: (status ?? "ACTIVE") as never,
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+              update: {
+                stripeCustomerId: customerId,
+                ...(plan ? { plan: plan as never } : {}),
+                ...(status ? { status: status as never } : {}),
+                currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+                cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+              },
+            });
+          }
 
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            plan:               plan as never,
-            status:             stripeSub.status.toUpperCase() as never,
-            currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
-            currentPeriodEnd:   new Date(stripeSub.current_period_end   * 1000),
-            cancelAtPeriodEnd:  stripeSub.cancel_at_period_end,
-            cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
-          },
+          await tx.subscription.update({
+            where: { id: sub.id },
+            data: {
+              ...(plan ? { plan: plan as never } : {}),
+              ...(status ? { status: status as never } : {}),
+              currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+              currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+              cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+              cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+            },
+          });
+          return sub;
         });
+        if (!result) return NextResponse.json({ received: true });
+        const sub = result;
 
         await createAuditLog({
           action: "SUBSCRIPTION_PLAN_CHANGED",
           targetType: "Subscription",
           targetId: sub.id,
-          metadata: { plan, status: stripeSub.status },
+          metadata: { plan: plan ?? sub.plan, status: stripeSub.status },
         });
         break;
       }
 
       // ── Subscription deleted (hard cancel) ─────────────────────────────
       case "customer.subscription.deleted": {
-        const stripeSub = event.data.object as Stripe.Subscription;
-        const sub       = await prisma.subscription.findFirst({ where: { stripeSubscriptionId: stripeSub.id } });
-        if (!sub) break;
+        const stripeSub = event.data.object as StripeSubscription;
+        const customerId = stripeSub.customer as string;
+        const userId = await getUserIdFromStripeCustomer(stripe, customerId);
+        const result = await runIdempotentWebhookEvent(event, async (tx) => {
+          let sub = await tx.subscription.findFirst({ where: { stripeSubscriptionId: stripeSub.id } });
+          if (!sub) {
+            if (!userId) return null;
+            sub = await tx.subscription.upsert({
+              where: { userId },
+              create: {
+                userId,
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: stripeSub.id,
+                plan: "FREE",
+                status: "CANCELLED",
+                cancelledAt: new Date(),
+                cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+                currentPeriodStart: stripeSub.current_period_start
+                  ? new Date(stripeSub.current_period_start * 1000)
+                  : null,
+                currentPeriodEnd: stripeSub.current_period_end
+                  ? new Date(stripeSub.current_period_end * 1000)
+                  : null,
+                trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+                trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+              },
+              update: {},
+            });
+          }
 
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            status:      "CANCELLED",
-            cancelledAt: new Date(),
-            plan:        "FREE",
-          },
+          await tx.subscription.update({
+            where: { id: sub.id },
+            data: {
+              status: "CANCELLED",
+              cancelledAt: new Date(),
+              plan: "FREE",
+            },
+          });
+          return sub;
         });
+        if (!result) return NextResponse.json({ received: true });
+        const sub = result;
 
         await createAuditLog({
           action: "SUBSCRIPTION_CANCELLED",

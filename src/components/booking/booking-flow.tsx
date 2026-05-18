@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronRight, Clock, DollarSign, User, ChevronLeft, Check, Calendar, CheckCircle2 } from "lucide-react";
 import { formatTimeDisplay } from "@/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -730,7 +731,7 @@ export function BookingFlow({ business, services, config }: { business: Business
               style={{ background: `${primary}18` }}>
               <CheckCircle2 className="w-10 h-10" style={{ color: primary }} />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">You're all booked!</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">You&apos;re all booked!</h2>
             <p className="text-gray-500 mb-6">
               A confirmation has been sent to <strong>{sel.email}</strong>
             </p>
@@ -771,7 +772,7 @@ export function BookingFlow({ business, services, config }: { business: Business
       {/* ── Powered by ─────────────────────────────────────────────────── */}
       <div className="text-center pb-8">
         <p className="text-xs text-gray-400">
-          Powered by <a href="/" className="font-semibold hover:underline">Diamond Booking</a>
+          Powered by <Link href="/" className="font-semibold hover:underline">Diamond Booking</Link>
         </p>
       </div>
     </div>

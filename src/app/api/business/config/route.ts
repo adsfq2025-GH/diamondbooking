@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest) {
 
   const parsed = updateSchema.safeParse(await req.json());
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
+    return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
   if (parsed.data.config === null || typeof parsed.data.config !== "object") {

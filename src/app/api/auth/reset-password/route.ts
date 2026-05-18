@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0]?.message ?? "Invalid input" },
-        { status: 400 }
-      );
+         { success: false, error: parsed.error.issues[0]?.message ?? "Invalid input" },
+         { status: 400 }
+);
     }
 
     const tokenHash = sha256Hex(parsed.data.token);

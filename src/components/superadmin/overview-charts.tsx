@@ -60,8 +60,8 @@ export function OverviewCharts({ revenueData, signupData, planDistribution }: Ov
             />
             <Tooltip
               contentStyle={darkTooltipStyle}
-              formatter={(v: number) => [formatCurrency(v), "MRR"]}
-              labelFormatter={shortMonth}
+              formatter={(v) => [formatCurrency(Number(v ?? 0)), "MRR"]}
+              labelFormatter={(m) => shortMonth(String(m ?? ""))}
             />
             <Line
               type="monotone"
@@ -99,10 +99,10 @@ export function OverviewCharts({ revenueData, signupData, planDistribution }: Ov
             </Pie>
             <Tooltip
               contentStyle={darkTooltipStyle}
-              formatter={(v: number, _: string, props: { payload?: { plan?: string } }) => [
-                `${v} (${props.payload?.plan ?? ""})`,
-                "Subscribers",
-              ]}
+              formatter={(v, _, props) => [
+  `${Number(v ?? 0)} (${(props as { payload?: { plan?: string } }).payload?.plan ?? ""})`,
+  "Subscribers",
+]}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -147,8 +147,8 @@ export function OverviewCharts({ revenueData, signupData, planDistribution }: Ov
             />
             <Tooltip
               contentStyle={darkTooltipStyle}
-              formatter={(v: number) => [v, "New businesses"]}
-              labelFormatter={shortMonth}
+              formatter={(v) => [Number(v ?? 0), "New businesses"]}
+             labelFormatter={(m) => shortMonth(String(m ?? ""))}
             />
             <Bar dataKey="signups" fill="#1a5fa8" radius={[4, 4, 0, 0]} />
           </BarChart>

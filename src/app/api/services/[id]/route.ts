@@ -16,6 +16,7 @@ const updateSchema = z
     color: z.string().optional(),
     isActive: z.boolean().optional(),
     sortOrder: z.number().int().min(0).max(1000).optional(),
+    staffIds: z.array(z.string()).optional(),
   })
   .strict();
 
@@ -27,7 +28,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0]?.message ?? "Invalid input" },
+        { success: false, error: parsed.error.issues[0]?.message ?? "Invalid input" },
         { status: 400 }
       );
     }
@@ -38,13 +39,42 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
     if (!business) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
-    const result = await prisma.service.updateMany({
-      where: { id, businessId: business.id },
-      data: parsed.data,
-    });
-    if (result.count === 0) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    const { staffIds, ...serviceData } = parsed.data;
+    const normalizedStaffIds = staffIds ? Array.from(new Set(staffIds)) : undefined;
 
-    const updated = await prisma.service.findUnique({ where: { id } });
+    if (normalizedStaffIds) {
+      const staff = await prisma.staff.findMany({
+        where: { businessId: business.id, id: { in: normalizedStaffIds } },
+        select: { id: true },
+      });
+      if (staff.length !== normalizedStaffIds.length) {
+        return NextResponse.json({ success: false, error: "Invalid staff selection" }, { status: 400 });
+      }
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.service.updateMany({
+        where: { id, businessId: business.id },
+        data: serviceData,
+      });
+      if (result.count === 0) return null;
+
+      if (normalizedStaffIds) {
+        await tx.staffService.deleteMany({ where: { serviceId: id } });
+        if (normalizedStaffIds.length) {
+          await tx.staffService.createMany({
+            data: normalizedStaffIds.map((staffId) => ({ staffId, serviceId: id })),
+          });
+        }
+      }
+
+      return await tx.service.findUnique({
+        where: { id },
+        include: { staff: { include: { staff: { select: { id: true, name: true } } } } },
+      });
+    });
+
+    if (!updated) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     return NextResponse.json({ success: true, data: updated });
   } catch {
     return NextResponse.json({ success: false, error: "Failed" }, { status: 500 });

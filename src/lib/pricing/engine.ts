@@ -17,7 +17,7 @@ const configSchema = z.object({
         pricing: z
           .union([
             z.object({ type: z.literal("perUnit"), unitPrice: z.number() }),
-            z.object({ type: z.literal("choicePrice"), prices: z.record(z.number()) }),
+            z.object({ type: z.literal("choicePrice"), prices: z.record(z.string(), z.number()) }),
           ])
           .optional(),
       })
@@ -45,7 +45,12 @@ export type PricingQuoteInput = {
   addOnKeys: string[];
   isCommercial: boolean;
   recurringInterval?: string;
-  promo?: { type: "PERCENT" | "FIXED"; percentOff?: number | null; amountOff?: number | null };
+  promo?: {
+    type: "PERCENT" | "FIXED" | "FREE_ADDON";
+    percentOff?: number | null;
+    amountOff?: number | null;
+    freeAddonKey?: string | null;
+  };
   membership?: { discountPercent?: number | null };
   config: unknown;
 };
@@ -139,6 +144,18 @@ export function computeQuote(input: PricingQuoteInput): PricingQuote {
       discounts = money(discounts + d);
       breakdown.push({ label: "Promo discount", amount: -d });
     }
+    if (input.promo.type === "FREE_ADDON" && input.promo.freeAddonKey) {
+      const key = input.promo.freeAddonKey;
+      const selected = new Set(input.addOnKeys ?? []);
+      if (selected.has(key)) {
+        const addOn = config.addOns.find((a) => a.key === key);
+        if (addOn) {
+          const d = money(Math.min(subtotal, addOn.price));
+          discounts = money(discounts + d);
+          breakdown.push({ label: `Promo discount (free ${addOn.name})`, amount: -d });
+        }
+      }
+    }
   }
 
   const total = money(Math.max(0, subtotal - discounts));
@@ -151,4 +168,3 @@ export function computeQuote(input: PricingQuoteInput): PricingQuote {
     breakdown,
   };
 }
-

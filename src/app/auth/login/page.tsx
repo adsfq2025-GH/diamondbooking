@@ -1,6 +1,4 @@
 // src/app/auth/login/page.tsx
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
 import { AuthShell } from "@/components/auth/auth-shell";
 import Link from "next/link";
@@ -12,11 +10,26 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
-  const session = await auth();
   const params = await searchParams;
 
-  if (session?.user) {
-    redirect(session.user.role === "SUPER_ADMIN" ? "/superadmin" : "/dashboard");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const authUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
+  const googleEnabled = process.env.GOOGLE_OAUTH_ENABLED === "true";
+  let configWarning: string | undefined;
+  try {
+    if (googleEnabled) {
+      if (!authUrl) {
+        configWarning = "Google sign-in needs NEXTAUTH_URL set to https://www.diamond-booking.com in Vercel env.";
+      } else if (authUrl.includes("localhost")) {
+        configWarning = "Google sign-in is misconfigured (NEXTAUTH_URL is set to localhost). Set NEXTAUTH_URL to https://www.diamond-booking.com in Vercel env.";
+      } else if (appUrl && new URL(appUrl).origin !== new URL(authUrl).origin) {
+        configWarning = "Google sign-in is misconfigured (NEXTAUTH_URL and NEXT_PUBLIC_APP_URL must match the same domain in Vercel env).";
+      }
+    }
+  } catch {
+    if (googleEnabled) {
+      configWarning = "Google sign-in is misconfigured (invalid NEXTAUTH_URL/NEXT_PUBLIC_APP_URL).";
+    }
   }
 
   return (
@@ -32,7 +45,7 @@ export default async function LoginPage({
         </>
       }
     >
-      <LoginForm callbackUrl={params.callbackUrl} error={params.error} />
+      <LoginForm callbackUrl={params.callbackUrl} error={params.error} configWarning={configWarning} />
     </AuthShell>
   );
 }

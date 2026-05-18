@@ -10,6 +10,9 @@ declare module "next-auth" {
     role?: Role;
     businessId?: string;
     businessSlug?: string;
+    staffId?: string;
+    customerId?: string;
+    portalBusinessId?: string;
   }
 
   interface Session {
@@ -21,6 +24,9 @@ declare module "next-auth" {
       role: Role;
       businessId?: string;
       businessSlug?: string;
+      staffId?: string;
+      customerId?: string;
+      portalBusinessId?: string;
       isImpersonating?: boolean;
       originalAdminId?: string;
     };
@@ -30,9 +36,13 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
+    email?: string;
     role?: Role;
     businessId?: string;
     businessSlug?: string;
+    staffId?: string;
+    customerId?: string;
+    portalBusinessId?: string;
     isImpersonating?: boolean;
     originalAdminId?: string;
   }

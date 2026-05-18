@@ -1,0 +1,384 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2300" viewBox="0 0 1600 2300">
+  <defs>
+    <style>
+      .bg { fill: #070a14; }
+      .grid { stroke: #101635; stroke-width: 1; opacity: 0.55; }
+      .title { font: 900 34px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #ffffff; letter-spacing: 0.6px; }
+      .subtitle { font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #a8b6ff; opacity: 0.95; }
+      .chip { fill: #0c1330; stroke: #3e56d8; stroke-width: 1.2; }
+      .chipText { font: 800 11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #e8edff; letter-spacing: 0.4px; }
+      .section { fill: #0a1030; stroke: #2b3aa0; stroke-width: 1.6; }
+      .sectionTitle { font: 900 18px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #ffffff; }
+      .sectionSub { font: 600 12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #a8b6ff; opacity: 0.95; }
+      .card { fill: #0d1540; stroke: #4962ff; stroke-width: 1.6; }
+      .card2 { fill: #0b1334; stroke: #2d3d9c; stroke-width: 1.3; }
+      .cardTitle { font: 900 13px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #ffffff; }
+      .cardText { font: 600 12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #d7deff; opacity: 0.96; }
+      .small { font: 600 11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #c9d2ff; opacity: 0.92; }
+      .muted { font: 600 11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #9aacff; opacity: 0.9; }
+      .accent { fill: #f7d36a; }
+      .accentText { font: 900 12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #1b1403; }
+      .arrow { stroke: #9fb2ff; stroke-width: 2.2; fill: none; }
+      .arrow2 { stroke: #5f75dd; stroke-width: 2; fill: none; opacity: 0.8; }
+      .arrowBold { stroke: #f7d36a; stroke-width: 3; fill: none; }
+      .dot { fill: #4962ff; }
+      .dot2 { fill: #f7d36a; }
+      .mono { font: 700 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; fill: #d7deff; opacity: 0.95; }
+    </style>
+    <marker id="ah" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#9fb2ff"/>
+    </marker>
+    <marker id="ah2" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#5f75dd" opacity="0.8"/>
+    </marker>
+    <marker id="ahb" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#f7d36a"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="2300"/>
+
+  <!-- subtle grid -->
+  <g opacity="0.8">
+    <path class="grid" d="M0 140 H1600"/>
+    <path class="grid" d="M0 600 H1600"/>
+    <path class="grid" d="M0 1080 H1600"/>
+    <path class="grid" d="M0 1580 H1600"/>
+    <path class="grid" d="M0 2060 H1600"/>
+    <path class="grid" d="M80 0 V2300"/>
+    <path class="grid" d="M800 0 V2300"/>
+    <path class="grid" d="M1520 0 V2300"/>
+  </g>
+
+  <text class="title" x="70" y="68">DIAMOND BOOKING — FULL STACK BOOKING SaaS</text>
+  <text class="subtitle" x="70" y="94">Complete Development + Deployment + Debugging Workflow (Correct Stack)</text>
+
+  <!-- Chips -->
+  <g transform="translate(70,112)">
+    <rect class="chip" x="0" y="0" width="210" height="28" rx="14"/>
+    <text class="chipText" x="14" y="19">Next.js App Router</text>
+    <rect class="chip" x="226" y="0" width="160" height="28" rx="14"/>
+    <text class="chipText" x="240" y="19">NextAuth v5</text>
+    <rect class="chip" x="402" y="0" width="120" height="28" rx="14"/>
+    <text class="chipText" x="416" y="19">Prisma</text>
+    <rect class="chip" x="538" y="0" width="150" height="28" rx="14"/>
+    <text class="chipText" x="552" y="19">Postgres</text>
+    <rect class="chip" x="704" y="0" width="120" height="28" rx="14"/>
+    <text class="chipText" x="718" y="19">Stripe</text>
+    <rect class="chip" x="840" y="0" width="120" height="28" rx="14"/>
+    <text class="chipText" x="854" y="19">Resend</text>
+    <rect class="chip" x="976" y="0" width="130" height="28" rx="14"/>
+    <text class="chipText" x="990" y="19">Vercel</text>
+    <rect class="chip" x="1122" y="0" width="190" height="28" rx="14"/>
+    <text class="chipText" x="1136" y="19">Cron + Automations</text>
+  </g>
+
+  <!-- SECTION 1 -->
+  <g transform="translate(70,170)">
+    <rect class="section" x="0" y="0" width="1460" height="380" rx="18"/>
+    <text class="sectionTitle" x="22" y="40">1) One‑Time Setup (Do this once)</text>
+    <text class="sectionSub" x="22" y="62">Goal: stable local dev + correct production env + payments + webhooks + reminders</text>
+
+    <!-- step cards -->
+    <g transform="translate(22,92)">
+      <rect class="card" x="0" y="0" width="320" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">Install + run locally</text>
+      <text class="cardText" x="18" y="56">npm ci → npm run dev</text>
+      <text class="cardText" x="18" y="76">Node 20.x required</text>
+      <text class="cardText" x="18" y="96">.env.example → .env</text>
+    </g>
+
+    <g transform="translate(368,92)">
+      <rect class="card" x="0" y="0" width="320" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">Database (Postgres)</text>
+      <text class="cardText" x="18" y="56">Neon / Supabase / local</text>
+      <text class="cardText" x="18" y="76">Set DATABASE_URL</text>
+      <text class="cardText" x="18" y="96">Run migrations</text>
+    </g>
+
+    <g transform="translate(714,92)">
+      <rect class="card" x="0" y="0" width="320" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">Auth (NextAuth)</text>
+      <text class="cardText" x="18" y="56">NEXTAUTH_URL = https://www.diamond-booking.com</text>
+      <text class="cardText" x="18" y="76">NEXTAUTH_SECRET set</text>
+      <text class="cardText" x="18" y="96">Google OAuth optional</text>
+    </g>
+
+    <g transform="translate(1060,92)">
+      <rect class="card" x="0" y="0" width="378" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">Domain + env baseline</text>
+      <text class="cardText" x="18" y="56">NEXT_PUBLIC_APP_URL = https://www.diamond-booking.com</text>
+      <text class="cardText" x="18" y="76">Set on Vercel (Preview + Prod)</text>
+      <text class="cardText" x="18" y="96">Turn on HTTPS + www redirect</text>
+    </g>
+
+    <g transform="translate(22,232)">
+      <rect class="card" x="0" y="0" width="320" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">Email (Resend)</text>
+      <text class="cardText" x="18" y="56">RESEND_API_KEY</text>
+      <text class="cardText" x="18" y="76">RESEND_FROM_EMAIL</text>
+      <text class="cardText" x="18" y="96">Verify sender domain</text>
+    </g>
+
+    <g transform="translate(368,232)">
+      <rect class="card" x="0" y="0" width="320" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">SMS reminders</text>
+      <text class="cardText" x="18" y="56">Twilio (current) or GHL/LeadConnector</text>
+      <text class="cardText" x="18" y="76">Set provider env + verify delivery</text>
+      <text class="cardText" x="18" y="96">Test confirmation + reminder</text>
+    </g>
+
+    <g transform="translate(714,232)">
+      <rect class="card" x="0" y="0" width="320" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">Stripe subscriptions</text>
+      <text class="cardText" x="18" y="56">Create prices (monthly + yearly)</text>
+      <text class="cardText" x="18" y="76">Set STRIPE_PRICE_* envs</text>
+      <text class="cardText" x="18" y="96">Set STRIPE_SECRET_KEY</text>
+    </g>
+
+    <g transform="translate(1060,232)">
+      <rect class="card" x="0" y="0" width="378" height="120" rx="16"/>
+      <circle class="dot2" cx="22" cy="26" r="8"/>
+      <text class="cardTitle" x="40" y="30">Webhooks + cron</text>
+      <text class="cardText" x="18" y="56">Stripe webhook → /api/billing/webhook</text>
+      <text class="cardText" x="18" y="76">STRIPE_WEBHOOK_SECRET set</text>
+      <text class="cardText" x="18" y="96">Vercel Cron → /api/automations/run</text>
+    </g>
+
+    <!-- arrows -->
+    <path class="arrowBold" d="M356 152 L368 152" marker-end="url(#ahb)"/>
+    <path class="arrowBold" d="M700 152 L714 152" marker-end="url(#ahb)"/>
+    <path class="arrowBold" d="M1046 152 L1060 152" marker-end="url(#ahb)"/>
+    <path class="arrowBold" d="M356 292 L368 292" marker-end="url(#ahb)"/>
+    <path class="arrowBold" d="M700 292 L714 292" marker-end="url(#ahb)"/>
+    <path class="arrowBold" d="M1046 292 L1060 292" marker-end="url(#ahb)"/>
+  </g>
+
+  <!-- SECTION 2 -->
+  <g transform="translate(70,580)">
+    <rect class="section" x="0" y="0" width="1460" height="420" rx="18"/>
+    <text class="sectionTitle" x="22" y="40">2) Daily Workflow (Every change)</text>
+    <text class="sectionSub" x="22" y="62">Goal: fast local iteration → safe preview → safe production</text>
+
+    <g transform="translate(22,92)">
+      <rect class="card2" x="0" y="0" width="330" height="140" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Code change</text>
+      <text class="cardText" x="18" y="54">UI: src/app + src/components</text>
+      <text class="cardText" x="18" y="74">API: src/app/api</text>
+      <text class="cardText" x="18" y="94">Logic: src/lib</text>
+      <text class="cardText" x="18" y="114">DB: prisma/schema.prisma</text>
+    </g>
+
+    <g transform="translate(372,92)">
+      <rect class="card2" x="0" y="0" width="330" height="140" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Local gates</text>
+      <text class="cardText" x="18" y="54">npm run lint</text>
+      <text class="cardText" x="18" y="74">npm run build</text>
+      <text class="cardText" x="18" y="94">Click‑through smoke</text>
+      <text class="muted" x="18" y="116">Catches Next.js/Prisma deploy issues</text>
+    </g>
+
+    <g transform="translate(722,92)">
+      <rect class="card2" x="0" y="0" width="330" height="140" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Push to GitHub</text>
+      <text class="cardText" x="18" y="54">Vercel builds Preview</text>
+      <text class="cardText" x="18" y="74">Validate env + DB</text>
+      <text class="cardText" x="18" y="94">QA the exact URLs</text>
+      <text class="muted" x="18" y="116">Use Stripe test mode in Preview</text>
+    </g>
+
+    <g transform="translate(1072,92)">
+      <rect class="card2" x="0" y="0" width="388" height="140" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Merge → Production</text>
+      <text class="cardText" x="18" y="54">Vercel deploys Production</text>
+      <text class="cardText" x="18" y="74">Run post‑deploy checks</text>
+      <text class="cardText" x="18" y="94">Watch logs + Stripe events</text>
+      <text class="muted" x="18" y="116">Rollback via Vercel deployments</text>
+    </g>
+
+    <!-- workflow arrows -->
+    <path class="arrow" d="M352 162 L372 162" marker-end="url(#ah)"/>
+    <path class="arrow" d="M702 162 L722 162" marker-end="url(#ah)"/>
+    <path class="arrow" d="M1052 162 L1072 162" marker-end="url(#ah)"/>
+
+    <!-- Debug loop mini -->
+    <g transform="translate(22,260)">
+      <rect class="card" x="0" y="0" width="1438" height="138" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Debug loop (fast)</text>
+      <text class="cardText" x="18" y="54">1) Reproduce → 2) Locate surface (UI/API/DB/Auth/Stripe) → 3) Inspect logs/events → 4) Fix + add guardrail → 5) Re‑run build</text>
+      <rect x="18" y="74" width="600" height="44" rx="12" fill="#0a0f24" stroke="#2b3aa0" stroke-width="1.2"/>
+      <text class="mono" x="32" y="102">UI: browser console + network</text>
+      <text class="mono" x="320" y="102">API: Vercel Functions logs</text>
+      <rect x="640" y="74" width="398" height="44" rx="12" fill="#0a0f24" stroke="#2b3aa0" stroke-width="1.2"/>
+      <text class="mono" x="654" y="102">DB: Prisma Studio + query filters</text>
+      <rect x="1060" y="74" width="378" height="44" rx="12" fill="#0a0f24" stroke="#2b3aa0" stroke-width="1.2"/>
+      <text class="mono" x="1074" y="102">Stripe: Events + Webhooks + Replay</text>
+    </g>
+  </g>
+
+  <!-- SECTION 3: Architecture -->
+  <g transform="translate(70,1030)">
+    <rect class="section" x="0" y="0" width="1460" height="500" rx="18"/>
+    <text class="sectionTitle" x="22" y="40">3) Runtime Architecture (Requests &amp; data boundaries)</text>
+    <text class="sectionSub" x="22" y="62">Goal: tenant-safe queries + correct booking + billing as source of truth</text>
+
+    <g transform="translate(22,98)">
+      <rect class="card2" x="0" y="0" width="350" height="160" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Browser (Client)</text>
+      <text class="cardText" x="18" y="54">Landing + dashboard + /book/[slug]</text>
+      <text class="cardText" x="18" y="74">Sends HTTPS requests</text>
+      <text class="cardText" x="18" y="94">Receives SSR/RSC + JSON</text>
+      <rect x="18" y="112" width="160" height="30" rx="15" class="chip"/>
+      <text class="chipText" x="32" y="132">https://www…</text>
+    </g>
+
+    <g transform="translate(404,98)">
+      <rect class="card2" x="0" y="0" width="520" height="160" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Next.js App (UI + API Route Handlers)</text>
+      <text class="cardText" x="18" y="54">Pages: src/app/* (App Router)</text>
+      <text class="cardText" x="18" y="74">APIs: src/app/api/* (Route Handlers)</text>
+      <text class="cardText" x="18" y="94">Validates input (Zod), enforces tenant scoping</text>
+      <text class="muted" x="18" y="118">State changes happen server-side (never trust client billing state)</text>
+    </g>
+
+    <g transform="translate(956,98)">
+      <rect class="card2" x="0" y="0" width="504" height="160" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Auth boundary (NextAuth JWT)</text>
+      <text class="cardText" x="18" y="54">Session contains: userId, role, businessId</text>
+      <text class="cardText" x="18" y="74">Dashboard guarded, superadmin guarded</text>
+      <text class="cardText" x="18" y="94">Never accept businessId from client payload</text>
+      <rect x="18" y="112" width="240" height="30" rx="15" class="chip"/>
+      <text class="chipText" x="32" y="132">Tenant isolation invariant</text>
+    </g>
+
+    <g transform="translate(22,290)">
+      <rect class="card" x="0" y="0" width="1438" height="182" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Core flows (simplified)</text>
+      <text class="cardText" x="18" y="56">Public booking: /book/[slug] → availability → create booking → email/SMS → schedule reminders</text>
+      <text class="cardText" x="18" y="78">Billing: /dashboard/billing → Stripe Checkout → Stripe Webhook → Subscription updated → plan limits enforced</text>
+      <text class="muted" x="18" y="106">Booking correctness: timezone-safe availability + in-transaction conflict checks</text>
+      <text class="muted" x="18" y="128">Webhook correctness: signature verified + idempotent events</text>
+      <rect class="accent" x="18" y="144" width="450" height="26" rx="13"/>
+      <text class="accentText" x="30" y="162">Stripe webhook is the source of truth for plan/status</text>
+    </g>
+
+    <g transform="translate(22,490)">
+      <rect class="card2" x="0" y="0" width="460" height="170" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Prisma ORM</text>
+      <text class="cardText" x="18" y="54">Models enforce relations + tenant keys</text>
+      <text class="cardText" x="18" y="74">Migrations deployed on Vercel builds</text>
+      <text class="mono" x="18" y="106">prisma generate</text>
+      <text class="mono" x="18" y="126">prisma migrate deploy</text>
+    </g>
+
+    <g transform="translate(506,490)">
+      <rect class="card2" x="0" y="0" width="470" height="170" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Postgres DB</text>
+      <text class="cardText" x="18" y="54">Tenants partitioned by businessId</text>
+      <text class="cardText" x="18" y="74">Bookings, customers, services, staff</text>
+      <text class="cardText" x="18" y="94">Subscriptions + webhook events</text>
+      <text class="muted" x="18" y="126">Backups + metrics via provider dashboard</text>
+    </g>
+
+    <g transform="translate(1000,490)">
+      <rect class="card2" x="0" y="0" width="460" height="170" rx="16"/>
+      <text class="cardTitle" x="18" y="28">External services</text>
+      <text class="cardText" x="18" y="54">Stripe: Checkout, Portal, Webhooks</text>
+      <text class="cardText" x="18" y="74">Resend: transactional email</text>
+      <text class="cardText" x="18" y="94">SMS: Twilio or GHL/LeadConnector</text>
+      <text class="cardText" x="18" y="114">Vercel Cron: automations runner</text>
+    </g>
+
+    <!-- arrows -->
+    <path class="arrow" d="M372 178 L404 178" marker-end="url(#ah)"/>
+    <path class="arrow" d="M924 178 L956 178" marker-end="url(#ah)"/>
+    <path class="arrow2" d="M744 258 L744 290" marker-end="url(#ah2)"/>
+    <path class="arrow2" d="M520 580 L506 580" marker-end="url(#ah2)"/>
+    <path class="arrow2" d="M1000 580 L976 580" marker-end="url(#ah2)"/>
+  </g>
+
+  <!-- SECTION 4: CI/CD -->
+  <g transform="translate(70,1550)">
+    <rect class="section" x="0" y="0" width="1460" height="430" rx="18"/>
+    <text class="sectionTitle" x="22" y="40">4) CI/CD + Deployment Pipeline (Vercel)</text>
+    <text class="sectionSub" x="22" y="62">Goal: predictable deploys + safe previews + fast rollback</text>
+
+    <g transform="translate(22,98)">
+      <rect class="card2" x="0" y="0" width="350" height="150" rx="16"/>
+      <text class="cardTitle" x="18" y="28">GitHub</text>
+      <text class="cardText" x="18" y="54">Feature branch → PR</text>
+      <text class="cardText" x="18" y="74">Merge to main</text>
+      <text class="muted" x="18" y="104">Preview deployments per commit</text>
+    </g>
+
+    <g transform="translate(404,98)">
+      <rect class="card2" x="0" y="0" width="520" height="150" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Vercel Build</text>
+      <text class="cardText" x="18" y="54">Install → prisma generate → next build</text>
+      <text class="cardText" x="18" y="74">Uses env (Preview or Prod)</text>
+      <text class="muted" x="18" y="104">Keep schema + env aligned</text>
+    </g>
+
+    <g transform="translate(956,98)">
+      <rect class="card2" x="0" y="0" width="504" height="150" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Runtime</text>
+      <text class="cardText" x="18" y="54">Edge middleware + server route handlers</text>
+      <text class="cardText" x="18" y="74">Vercel logs + analytics</text>
+      <text class="muted" x="18" y="104">Rollback via Deployments UI</text>
+    </g>
+
+    <path class="arrow" d="M372 173 L404 173" marker-end="url(#ah)"/>
+    <path class="arrow" d="M924 173 L956 173" marker-end="url(#ah)"/>
+
+    <g transform="translate(22,270)">
+      <rect class="card" x="0" y="0" width="1438" height="140" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Production gates (recommended)</text>
+      <text class="cardText" x="18" y="56">Preview test: booking creation, billing checkout (test mode), webhook replay, login/logout, dashboard navigation</text>
+      <text class="cardText" x="18" y="78">After prod deploy: check Stripe Events, webhook delivery, cron run logs, and booking confirmation email delivery</text>
+      <rect class="accent" x="18" y="98" width="560" height="26" rx="13"/>
+      <text class="accentText" x="30" y="116">Never deploy without passing local “npm run build”</text>
+    </g>
+  </g>
+
+  <!-- SECTION 5: Env -->
+  <g transform="translate(70,2010)">
+    <rect class="section" x="0" y="0" width="1460" height="250" rx="18"/>
+    <text class="sectionTitle" x="22" y="40">5) Environment Variables (Production checklist)</text>
+    <text class="sectionSub" x="22" y="62">Set in Vercel (Preview + Production). Do not hardcode URLs in code.</text>
+
+    <g transform="translate(22,92)">
+      <rect class="card2" x="0" y="0" width="470" height="130" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Core</text>
+      <text class="mono" x="18" y="56">NEXT_PUBLIC_APP_URL=https://www.diamond-booking.com</text>
+      <text class="mono" x="18" y="76">NEXTAUTH_URL=https://www.diamond-booking.com</text>
+      <text class="mono" x="18" y="96">NEXTAUTH_SECRET=…</text>
+      <text class="mono" x="18" y="116">DATABASE_URL=…</text>
+    </g>
+
+    <g transform="translate(516,92)">
+      <rect class="card2" x="0" y="0" width="470" height="130" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Stripe</text>
+      <text class="mono" x="18" y="56">STRIPE_SECRET_KEY=…</text>
+      <text class="mono" x="18" y="76">STRIPE_WEBHOOK_SECRET=…</text>
+      <text class="mono" x="18" y="96">STRIPE_PRICE_* (monthly+yearly)</text>
+      <text class="muted" x="18" y="118">Webhook endpoint: /api/billing/webhook</text>
+    </g>
+
+    <g transform="translate(1010,92)">
+      <rect class="card2" x="0" y="0" width="450" height="130" rx="16"/>
+      <text class="cardTitle" x="18" y="28">Messaging + cron</text>
+      <text class="mono" x="18" y="56">RESEND_API_KEY=…</text>
+      <text class="mono" x="18" y="76">RESEND_FROM_EMAIL=…</text>
+      <text class="mono" x="18" y="96">CRON_SECRET (or AUTOMATIONS_CRON_SECRET)</text>
+      <text class="muted" x="18" y="118">SMS: Twilio vars or GHL provider vars</text>
+    </g>
+  </g>
+</svg>
+
