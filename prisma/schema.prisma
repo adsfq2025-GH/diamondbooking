@@ -344,10 +344,12 @@ model Staff {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   name      String
+  role      String?
   email     String?
   phone     String?
   avatarUrl String?
   bio       String? @db.Text
+  commissionPercent Int?
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 

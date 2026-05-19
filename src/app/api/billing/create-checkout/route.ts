@@ -27,6 +27,10 @@ export async function GET(req: NextRequest) {
     const plan     = searchParams.get("plan") ?? "STARTER";
     const interval = searchParams.get("interval") ?? "monthly";
     const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
+    const trialDaysParam = searchParams.get("trialDays");
+    const trialDays = trialDaysParam ? Number(trialDaysParam) : undefined;
+    const returnToParam = searchParams.get("returnTo");
+    const cancelToParam = searchParams.get("cancelTo");
 
     const priceId = PLAN_PRICES[plan]?.[interval as "monthly" | "yearly"];
     if (!priceId) {
@@ -64,16 +68,29 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const safeRelative = (value: string | null) => {
+      if (!value) return null;
+      if (!value.startsWith("/")) return null;
+      if (value.startsWith("//")) return null;
+      return value;
+    };
+
+    const successReturn = safeRelative(returnToParam) ?? "/dashboard/billing";
+    const cancelReturn = safeRelative(cancelToParam) ?? "/dashboard/billing";
+    const successUrl = `${appUrl}${successReturn}${successReturn.includes("?") ? "&" : "?"}success=1&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${appUrl}${cancelReturn}${cancelReturn.includes("?") ? "&" : "?"}canceled=1`;
+
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: { userId: session.user.id, plan },
-      success_url: `${appUrl}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${appUrl}/dashboard/billing?canceled=1`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       subscription_data: {
         metadata: { userId: session.user.id, plan },
+        ...(trialDays && Number.isFinite(trialDays) && trialDays > 0 ? { trial_period_days: Math.floor(trialDays) } : {}),
       },
       allow_promotion_codes: true,
     });

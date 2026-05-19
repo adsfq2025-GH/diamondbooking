@@ -9,6 +9,8 @@ const createSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
+  role: z.string().max(100).optional(),
+  commissionPercent: z.number().int().min(0).max(100).optional(),
   avatarUrl: z.string().optional(),
   serviceIds: z.array(z.string()).optional(),
   availability: z

@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     iframe.style.width = "100%";
     iframe.style.border = "0";
     iframe.style.borderRadius = (opts && opts.borderRadius) ? radiusToPx(opts.borderRadius) : "16px";
-    iframe.style.minHeight = (opts && opts.minHeight) ? String(opts.minHeight) : "720px";
+    iframe.style.minHeight = (opts && opts.minHeight) ? String(opts.minHeight) : "920px";
     iframe.loading = "lazy";
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
     iframe.setAttribute("title", (opts && opts.title) ? String(opts.title) : "Booking");
