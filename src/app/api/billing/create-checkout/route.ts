@@ -47,9 +47,19 @@ export async function GET(req: NextRequest) {
         metadata: { userId: session.user.id },
       });
       stripeCustomerId = customer.id;
+      const trialStart = new Date();
+      const trialEnd = new Date(trialStart);
+      trialEnd.setDate(trialEnd.getDate() + 14);
       await prisma.subscription.upsert({
         where: { userId: session.user.id },
-        create: { userId: session.user.id, stripeCustomerId, plan: "FREE", status: "ACTIVE" },
+        create: {
+          userId: session.user.id,
+          stripeCustomerId,
+          plan: "FREE",
+          status: "TRIALING",
+          trialStart,
+          trialEnd,
+        },
         update: { stripeCustomerId },
       });
     }

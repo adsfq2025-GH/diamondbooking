@@ -176,8 +176,9 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // ── Invoice paid → renew period ────────────────────────────────────
-      case "invoice.paid": {
+      // ── Invoice paid/succeeded → renew period ──────────────────────────
+      case "invoice.paid":
+      case "invoice.payment_succeeded": {
          const invoice = event.data.object as Stripe.Invoice;
          const subId =
            invoice.parent?.type === "subscription_details"
@@ -255,7 +256,7 @@ export async function POST(req: NextRequest) {
       }
 
       // ── Invoice payment failed → mark past_due ─────────────────────────
-      case "invoice.paid": {
+      case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
         const subId =
           invoice.parent?.type === "subscription_details"

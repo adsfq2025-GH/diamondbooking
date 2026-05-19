@@ -85,50 +85,21 @@ export default async function middleware(request: NextRequest) {
       (tenant.area === "portal" && (tenant.tail === "/login" || tenant.tail === "/register")));
 
   if (isTenantPublic) {
-    if (!secret) return NextResponse.next();
-    try {
-      const token = await getToken({ req: request, secret });
-      const user = token
-        ? {
-            id: token.id as string,
-            role: token.role as Role,
-            businessSlug: token.businessSlug as string | undefined,
-          }
-        : null;
-      if (!user) return NextResponse.next();
-      return redirectToDashboard(user, request);
-    } catch {
-      return NextResponse.next();
-    }
+    return NextResponse.next();
   }
 
   // ── Check public routes ───────────────────
   if (PUBLIC_ROUTES.includes(pathname)) {
-    // If already logged in, redirect to appropriate dashboard
-    if (secret) {
-      try {
-        const token = await getToken({ req: request, secret });
-        const user = token
-          ? {
-              id: token.id as string,
-              role: token.role as Role,
-              businessSlug: token.businessSlug as string | undefined,
-            }
-          : null;
-        if (user) {
-          return redirectToDashboard(user, request);
-        }
-      } catch {
-        return NextResponse.next();
-      }
-    }
     return NextResponse.next();
   }
 
   let user: { id: string; role: Role; businessSlug?: string } | null = null;
   if (secret) {
     try {
-      const token = await getToken({ req: request, secret });
+      const token =
+        (await getToken({ req: request, secret })) ??
+        (await getToken({ req: request, secret, cookieName: "__Secure-authjs.session-token" })) ??
+        (await getToken({ req: request, secret, cookieName: "authjs.session-token" }));
       user = token
         ? {
             id: token.id as string,

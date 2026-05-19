@@ -101,6 +101,23 @@ export async function POST(req: NextRequest) {
     const end = new Date(start.getTime() + service.duration * 60 * 1000);
     const dateUtc = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
 
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        businessId: business.id,
+        staffId,
+        status: { in: ["PENDING", "CONFIRMED"] },
+        startTime: { lt: end },
+        endTime: { gt: start },
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      return NextResponse.json(
+        { success: false, error: "This staff member is already booked for that time" },
+        { status: 409 }
+      );
+    }
+
     // Upsert customer
     const customer = await prisma.customer.upsert({
       where: { businessId_email: { businessId: business.id, email: customerEmail } },

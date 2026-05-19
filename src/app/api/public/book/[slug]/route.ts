@@ -287,7 +287,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   try {
     booking = await prisma.$transaction(async (tx) => {
       const key1 = hash32(`${business.id}:${staffId}`);
-      const key2 = Math.floor(slotStart.getTime() / 60_000);
+      const key2 = Math.floor(slotStart.getTime() / 86_400_000);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${key1}, ${key2})`;
 
       const conflict = await tx.booking.findFirst({

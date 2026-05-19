@@ -1,6 +1,4 @@
 // src/app/auth/register/page.tsx
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/auth/register-form";
 import { AuthShell } from "@/components/auth/auth-shell";
 import Link from "next/link";
@@ -8,9 +6,6 @@ import Link from "next/link";
 export const metadata = { title: "Create Account — Diamond Booking" };
 
 export default async function RegisterPage() {
-  const session = await auth();
-  if (session?.user) redirect("/dashboard");
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   const authUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
   const googleEnabled = process.env.GOOGLE_OAUTH_ENABLED === "true";

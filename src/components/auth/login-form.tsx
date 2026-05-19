@@ -65,10 +65,12 @@ export function LoginForm({
 
   const onSubmit = async (data: FormData) => {
     setServerError("");
+    const target = callbackUrl ? `/post-login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/post-login";
     const result = await signIn("credentials", {
       email: data.email.toLowerCase(),
       password: data.password,
       businessSlug,
+      callbackUrl: target,
       redirect: false,
     });
 
@@ -77,8 +79,7 @@ export function LoginForm({
       return;
     }
 
-    const target = callbackUrl ? `/post-login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/post-login";
-    router.push(target);
+    router.push(result?.url ?? target);
     router.refresh();
   };
 

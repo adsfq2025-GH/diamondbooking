@@ -1,6 +1,4 @@
 // src/app/auth/login/page.tsx
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
 import { AuthShell } from "@/components/auth/auth-shell";
 import Link from "next/link";
@@ -12,12 +10,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
-  const session = await auth();
   const params = await searchParams;
-
-  if (session?.user) {
-    redirect("/post-login");
-  }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   const authUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
