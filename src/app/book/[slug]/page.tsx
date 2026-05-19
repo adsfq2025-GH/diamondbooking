@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { BookingFlow } from "@/components/booking/booking-flow";
 import type { Metadata } from "next";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ embed?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -19,8 +19,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function BookingPage({ params }: Props) {
+export default async function BookingPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const embed = sp?.embed === "1";
 
   const business = await prisma.business.findUnique({
     where: { slug, isActive: true },
@@ -110,6 +112,7 @@ export default async function BookingPage({ params }: Props) {
         color:       s.color,
         staff:       s.staff.map((ss) => ss.staff),
       }))}
+      embed={embed}
     />
   );
 }

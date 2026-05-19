@@ -13,6 +13,11 @@ const schema = z.object({
   phone: z.string().optional(),
   timezone: z.string().optional(),
   description: z.string().max(500).optional(),
+  address: z.string().max(200).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  zipCode: z.string().max(20).optional(),
+  website: z.string().url().optional().or(z.literal("")),
 });
 
 export async function POST(req: NextRequest) {
@@ -28,6 +33,22 @@ export async function POST(req: NextRequest) {
     // Check if business already exists
     const existing = await prisma.business.findUnique({ where: { ownerId: session.user.id } });
     if (existing) {
+      const updated = await prisma.business.update({
+        where: { id: existing.id },
+        data: {
+          name: parsed.data.name,
+          slug: parsed.data.slug ? parsed.data.slug : existing.slug,
+          industry: parsed.data.industry,
+          phone: parsed.data.phone,
+          timezone: parsed.data.timezone,
+          description: parsed.data.description ?? null,
+          address: parsed.data.address ?? null,
+          city: parsed.data.city ?? null,
+          state: parsed.data.state ?? null,
+          zipCode: parsed.data.zipCode ?? null,
+          website: parsed.data.website ? parsed.data.website : null,
+        },
+      });
       const cfg = await prisma.businessConfig.findUnique({ where: { businessId: existing.id }, select: { id: true } });
       if (!cfg) {
         const industryKey = (existing.industry as string | null) ?? "generic";
@@ -47,7 +68,7 @@ export async function POST(req: NextRequest) {
           },
         });
       }
-      return NextResponse.json({ success: true, data: existing });
+      return NextResponse.json({ success: true, data: updated });
     }
 
     // Generate unique slug
@@ -66,6 +87,11 @@ export async function POST(req: NextRequest) {
         phone: parsed.data.phone,
         timezone: parsed.data.timezone ?? "America/New_York",
         description: parsed.data.description ?? null,
+        address: parsed.data.address ?? null,
+        city: parsed.data.city ?? null,
+        state: parsed.data.state ?? null,
+        zipCode: parsed.data.zipCode ?? null,
+        website: parsed.data.website ? parsed.data.website : null,
         onboardingComplete: false,
       },
     });

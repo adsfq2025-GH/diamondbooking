@@ -204,6 +204,8 @@ export const INDUSTRY_OPTIONS = [
   { value: "clinic", label: "Medical / Dental Clinic" },
   { value: "tattoo", label: "Tattoo & Piercing" },
   { value: "consulting", label: "Consulting & Coaching" },
+  { value: "restaurant", label: "Restaurant / Hospitality" },
+  { value: "automotive", label: "Automotive Services" },
   { value: "cleaning", label: "Cleaning Services" },
   { value: "photography", label: "Photography" },
   { value: "tutoring", label: "Tutoring & Education" },

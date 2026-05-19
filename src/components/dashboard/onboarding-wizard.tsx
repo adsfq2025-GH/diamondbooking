@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import {
@@ -10,6 +10,7 @@ import {
   Code2, Check, Plus, Trash2, ChevronRight, ChevronDown,
   Copy, CheckCheck, Sparkles,
 } from "lucide-react";
+import QRCode from "qrcode";
 import {
   generateSlug,
   INDUSTRY_OPTIONS,
@@ -40,6 +41,9 @@ interface StaffMember {
   id: string;
   name: string;
   email: string;
+  role?: string;
+  phone?: string;
+  commissionPercent?: string;
   availability: DayAvail[];
 }
 
@@ -59,13 +63,17 @@ interface WidgetConfig {
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { n: 1, label: "Business", icon: Building2 },
-  { n: 2, label: "Hours",    icon: Clock },
-  { n: 3, label: "Services", icon: Scissors },
-  { n: 4, label: "Pricing",  icon: Sparkles },
-  { n: 5, label: "Staff",    icon: Users },
-  { n: 6, label: "Widget",   icon: Palette },
-  { n: 7, label: "Go Live",  icon: Code2 },
+  { n: 1, label: "Plan", icon: Sparkles },
+  { n: 2, label: "Business", icon: Building2 },
+  { n: 3, label: "Payment", icon: CheckCheck },
+  { n: 4, label: "Intro", icon: ChevronRight },
+  { n: 5, label: "Hours", icon: Clock },
+  { n: 6, label: "Staff", icon: Users },
+  { n: 7, label: "Services", icon: Scissors },
+  { n: 8, label: "Pricing", icon: Sparkles },
+  { n: 9, label: "Branding", icon: Palette },
+  { n: 10, label: "Widget", icon: Code2 },
+  { n: 11, label: "Review", icon: Check },
 ];
 
 const SERVICE_COLORS = [
@@ -118,12 +126,14 @@ function Toggle({
 
 function NavRow({
   onBack,
+  onSkip,
   onNext,
   loading,
   nextLabel = "Continue",
   isLast = false,
 }: {
   onBack?: () => void;
+  onSkip?: () => void;
   onNext: () => void;
   loading?: boolean;
   nextLabel?: string;
@@ -137,6 +147,14 @@ function NavRow({
           className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
         >
           Back
+        </button>
+      )}
+      {onSkip && (
+        <button
+          onClick={onSkip}
+          className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Skip for now
         </button>
       )}
       <button
@@ -171,37 +189,48 @@ function NavRow({
 
 export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { update: updateSession } = useSession();
 
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [copied, setCopied]   = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [skippedSteps, setSkippedSteps] = useState<number[]>([]);
 
   // Step 1
+  const [selectedTier, setSelectedTier] = useState<null | "starter" | "pro" | "elite">(null);
+
+  // Step 2
   const [bizName, setBizName]           = useState("");
   const [bizSlug, setBizSlug]           = useState("");
   const [industry, setIndustry]         = useState("generic");
   const [phone, setPhone]               = useState("");
   const [timezone, setTimezone]         = useState("America/New_York");
   const [description, setDescription]  = useState("");
+  const [address1, setAddress1] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
+  const [website, setWebsite] = useState("");
   const [industryOptions, setIndustryOptions] = useState(INDUSTRY_OPTIONS);
 
-  // Step 2
+  // Step 5
   const [hours, setHours] = useState<DayAvail[]>(defaultAvail());
 
-  // Step 3
+  // Step 7
   const [services, setServices] = useState<Service[]>([
     { id: "s1", name: "", duration: 60, price: "", color: SERVICE_COLORS[0] },
   ]);
 
-  // Step 5
+  // Step 6
   const [staff, setStaff]               = useState<StaffMember[]>([
-    { id: "m1", name: "", email: "", availability: defaultAvail() },
+    { id: "m1", name: "", email: "", role: "", phone: "", commissionPercent: "", availability: defaultAvail() },
   ]);
   const [expandedStaff, setExpandedStaff] = useState<string | null>("m1");
 
-  // Step 6
+  // Step 9
   const [widget, setWidget] = useState<WidgetConfig>({
     primaryColor:    "#1a1f36",
     accentColor:     "#d4a843",
@@ -217,6 +246,8 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   // Created
   const [businessSlug, setBusinessSlug] = useState("");
+  const [paymentReady, setPaymentReady] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -232,7 +263,51 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     finally { setLoading(false); }
   };
 
+  const persistDraft = async () => {
+    setSaveState("saving");
+    try {
+      const draft = {
+        selectedTier,
+        skippedSteps,
+        business: {
+          bizName,
+          bizSlug,
+          industry,
+          phone,
+          timezone,
+          description,
+          address1,
+          city,
+          state,
+          zip,
+          website,
+        },
+        hours,
+        staff,
+        services,
+        widget,
+      };
+      localStorage.setItem("db:onboarding", JSON.stringify(draft));
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 800);
+    } catch {
+      setSaveState("error");
+    }
+  };
+
+  const skipTo = (next: number) => {
+    setSkippedSteps((p) => (p.includes(step) ? p : [...p, step]));
+    setStep(next);
+    void persistDraft();
+  };
+
   useEffect(() => {
+    const stepParam = searchParams.get("step");
+    if (stepParam) {
+      const n = Number(stepParam);
+      if (Number.isFinite(n) && n >= 1 && n <= STEPS.length) setStep(n);
+    }
+
     const load = async () => {
       try {
         const res = await fetch("/api/industry/templates");
@@ -250,35 +325,183 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     void load();
   }, []);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("db:onboarding");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        selectedTier?: null | "starter" | "pro" | "elite";
+        skippedSteps?: number[];
+        business?: Partial<{
+          bizName: string;
+          bizSlug: string;
+          industry: string;
+          phone: string;
+          timezone: string;
+          description: string;
+          address1: string;
+          city: string;
+          state: string;
+          zip: string;
+          website: string;
+        }>;
+        hours?: DayAvail[];
+        staff?: StaffMember[];
+        services?: Service[];
+        widget?: WidgetConfig;
+      };
+      if (parsed.selectedTier) setSelectedTier(parsed.selectedTier);
+      if (Array.isArray(parsed.skippedSteps)) setSkippedSteps(parsed.skippedSteps);
+      if (parsed.business?.bizName) setBizName(parsed.business.bizName);
+      if (parsed.business?.bizSlug) setBizSlug(parsed.business.bizSlug);
+      if (parsed.business?.industry) setIndustry(parsed.business.industry);
+      if (parsed.business?.phone) setPhone(parsed.business.phone);
+      if (parsed.business?.timezone) setTimezone(parsed.business.timezone);
+      if (parsed.business?.description) setDescription(parsed.business.description);
+      if (parsed.business?.address1) setAddress1(parsed.business.address1);
+      if (parsed.business?.city) setCity(parsed.business.city);
+      if (parsed.business?.state) setState(parsed.business.state);
+      if (parsed.business?.zip) setZip(parsed.business.zip);
+      if (parsed.business?.website) setWebsite(parsed.business.website);
+      if (Array.isArray(parsed.hours)) setHours(parsed.hours);
+      if (Array.isArray(parsed.staff) && parsed.staff.length) setStaff(parsed.staff);
+      if (Array.isArray(parsed.services) && parsed.services.length) setServices(parsed.services);
+      if (parsed.widget) setWidget(parsed.widget);
+    } catch {
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadSubscription = async () => {
+      try {
+        const res = await fetch("/api/billing/subscription");
+        const json = await res.json();
+        if (!res.ok) return;
+        const sub = json.data as null | { plan?: string; status?: string };
+        if (!sub?.status) return;
+        if (sub.status === "TRIALING" || sub.status === "ACTIVE") setPaymentReady(true);
+        if (!selectedTier && sub.plan) {
+          if (sub.plan === "STARTER") setSelectedTier("starter");
+          if (sub.plan === "PROFESSIONAL") setSelectedTier("pro");
+          if (sub.plan === "ENTERPRISE") setSelectedTier("elite");
+        }
+      } catch {
+      }
+    };
+    void loadSubscription();
+  }, [selectedTier]);
+
+  useEffect(() => {
+    if (step === 3 && paymentReady) setStep(4);
+  }, [paymentReady, step]);
+
+  useEffect(() => {
+    if (!businessSlug) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://www.diamond-booking.com";
+    const link = `${origin}/book/${businessSlug}`;
+    QRCode.toDataURL(link, { margin: 1, width: 256 })
+      .then((url) => setQrDataUrl(url))
+      .catch(() => {});
+  }, [businessSlug]);
+
   // ── step submitters ────────────────────────────────────────────────────────
 
-  const submit1 = () =>
+  const submitPlan = () =>
+    go(async () => {
+      if (!selectedTier) throw new Error("Select a plan to continue");
+      await persistDraft();
+      setStep(2);
+    });
+
+  const submitBusiness = () =>
     go(async () => {
       if (!bizName.trim()) throw new Error("Business name is required");
       const slug = bizSlug || generateSlug(bizName);
       const res  = await fetch("/api/business/onboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: bizName, slug, industry, phone, timezone, description }),
+        body: JSON.stringify({
+          name: bizName,
+          slug,
+          industry,
+          phone,
+          timezone,
+          description,
+          address: address1,
+          city,
+          state,
+          zipCode: zip,
+          website,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed");
       setBusinessSlug(json.data.slug);
       await updateSession({ businessId: json.data.id, businessSlug: json.data.slug });
-      setStep(2);
+      await persistDraft();
+      setStep(3);
     });
 
-  const submit2 = () =>
+  const startPayment = () =>
+    go(async () => {
+      if (!selectedTier) throw new Error("Select a plan first");
+      const plan =
+        selectedTier === "starter"
+          ? "STARTER"
+          : selectedTier === "pro"
+            ? "PROFESSIONAL"
+            : "ENTERPRISE";
+
+      const returnTo = encodeURIComponent("/onboarding?step=4");
+      const cancelTo = encodeURIComponent("/onboarding?step=3");
+      window.location.assign(
+        `/api/billing/create-checkout?plan=${encodeURIComponent(plan)}&interval=monthly&trialDays=14&returnTo=${returnTo}&cancelTo=${cancelTo}`
+      );
+    });
+
+  const submitIntro = () =>
+    go(async () => {
+      await persistDraft();
+      setStep(5);
+    });
+
+  const submitHours = () =>
     go(async () => {
       await fetch("/api/business/hours", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hours }),
       });
-      setStep(3);
+      await persistDraft();
+      setStep(6);
     });
 
-  const submit3 = () =>
+  const submitStaff = () =>
+    go(async () => {
+      const valid = staff.filter((s) => s.name.trim());
+      if (valid.length) {
+        await Promise.all(
+          valid.map((s) =>
+            fetch("/api/staff", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: s.name,
+                email: s.email || undefined,
+                phone: s.phone || undefined,
+                role: s.role || undefined,
+                commissionPercent: s.commissionPercent ? Number(s.commissionPercent) : undefined,
+                availability: s.availability,
+              }),
+            })
+          )
+        );
+      }
+      await persistDraft();
+      setStep(7);
+    });
+
+  const submitServices = () =>
     go(async () => {
       const valid = services.filter((s) => s.name.trim());
       if (!valid.length) throw new Error("Add at least one service");
@@ -291,36 +514,31 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
           })
         )
       );
-      setStep(4);
+      await persistDraft();
+      setStep(8);
     });
 
-  const submit4 = () => setStep(5);
-
-  const submit5 = () =>
+  const submitPricing = () =>
     go(async () => {
-      const valid = staff.filter((s) => s.name.trim());
-      if (valid.length) {
-        await Promise.all(
-          valid.map((s) =>
-            fetch("/api/staff", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: s.name, email: s.email || undefined, availability: s.availability }),
-            })
-          )
-        );
-      }
-      setStep(6);
+      await persistDraft();
+      setStep(9);
     });
 
-  const submit6 = () =>
+  const submitBranding = () =>
     go(async () => {
       await fetch("/api/business", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ primaryColor: widget.primaryColor, welcomeMessage: widget.welcomeMessage }),
       });
-      setStep(7);
+      await persistDraft();
+      setStep(10);
+    });
+
+  const submitWidget = () =>
+    go(async () => {
+      await persistDraft();
+      setStep(11);
     });
 
   const finish = () =>
@@ -402,17 +620,20 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       {/* Step indicator */}
       <div className="flex items-end justify-center gap-1 mb-8">
         {STEPS.map((s, i) => {
-          const done   = step > s.n;
+          const done   = step > s.n || skippedSteps.includes(s.n);
           const active = step === s.n;
           return (
             <div key={s.n} className="flex items-center gap-1">
               <div className="flex flex-col items-center gap-1.5">
                 <div
+                  onClick={() => {
+                    if (done && !active) setStep(s.n);
+                  }}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                     done   ? "bg-[#d4a843] text-[#1a1f36]" :
                     active ? "bg-[#1a1f36] text-white ring-4 ring-[#1a1f36]/15" :
                              "bg-gray-100 text-gray-400"
-                  }`}
+                  } ${done && !active ? "cursor-pointer" : ""}`}
                 >
                   {done ? <Check className="w-3.5 h-3.5" /> : s.n}
                 </div>
@@ -448,12 +669,74 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
         <div className="p-8">
 
-          {/* ────────────────────── STEP 1 — Business Info ──────────────── */}
           {step === 1 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Tell us about your business</h2>
-                <p className="text-sm text-gray-500">This becomes your public booking page identity</p>
+                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Choose your plan</h2>
+                <p className="text-sm text-gray-500">Select a tier to continue. No plan is selected by default.</p>
+              </div>
+
+              {error && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { key: "starter" as const, name: "Starter", price: "$29/mo", features: ["Online booking", "Staff management", "Basic widget"] },
+                  { key: "pro" as const, name: "Professional", price: "$59/mo", features: ["Everything in Starter", "Advanced automations", "Priority support"] },
+                  { key: "elite" as const, name: "Elite", price: "$119/mo", features: ["Everything in Pro", "Multi-location ready", "Highest limits"] },
+                ].map((p) => {
+                  const active = selectedTier === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTier(p.key);
+                        void persistDraft();
+                      }}
+                      className={`text-left p-4 rounded-2xl border transition-all ${
+                        active ? "border-[#1a1f36] ring-4 ring-[#1a1f36]/10 bg-white" : "border-gray-200 bg-white hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-bold text-[#1a1f36]">{p.name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{p.price}</div>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                            active ? "border-[#1a1f36] bg-[#1a1f36]" : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {active && <Check className="w-3.5 h-3.5 text-white" />}
+                        </div>
+                      </div>
+                      <ul className="mt-3 space-y-1">
+                        {p.features.map((f) => (
+                          <li key={f} className="text-xs text-gray-600 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#d4a843]" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <NavRow onNext={submitPlan} loading={loading} nextLabel="Continue" />
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Account and business information</h2>
+                  <p className="text-sm text-gray-500">Set up your business details. You can update these later.</p>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Error saving" : ""}
+                </div>
               </div>
 
               {error && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>}
@@ -465,6 +748,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                     className={inp}
                     placeholder="e.g. Glow Hair Studio"
                     value={bizName}
+                    onBlur={() => void persistDraft()}
                     onChange={(e) => {
                       setBizName(e.target.value);
                       if (!bizSlug) setBizSlug(generateSlug(e.target.value));
@@ -473,22 +757,62 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Industry</label>
-                  <select className={inp + " appearance-none"} value={industry} onChange={(e) => setIndustry(e.target.value)}>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Industry *</label>
+                  <select
+                    className={inp + " appearance-none"}
+                    value={industry}
+                    onBlur={() => void persistDraft()}
+                    onChange={(e) => {
+                      setIndustry(e.target.value);
+                      void persistDraft();
+                    }}
+                  >
                     {industryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Phone</label>
-                  <input className={inp} placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Business Phone *</label>
+                  <input
+                    className={inp}
+                    placeholder="+1 (555) 000-0000"
+                    value={phone}
+                    onBlur={() => void persistDraft()}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
                 </div>
 
                 <div className="col-span-2 space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Timezone</label>
-                  <select className={inp + " appearance-none"} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Time zone *</label>
+                  <select
+                    className={inp + " appearance-none"}
+                    value={timezone}
+                    onBlur={() => void persistDraft()}
+                    onChange={(e) => setTimezone(e.target.value)}
+                  >
                     {TIMEZONE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
+                </div>
+
+                <div className="col-span-2 space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Business Address *</label>
+                  <input className={inp} placeholder="Street address" value={address1} onBlur={() => void persistDraft()} onChange={(e) => setAddress1(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">City *</label>
+                  <input className={inp} value={city} onBlur={() => void persistDraft()} onChange={(e) => setCity(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">State *</label>
+                  <input className={inp} value={state} onBlur={() => void persistDraft()} onChange={(e) => setState(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">ZIP *</label>
+                  <input className={inp} value={zip} onBlur={() => void persistDraft()} onChange={(e) => setZip(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Website (optional)</label>
+                  <input className={inp} placeholder="https://…" value={website} onBlur={() => void persistDraft()} onChange={(e) => setWebsite(e.target.value)} />
                 </div>
 
                 <div className="col-span-2 space-y-1.5">
@@ -499,6 +823,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                       className="flex-1 px-3 py-2 text-sm focus:outline-none"
                       placeholder="your-business"
                       value={bizSlug}
+                      onBlur={() => void persistDraft()}
                       onChange={(e) => setBizSlug(generateSlug(e.target.value))}
                     />
                   </div>
@@ -511,19 +836,94 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   <textarea
                     className={inp + " resize-none"}
                     rows={2}
-                    placeholder="e.g. Expert hair color and cuts in downtown Portland"
+                    placeholder="A short description customers will see when booking"
                     value={description}
+                    onBlur={() => void persistDraft()}
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
               </div>
 
-              <NavRow onNext={submit1} loading={loading} />
+              <NavRow onBack={() => setStep(1)} onNext={submitBusiness} loading={loading} />
             </div>
           )}
 
-          {/* ────────────────────── STEP 2 — Hours ──────────────────────── */}
-          {step === 2 && (
+          {step === 3 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Subscription payment setup</h2>
+                <p className="text-sm text-gray-500">Save a payment method to start your free trial.</p>
+              </div>
+
+              {error && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>}
+
+              <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-[#1a1f36]">Selected plan</div>
+                  <div className="text-sm font-bold text-[#1a1f36]">
+                    {selectedTier === "starter" ? "Starter — $29/mo" : selectedTier === "pro" ? "Professional — $59/mo" : "Elite — $119/mo"}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-600">
+                  You will not be charged today. Billing begins when your free trial ends. Your plan renews monthly unless canceled.
+                </div>
+              </div>
+
+              {paymentReady ? (
+                <div className="p-4 rounded-2xl border border-emerald-100 bg-emerald-50 text-sm text-emerald-700">
+                  Payment method saved. Free trial is active.
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startPayment}
+                  disabled={loading || !selectedTier}
+                  className="w-full py-3 rounded-xl bg-[#1a1f36] text-white font-bold hover:bg-[#1a1f36]/90 disabled:opacity-50"
+                >
+                  Save payment method and start free trial
+                </button>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setStep(2)}
+                  className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => setStep(4)}
+                  disabled={!paymentReady}
+                  className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90 disabled:opacity-50"
+                >
+                  Continue
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Let’s build your business system</h2>
+                <p className="text-sm text-gray-500">Next you’ll set hours, staff, services, pricing, and your booking widget.</p>
+              </div>
+              <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-2 text-sm text-gray-700">
+                <div className="font-semibold text-[#1a1f36]">What’s coming</div>
+                <ol className="list-decimal pl-5 space-y-1 text-sm text-gray-600">
+                  <li>Business hours</li>
+                  <li>Staff & availability</li>
+                  <li>Services</li>
+                  <li>Pricing rules</li>
+                  <li>Branding & widget</li>
+                </ol>
+              </div>
+              <NavRow onBack={() => setStep(3)} onNext={submitIntro} loading={loading} nextLabel="Let's build your business system" />
+            </div>
+          )}
+
+          {step === 5 && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Set your business hours</h2>
@@ -573,12 +973,11 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 })}
               </div>
 
-              <NavRow onBack={() => setStep(1)} onNext={submit2} loading={loading} />
+              <NavRow onBack={() => setStep(4)} onSkip={() => skipTo(6)} onNext={submitHours} loading={loading} />
             </div>
           )}
 
-          {/* ────────────────────── STEP 3 — Services ───────────────────── */}
-          {step === 3 && (
+          {step === 7 && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add your services</h2>
@@ -662,12 +1061,11 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 </button>
               </div>
 
-              <NavRow onBack={() => setStep(2)} onNext={submit3} loading={loading} />
+              <NavRow onBack={() => setStep(6)} onSkip={() => skipTo(8)} onNext={submitServices} loading={loading} />
             </div>
           )}
 
-          {/* ────────────────────── STEP 4 — Pricing ────────────────────── */}
-          {step === 4 && (
+          {step === 8 && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Pricing & intake</h2>
@@ -679,16 +1077,16 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               <PricingBuilder />
 
               <NavRow
-                onBack={() => setStep(3)}
-                onNext={submit4}
+                onBack={() => setStep(7)}
+                onSkip={() => skipTo(9)}
+                onNext={submitPricing}
                 loading={loading}
                 nextLabel="Continue"
               />
             </div>
           )}
 
-          {/* ────────────────────── STEP 5 — Staff ──────────────────────── */}
-          {step === 5 && (
+          {step === 6 && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add your team</h2>
@@ -742,7 +1140,27 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
                       {/* Availability grid */}
                       {open && (
-                        <div className="px-4 pb-4 pt-3 border-t border-gray-100 space-y-2 bg-white">
+                        <div className="px-4 pb-4 pt-3 border-t border-gray-100 space-y-3 bg-white">
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              className={inp}
+                              placeholder="Role (optional)"
+                              value={m.role ?? ""}
+                              onChange={(e) => setStaffField(m.id, "role", e.target.value)}
+                            />
+                            <input
+                              className={inp}
+                              placeholder="Commission % (optional)"
+                              value={m.commissionPercent ?? ""}
+                              onChange={(e) => setStaffField(m.id, "commissionPercent", e.target.value)}
+                            />
+                            <input
+                              className={inp}
+                              placeholder="Phone (optional)"
+                              value={m.phone ?? ""}
+                              onChange={(e) => setStaffField(m.id, "phone", e.target.value)}
+                            />
+                          </div>
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
                             {m.name ? `${m.name}'s` : "Their"} weekly availability
                           </p>
@@ -788,7 +1206,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 <button
                   onClick={() => {
                     const id = `m${Date.now()}`;
-                    setStaff((p) => [...p, { id, name: "", email: "", availability: defaultAvail() }]);
+                    setStaff((p) => [...p, { id, name: "", email: "", role: "", phone: "", commissionPercent: "", availability: defaultAvail() }]);
                     setExpandedStaff(id);
                   }}
                   className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#1a1f36]/30 hover:text-[#1a1f36] transition-colors flex items-center justify-center gap-2"
@@ -798,16 +1216,16 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               </div>
 
               <NavRow
-                onBack={() => setStep(4)}
-                onNext={submit5}
+                onBack={() => setStep(5)}
+                onSkip={() => skipTo(7)}
+                onNext={submitStaff}
                 loading={loading}
-                nextLabel={staff.every((s) => !s.name.trim()) ? "Skip — just me" : "Continue"}
+                nextLabel="Continue"
               />
             </div>
           )}
 
-          {/* ────────────────────── STEP 6 — Widget ─────────────────────── */}
-          {step === 6 && (
+          {step === 9 && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Customize your booking widget</h2>
@@ -1003,12 +1421,11 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 </div>
               </div>
 
-              <NavRow onBack={() => setStep(5)} onNext={submit6} loading={loading} nextLabel="Generate Embed Code →" />
+              <NavRow onBack={() => setStep(8)} onSkip={() => skipTo(10)} onNext={submitBranding} loading={loading} nextLabel="Generate Embed Code →" />
             </div>
           )}
 
-          {/* ────────────────────── STEP 7 — Go Live ────────────────────── */}
-          {step === 7 && (
+          {step === 10 && (
             <div className="space-y-6">
               <div className="text-center">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d4a843] to-amber-300 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-200/60">
@@ -1033,6 +1450,32 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   </button>
                 </div>
               </div>
+
+              {qrDataUrl && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">QR Code</p>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <img src={qrDataUrl} alt="Booking QR code" className="w-24 h-24 rounded-lg border border-gray-200 bg-white" />
+                    <div className="flex-1 text-xs text-gray-600">
+                      Customers can scan to open your booking link.
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const a = document.createElement("a");
+                            a.href = qrDataUrl;
+                            a.download = `${businessSlug}-qr.png`;
+                            a.click();
+                          }}
+                          className="px-3 py-1.5 text-xs font-bold bg-[#1a1f36] text-white rounded-lg hover:bg-[#1a1f36]/90 transition-colors"
+                        >
+                          Download QR
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Embed snippet */}
               <div className="space-y-2">
@@ -1099,12 +1542,47 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               </div>
 
               <NavRow
-                onBack={() => setStep(6)}
-                onNext={finish}
+                onBack={() => setStep(9)}
+                onNext={submitWidget}
                 loading={loading}
-                nextLabel="Go to Dashboard →"
-                isLast
+                nextLabel="Continue to Review →"
               />
+            </div>
+          )}
+
+          {step === 11 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-2xl bg-[#1a1f36] flex items-center justify-center mx-auto mb-3 shadow-lg shadow-gray-200/60">
+                  <Check className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Final review</h2>
+                <p className="text-sm text-gray-500">Confirm your setup and finish.</p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-2 text-sm text-gray-700">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-[#1a1f36]">Business</div>
+                  <button type="button" onClick={() => setStep(2)} className="text-xs font-bold text-[#1a1f36] hover:underline">
+                    Edit
+                  </button>
+                </div>
+                <div className="text-sm text-gray-700">{bizName || "—"}</div>
+                <div className="text-xs text-gray-500">{industry}</div>
+                <div className="text-xs text-gray-500">{businessSlug ? `/book/${businessSlug}` : ""}</div>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-2 text-sm text-gray-700">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-[#1a1f36]">Services</div>
+                  <button type="button" onClick={() => setStep(7)} className="text-xs font-bold text-[#1a1f36] hover:underline">
+                    Edit
+                  </button>
+                </div>
+                <div className="text-sm text-gray-700">{services.filter((s) => s.name.trim()).length} service(s)</div>
+              </div>
+
+              <NavRow onBack={() => setStep(10)} onNext={finish} loading={loading} nextLabel="Finish setup →" isLast />
             </div>
           )}
 
