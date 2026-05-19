@@ -58,6 +58,7 @@
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.76.0",
     "recharts": "^3.8.1",
+    "qrcode": "^1.5.4",
     "resend": "^6.12.3",
     "stripe": "^22.1.1",
     "tailwind-merge": "^3.6.0",
@@ -67,6 +68,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.5",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^25.8.0",
     "@types/react": "^19",

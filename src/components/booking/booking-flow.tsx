@@ -87,7 +87,17 @@ function getFirstDayOfMonth(year: number, month: number) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function BookingFlow({ business, services, config }: { business: BusinessData; services: ServiceData[]; config: unknown }) {
+export function BookingFlow({
+  business,
+  services,
+  config,
+  embed = false,
+}: {
+  business: BusinessData;
+  services: ServiceData[];
+  config: unknown;
+  embed?: boolean;
+}) {
   const primary = business.primaryColor || "#1a1f36";
   const cfg = (config ?? {}) as BookingConfig;
   const intakeFields = (cfg.intakeFields ?? []).filter((f) => f.key !== "customerType");
@@ -223,8 +233,13 @@ export function BookingFlow({ business, services, config }: { business: Business
   const inp = "w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all"
             + ` focus:ring-[${primary}]/20`;
 
+  const currency = quote?.currency ?? business.currency;
+  const total = quote ? quote.total : sel.service ? sel.service.price : 0;
+  const subtotal = quote ? quote.subtotal : sel.service ? sel.service.price : 0;
+  const discounts = quote ? quote.discounts : 0;
+
   return (
-    <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className={embed ? "bg-transparent" : "min-h-screen bg-gray-50"} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
 
       {/* ── Business header ─────────────────────────────────────────────── */}
       <div className="relative" style={{ background: primary }}>
@@ -287,7 +302,9 @@ export function BookingFlow({ business, services, config }: { business: Business
       )}
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      <div className="max-w-lg mx-auto px-6 pb-12">
+      <div className={embed ? "max-w-6xl mx-auto px-4 sm:px-6 pb-10" : "max-w-lg mx-auto px-6 pb-12"}>
+        <div className={embed ? "grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start" : ""}>
+          <div className="min-w-0">
 
         {/* STEP 1 — Select service */}
         {step === 1 && (
@@ -384,8 +401,8 @@ export function BookingFlow({ business, services, config }: { business: Business
             </button>
             <h2 className="text-lg font-bold text-gray-800">Pick a date & time</h2>
 
-            {/* Calendar */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <div className={embed ? "grid grid-cols-1 md:grid-cols-2 gap-4" : ""}>
+              <div className="bg-white rounded-2xl border border-gray-100 p-4">
               <div className="flex items-center justify-between mb-4">
                 <button
                   onClick={() => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); }}
@@ -440,8 +457,8 @@ export function BookingFlow({ business, services, config }: { business: Business
             </div>
 
             {/* Time slots */}
-            {sel.date && (
-              <div>
+              {sel.date && (
+              <div className={embed ? "md:pt-1" : ""}>
                 <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
                   {new Date(sel.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
@@ -482,6 +499,7 @@ export function BookingFlow({ business, services, config }: { business: Business
                 )}
               </div>
             )}
+            </div>
           </div>
         )}
 
@@ -767,6 +785,67 @@ export function BookingFlow({ business, services, config }: { business: Business
             </button>
           </div>
         )}
+          </div>
+
+          {embed && (
+            <div className="sticky top-6">
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-[#1a1f36]">Summary</div>
+                  {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Service</span>
+                    <span className="font-semibold text-gray-800">{sel.service?.name ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Staff</span>
+                    <span className="font-semibold text-gray-800">{sel.slot?.staffName ?? sel.staff?.name ?? "Any"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Date</span>
+                    <span className="font-semibold text-gray-800">{sel.date ? new Date(sel.date + "T12:00:00").toLocaleDateString() : "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Time</span>
+                    <span className="font-semibold text-gray-800">{sel.slot ? formatTimeDisplay(sel.slot.startTime) : "—"}</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 pt-3 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Discounts</span>
+                    <span className={discounts > 0 ? "font-semibold text-emerald-600" : "font-semibold text-gray-800"}>
+                      {discounts > 0 ? `-${formatCurrency(discounts, currency)}` : formatCurrency(0, currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm font-black">
+                    <span className="text-gray-700">Total</span>
+                    <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
+                  </div>
+                  {!!quote?.breakdown?.length && (
+                    <div className="pt-2 space-y-1">
+                      {quote.breakdown.map((line) => (
+                        <div key={line.label} className="flex justify-between text-xs text-gray-500">
+                          <span className="truncate pr-2">{line.label}</span>
+                          <span className={line.amount < 0 ? "text-emerald-600 font-semibold" : "text-gray-700"}>
+                            {formatCurrency(line.amount, currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Powered by ─────────────────────────────────────────────────── */}
