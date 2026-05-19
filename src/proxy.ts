@@ -96,7 +96,10 @@ export default async function middleware(request: NextRequest) {
   let user: { id: string; role: Role; businessSlug?: string } | null = null;
   if (secret) {
     try {
-      const token = await getToken({ req: request, secret });
+      const token =
+        (await getToken({ req: request, secret })) ??
+        (await getToken({ req: request, secret, cookieName: "__Secure-authjs.session-token" })) ??
+        (await getToken({ req: request, secret, cookieName: "authjs.session-token" }));
       user = token
         ? {
             id: token.id as string,
