@@ -57,20 +57,24 @@ export function RegisterForm({ configWarning }: { configWarning?: string }) {
       return;
     }
 
+    const target = "/post-login?callbackUrl=%2Fonboarding";
+
     // Auto sign in after registration
     const result = await signIn("credentials", {
       email: data.email.toLowerCase(),
       password: data.password,
+      callbackUrl: target,
       redirect: false,
     });
 
     if (result?.error) {
       setServerError("Account created but sign-in failed. Please log in.");
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
 
-    router.push("/onboarding");
+    router.push(result?.url ?? target);
+    router.refresh();
   };
 
   const handleGoogle = async () => {
