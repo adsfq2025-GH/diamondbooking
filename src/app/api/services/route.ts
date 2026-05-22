@@ -10,6 +10,8 @@ const createSchema = z.object({
   description: z.string().max(500).optional(),
   duration: z.number().int().min(5).max(480),
   price: z.number().min(0),
+  billingUnit: z.enum(["PER_JOB", "PER_HOUR"]).optional(),
+  minDurationMinutes: z.number().int().min(5).max(480).optional(),
   color: z.string().optional(),
   staffIds: z.array(z.string()).optional(),
 });

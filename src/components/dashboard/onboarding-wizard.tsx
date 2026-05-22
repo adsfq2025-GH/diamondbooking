@@ -27,6 +27,9 @@ interface Service {
   name: string;
   duration: number;
   price: string;
+  billingUnit: "PER_JOB" | "PER_HOUR";
+  minimumEnabled: boolean;
+  minimumHours: string;
   color: string;
 }
 
@@ -221,7 +224,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   // Step 7
   const [services, setServices] = useState<Service[]>([
-    { id: "s1", name: "", duration: 60, price: "", color: SERVICE_COLORS[0] },
+    { id: "s1", name: "", duration: 60, price: "", billingUnit: "PER_JOB", minimumEnabled: false, minimumHours: "2", color: SERVICE_COLORS[0] },
   ]);
 
   // Step 6
@@ -510,7 +513,26 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
           fetch("/api/services", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: s.name, duration: s.duration, price: parseFloat(s.price) || 0, color: s.color }),
+            body: JSON.stringify((() => {
+              const price = parseFloat(s.price) || 0;
+              const minHours = s.billingUnit === "PER_HOUR" && s.minimumEnabled ? Number(s.minimumHours) : NaN;
+              const minDurationMinutes =
+                s.billingUnit === "PER_HOUR" && Number.isFinite(minHours) && minHours > 0
+                  ? Math.floor(minHours) * 60
+                  : undefined;
+              const duration =
+                s.billingUnit === "PER_HOUR"
+                  ? Math.max(minDurationMinutes ?? 60, s.duration)
+                  : s.duration;
+              return {
+                name: s.name,
+                duration,
+                price,
+                billingUnit: s.billingUnit,
+                minDurationMinutes,
+                color: s.color,
+              };
+            })()),
           })
         )
       );
@@ -1007,7 +1029,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                           value={s.name}
                           onChange={(e) => setServiceField(s.id, "name", e.target.value)}
                         />
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</label>
                             <select
@@ -1033,7 +1055,71 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                               />
                             </div>
                           </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Billing</label>
+                            <select
+                              className={inp + " appearance-none"}
+                              value={s.billingUnit}
+                              onChange={(e) => {
+                                const next = e.target.value as "PER_JOB" | "PER_HOUR";
+                                setServices((p) =>
+                                  p.map((x) =>
+                                    x.id === s.id
+                                      ? {
+                                          ...x,
+                                          billingUnit: next,
+                                          minimumEnabled: next === "PER_HOUR" ? x.minimumEnabled : false,
+                                          duration: next === "PER_HOUR" ? Math.max(60, x.duration) : x.duration,
+                                        }
+                                      : x
+                                  )
+                                );
+                              }}
+                            >
+                              <option value="PER_JOB">Per job</option>
+                              <option value="PER_HOUR">Per hour</option>
+                            </select>
+                          </div>
                         </div>
+
+                        {s.billingUnit === "PER_HOUR" && (
+                          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white border border-gray-100">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-800">Minimum hours</div>
+                              <div className="text-xs text-gray-500">Optional. If enabled, customers must book at least this many hours.</div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setServices((p) =>
+                                    p.map((x) =>
+                                      x.id === s.id ? { ...x, minimumEnabled: !x.minimumEnabled } : x
+                                    )
+                                  )
+                                }
+                                className={`w-10 h-6 rounded-full relative transition-colors ${
+                                  s.minimumEnabled ? "bg-[#1a1f36]" : "bg-gray-200"
+                                }`}
+                              >
+                                <span
+                                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                                    s.minimumEnabled ? "translate-x-4" : "translate-x-0.5"
+                                  }`}
+                                />
+                              </button>
+                              <input
+                                className={inp + " w-24"}
+                                type="number"
+                                min="1"
+                                step="1"
+                                disabled={!s.minimumEnabled}
+                                value={s.minimumHours}
+                                onChange={(e) => setServiceField(s.id, "minimumHours", e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {services.length > 1 && (
@@ -1052,7 +1138,16 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   onClick={() =>
                     setServices((p) => [
                       ...p,
-                      { id: `s${Date.now()}`, name: "", duration: 60, price: "", color: SERVICE_COLORS[p.length % SERVICE_COLORS.length] },
+                      {
+                        id: `s${Date.now()}`,
+                        name: "",
+                        duration: 60,
+                        price: "",
+                        billingUnit: "PER_JOB",
+                        minimumEnabled: false,
+                        minimumHours: "2",
+                        color: SERVICE_COLORS[p.length % SERVICE_COLORS.length],
+                      },
                     ])
                   }
                   className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#1a1f36]/30 hover:text-[#1a1f36] transition-colors flex items-center justify-center gap-2"
@@ -1397,7 +1492,9 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                             <p className="text-[10px] opacity-50 mt-0.5">{s.duration} min</p>
                           </div>
                           {widget.showPrices && s.price && (
-                            <span className="text-xs font-bold" style={{ color: widget.accentColor }}>${s.price}</span>
+                            <span className="text-xs font-bold" style={{ color: widget.accentColor }}>
+                              ${s.price}{(s as { billingUnit?: string }).billingUnit === "PER_HOUR" ? "/hr" : ""}
+                            </span>
                           )}
                         </div>
                       ))}

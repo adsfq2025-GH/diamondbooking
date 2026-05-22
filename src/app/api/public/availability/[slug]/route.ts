@@ -11,6 +11,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   const date      = searchParams.get("date");
   const serviceId = searchParams.get("serviceId");
   const staffId   = searchParams.get("staffId") ?? "any";
+  const durationMinutesParam = searchParams.get("durationMinutes");
+  const durationMinutes = durationMinutesParam ? Number(durationMinutesParam) : undefined;
 
   if (!date || !serviceId) {
     return NextResponse.json(
@@ -25,6 +27,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       serviceId,
       staffId,
       date,
+      durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : undefined,
     });
     return NextResponse.json({ success: true, data: slots });
   } catch (err) {

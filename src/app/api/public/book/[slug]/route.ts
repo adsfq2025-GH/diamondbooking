@@ -22,6 +22,7 @@ const schema = z.object({
   date:          z.string(), // YYYY-MM-DD
   startTime:     z.string(), // ISO UTC datetime
   endTime:       z.string(), // ISO UTC datetime
+  durationMinutes: z.number().int().min(5).max(480).optional(),
   customerName:  z.string().min(1).max(100),
   customerEmail: z.string().email(),
   customerPhone: z.string().optional(),
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     date,
     startTime,
     endTime,
+    durationMinutes,
     customerName,
     customerEmail,
     customerPhone,
@@ -109,6 +111,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const slotStart = new Date(startTime);
   const slotEnd   = new Date(endTime);
+  const actualDurationMinutes = Math.round((slotEnd.getTime() - slotStart.getTime()) / 60_000);
 
   if (Number.isNaN(slotStart.getTime()) || Number.isNaN(slotEnd.getTime())) {
     return NextResponse.json({ success: false, error: "Invalid time selection" }, { status: 400 });
@@ -153,9 +156,20 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ success: false, error: "Selected time is outside availability" }, { status: 400 });
   }
 
-  const expectedMs = service.duration * 60_000;
-  if (slotEnd.getTime() - slotStart.getTime() !== expectedMs) {
-    return NextResponse.json({ success: false, error: "Invalid slot duration" }, { status: 400 });
+  if (service.billingUnit === "PER_HOUR") {
+    const min = service.minDurationMinutes ?? service.duration;
+    const requested = durationMinutes ?? actualDurationMinutes;
+    if (requested !== actualDurationMinutes) {
+      return NextResponse.json({ success: false, error: "Invalid duration selection" }, { status: 400 });
+    }
+    if (actualDurationMinutes < min) {
+      return NextResponse.json({ success: false, error: `Minimum booking is ${Math.ceil(min / 60)} hour(s)` }, { status: 400 });
+    }
+  } else {
+    const expectedMs = service.duration * 60_000;
+    if (slotEnd.getTime() - slotStart.getTime() !== expectedMs) {
+      return NextResponse.json({ success: false, error: "Invalid slot duration" }, { status: 400 });
+    }
   }
 
   // Upsert customer (unique per business+email)
@@ -185,8 +199,13 @@ export async function POST(req: NextRequest, { params }: Params) {
   const isNewCustomer = priorBookings === 0;
   const isMember = !!activeMembership;
 
+  const basePrice =
+    service.billingUnit === "PER_HOUR"
+      ? Number(service.price) * (actualDurationMinutes / 60)
+      : Number(service.price);
+
   const baseSubtotal = computeQuote({
-    basePrice: Number(service.price),
+    basePrice,
     currency: service.currency,
     intake: intake ?? {},
     addOnKeys: addOnKeys ?? [],
@@ -258,7 +277,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         : undefined;
 
   const quote = computeQuote({
-    basePrice: Number(service.price),
+    basePrice,
     currency: service.currency,
     intake: intake ?? {},
     addOnKeys: addOnKeys ?? [],

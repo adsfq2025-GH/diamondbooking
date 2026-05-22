@@ -403,6 +403,8 @@ model Service {
   description String? @db.Text
   duration    Int // minutes: 15, 30, 45, 60, 90, 120...
   price       Decimal @db.Decimal(10, 2)
+  billingUnit ServiceBillingUnit @default(PER_JOB)
+  minDurationMinutes Int?
   currency    String  @default("USD")
   color       String  @default("#1a1f36") // calendar display color
   isActive    Boolean @default(true)
@@ -420,6 +422,11 @@ model Service {
   @@index([businessId])
   @@index([businessId, isActive])
   @@map("services")
+}
+
+enum ServiceBillingUnit {
+  PER_JOB
+  PER_HOUR
 }
 
 // ─────────────────────────────────────────────

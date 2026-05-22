@@ -108,6 +108,8 @@ export default async function BookingPage({ params, searchParams }: Props) {
         description: s.description,
         duration:    s.duration,
         price:       Number(s.price),
+        billingUnit: s.billingUnit,
+        minDurationMinutes: s.minDurationMinutes,
         currency:    s.currency,
         color:       s.color,
         staff:       s.staff.map((ss) => ss.staff),

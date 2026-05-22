@@ -8,6 +8,7 @@ type Params = { params: Promise<{ slug: string }> };
 
 const schema = z.object({
   serviceId: z.string(),
+  durationMinutes: z.number().int().min(5).max(480).optional(),
   intake: z.record(z.string(), z.unknown()).default({}),
   addOnKeys: z.array(z.string()).default([]),
   isCommercial: z.boolean().default(false),
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const service = await prisma.service.findFirst({
     where: { id: parsed.data.serviceId, businessId: business.id, isActive: true },
-    select: { price: true, currency: true },
+    select: { price: true, currency: true, billingUnit: true, minDurationMinutes: true, duration: true },
   });
   if (!service) {
     return NextResponse.json({ success: false, error: "Service not found" }, { status: 404 });
@@ -77,8 +78,17 @@ export async function POST(req: NextRequest, { params }: Params) {
   const now = new Date();
   const promoCode = normalizePromoCode(parsed.data.promoCode);
 
+  const effectiveDurationMinutes =
+    parsed.data.durationMinutes ??
+    (service.billingUnit === "PER_HOUR" ? service.minDurationMinutes ?? service.duration : service.duration);
+
+  const basePrice =
+    service.billingUnit === "PER_HOUR"
+      ? Number(service.price) * (effectiveDurationMinutes / 60)
+      : Number(service.price);
+
   const baseSubtotal = computeQuote({
-    basePrice: Number(service.price),
+    basePrice,
     currency: service.currency ?? business.currency,
     intake: parsed.data.intake,
     addOnKeys: parsed.data.addOnKeys,
@@ -152,7 +162,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         : undefined;
 
   const quote = computeQuote({
-    basePrice: Number(service.price),
+    basePrice,
     currency: service.currency ?? business.currency,
     intake: parsed.data.intake,
     addOnKeys: parsed.data.addOnKeys,

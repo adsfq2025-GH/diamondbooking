@@ -26,6 +26,8 @@ interface StaffMember { id: string; name: string; avatarUrl: string | null }
 interface ServiceData {
   id: string; name: string; description: string | null;
   duration: number; price: number; currency: string; color: string;
+  billingUnit: "PER_JOB" | "PER_HOUR";
+  minDurationMinutes: number | null;
   staff: StaffMember[];
 }
 
@@ -38,6 +40,7 @@ interface BookingSelection {
   staff:   StaffMember | null;
   date:    string;
   slot:    SlotData | null;
+  durationMinutes: number;
   name:    string; email: string; phone: string; notes: string;
 }
 
@@ -126,15 +129,16 @@ export function BookingFlow({
 
   const [sel, setSel] = useState<BookingSelection>({
     service: null, staff: null, date: "", slot: null,
+    durationMinutes: 60,
     name: "", email: "", phone: "", notes: "",
   });
 
   // Load slots when date + service + staff are selected
-  const loadSlots = useCallback(async (date: string, serviceId: string, staffId: string) => {
+  const loadSlots = useCallback(async (date: string, serviceId: string, staffId: string, durationMinutes: number) => {
     setSlotsLoading(true);
     try {
       const res = await fetch(
-        `/api/public/availability/${business.slug}?date=${date}&serviceId=${serviceId}&staffId=${staffId}`
+        `/api/public/availability/${business.slug}?date=${date}&serviceId=${serviceId}&staffId=${staffId}&durationMinutes=${encodeURIComponent(String(durationMinutes))}`
       );
       const json = await res.json();
       setSlots(json.data ?? []);
@@ -145,9 +149,9 @@ export function BookingFlow({
 
   useEffect(() => {
     if (sel.date && sel.service && step === 3) {
-      loadSlots(sel.date, sel.service.id, sel.staff?.id ?? "any");
+      loadSlots(sel.date, sel.service.id, sel.staff?.id ?? "any", sel.durationMinutes);
     }
-  }, [sel.date, sel.service, sel.staff, step, loadSlots]);
+  }, [sel.date, sel.service, sel.staff, sel.durationMinutes, step, loadSlots]);
 
   // Check if a date is available (within business hours, not in past, within advance window)
   const isDateAvailable = (year: number, month: number, day: number) => {
@@ -177,6 +181,7 @@ export function BookingFlow({
           date:          sel.date,
           startTime:     slot.startUTC,
           endTime:       slot.endUTC,
+          durationMinutes: sel.durationMinutes,
           customerName:  sel.name,
           customerEmail: sel.email,
           customerPhone: sel.phone || undefined,
@@ -211,6 +216,7 @@ export function BookingFlow({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             serviceId,
+            durationMinutes: sel.durationMinutes,
             intake,
             addOnKeys,
             isCommercial,
@@ -228,15 +234,25 @@ export function BookingFlow({
     };
     void load();
     return () => controller.abort();
-  }, [sel.service, sel.email, business.slug, intake, addOnKeys, isCommercial, recurringInterval, promoCode]);
+  }, [sel.service, sel.durationMinutes, sel.email, business.slug, intake, addOnKeys, isCommercial, recurringInterval, promoCode]);
 
   const inp = "w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all"
             + ` focus:ring-[${primary}]/20`;
 
   const currency = quote?.currency ?? business.currency;
-  const total = quote ? quote.total : sel.service ? sel.service.price : 0;
-  const subtotal = quote ? quote.subtotal : sel.service ? sel.service.price : 0;
+  const base =
+    sel.service
+      ? sel.service.billingUnit === "PER_HOUR"
+        ? sel.service.price * (sel.durationMinutes / 60)
+        : sel.service.price
+      : 0;
+  const total = quote ? quote.total : base;
+  const subtotal = quote ? quote.subtotal : base;
   const discounts = quote ? quote.discounts : 0;
+  const durationLabel =
+    sel.service?.billingUnit === "PER_HOUR"
+      ? `${sel.durationMinutes / 60} hour${sel.durationMinutes / 60 === 1 ? "" : "s"}`
+      : `${sel.durationMinutes} min`;
 
   return (
     <div className={embed ? "bg-transparent" : "min-h-screen bg-gray-50"} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -314,7 +330,16 @@ export function BookingFlow({
               <button
                 key={s.id}
                 onClick={() => {
-                  setSel((p) => ({ ...p, service: s, staff: s.staff.length === 1 ? s.staff[0] : null }));
+                  const defaultDuration =
+                    s.billingUnit === "PER_HOUR" ? (s.minDurationMinutes ?? s.duration) : s.duration;
+                  setSel((p) => ({
+                    ...p,
+                    service: s,
+                    staff: s.staff.length === 1 ? s.staff[0] : null,
+                    durationMinutes: defaultDuration,
+                    date: "",
+                    slot: null,
+                  }));
                   setIntake({});
                   setAddOnKeys([]);
                   setIsCommercial(false);
@@ -331,11 +356,14 @@ export function BookingFlow({
                   {s.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{s.description}</p>}
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <Clock className="w-3 h-3" />{s.duration} min
+                      <Clock className="w-3 h-3" />
+                      {s.billingUnit === "PER_HOUR" ? `${s.minDurationMinutes ?? s.duration}+ min` : `${s.duration} min`}
                     </span>
                     {s.price > 0 && (
                       <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: primary }}>
-                        <DollarSign className="w-3 h-3" />{formatCurrency(s.price, s.currency)}
+                        <DollarSign className="w-3 h-3" />
+                        {formatCurrency(s.price, s.currency)}
+                        {s.billingUnit === "PER_HOUR" ? "/hr" : ""}
                       </span>
                     )}
                   </div>
@@ -400,6 +428,37 @@ export function BookingFlow({
               <ChevronLeft className="w-4 h-4" /> Back
             </button>
             <h2 className="text-lg font-bold text-gray-800">Pick a date & time</h2>
+
+            {sel.service.billingUnit === "PER_HOUR" && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">Duration</p>
+                    <p className="text-xs text-gray-500">Choose how many hours you want to book.</p>
+                  </div>
+                  <select
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none"
+                    value={sel.durationMinutes}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      setSel((p) => ({ ...p, durationMinutes: next, slot: null }));
+                    }}
+                  >
+                    {(() => {
+                      const minDuration = sel.service ? (sel.service.minDurationMinutes ?? sel.service.duration) : 60;
+                      return Array.from({ length: 8 }, (_, i) => i + 1)
+                        .map((h) => h * 60)
+                        .filter((m) => m >= minDuration)
+                        .map((m) => (
+                          <option key={m} value={m}>
+                            {m / 60} hour{m / 60 === 1 ? "" : "s"}
+                          </option>
+                        ));
+                    })()}
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className={embed ? "grid grid-cols-1 md:grid-cols-2 gap-4" : ""}>
               <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -519,8 +578,8 @@ export function BookingFlow({
                 ["With",        sel.slot.staffName],
                 ["Date",        new Date(sel.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })],
                 ["Time",        formatTimeDisplay(sel.slot.startTime)],
-                ["Duration",    `${sel.service.duration} min`],
-                ...(sel.service.price > 0 ? [["Total", quote ? formatCurrency(quote.total, quote.currency) : formatCurrency(sel.service.price, sel.service.currency)]] : []),
+                ["Duration",    durationLabel],
+                ...(sel.service.price > 0 ? [["Total", formatCurrency(total, currency)]] : []),
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-gray-500">{label}</span>
@@ -770,7 +829,7 @@ export function BookingFlow({
 
             <button
               onClick={() => {
-                setSel({ service: null, staff: null, date: "", slot: null, name: "", email: "", phone: "", notes: "" });
+                setSel({ service: null, staff: null, date: "", slot: null, durationMinutes: 60, name: "", email: "", phone: "", notes: "" });
                 setIntake({});
                 setAddOnKeys([]);
                 setIsCommercial(false);
