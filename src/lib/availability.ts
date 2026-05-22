@@ -20,6 +20,7 @@ export interface AvailabilityParams {
   serviceId: string;
   staffId: string | "any";
   date: string; // "YYYY-MM-DD" in business local time
+  durationMinutes?: number;
 }
 
 /**
@@ -47,7 +48,7 @@ function overlaps(
 }
 
 export async function getAvailableSlots(params: AvailabilityParams): Promise<SlotResult[]> {
-  const { businessSlug, serviceId, staffId, date } = params;
+  const { businessSlug, serviceId, staffId, date, durationMinutes } = params;
 
   // ── Load business ──────────────────────────────────────────────────────────
   const business = await prisma.business.findUnique({
@@ -132,7 +133,9 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
 
     // ── Generate slots in INCREMENT-minute steps ───────────────────────────
     const increment = business.slotIncrementMinutes;
-    const duration  = service.duration;
+    const minDuration = service.billingUnit === "PER_HOUR" ? service.minDurationMinutes ?? service.duration : service.duration;
+    const requested = durationMinutes ?? service.duration;
+    const duration = Math.max(minDuration, Math.ceil(requested / increment) * increment);
     const buffer    = business.bufferMinutes;
 
     let cursor = new Date(windowStart);
