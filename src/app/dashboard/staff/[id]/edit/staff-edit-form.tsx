@@ -18,6 +18,8 @@ export function StaffEditForm({
     email: string | null;
     phone: string | null;
     isActive: boolean;
+    payRate: string | null;
+    payRateType: "HOURLY" | "PER_SALE" | "PER_DAY" | "PER_JOB";
     serviceIds: string[];
   };
   services: ServiceOption[];
@@ -29,6 +31,8 @@ export function StaffEditForm({
   const [email, setEmail] = useState(initial.email ?? "");
   const [phone, setPhone] = useState(initial.phone ?? "");
   const [isActive, setIsActive] = useState(initial.isActive);
+  const [payRate, setPayRate] = useState(initial.payRate ?? "");
+  const [payRateType, setPayRateType] = useState<"HOURLY" | "PER_SALE" | "PER_DAY" | "PER_JOB">(initial.payRateType);
   const [serviceIds, setServiceIds] = useState<string[]>(initial.serviceIds);
 
   const activeServices = useMemo(() => services.filter((s) => s.isActive), [services]);
@@ -51,6 +55,8 @@ export function StaffEditForm({
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
           isActive,
+          payRate: payRate.trim() ? Number(payRate) : undefined,
+          payRateType,
           serviceIds,
         }),
       });
@@ -94,6 +100,28 @@ export function StaffEditForm({
             onChange={(e) => setPhone(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none"
           />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Pay rate (optional)</label>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={payRate}
+              onChange={(e) => setPayRate(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none"
+              inputMode="decimal"
+              placeholder="0.00"
+            />
+            <select
+              value={payRateType}
+              onChange={(e) => setPayRateType(e.target.value as typeof payRateType)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none"
+            >
+              <option value="HOURLY">Per hour</option>
+              <option value="PER_SALE">Per sale</option>
+              <option value="PER_DAY">Per day</option>
+              <option value="PER_JOB">Per job</option>
+            </select>
+          </div>
         </div>
       </div>
 

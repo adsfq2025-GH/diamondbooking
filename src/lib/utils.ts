@@ -194,24 +194,138 @@ export const DURATION_OPTIONS = [
 
 // ─── Industry options ────────────────────────
 export const INDUSTRY_OPTIONS = [
-  { value: "salon", label: "Hair Salon" },
-  { value: "barbershop", label: "Barbershop" },
-  { value: "spa", label: "Spa & Wellness" },
-  { value: "nail_salon", label: "Nail Salon" },
-  { value: "massage", label: "Massage Therapy" },
-  { value: "fitness", label: "Fitness & Personal Training" },
-  { value: "yoga", label: "Yoga & Pilates" },
-  { value: "clinic", label: "Medical / Dental Clinic" },
-  { value: "tattoo", label: "Tattoo & Piercing" },
-  { value: "consulting", label: "Consulting & Coaching" },
-  { value: "restaurant", label: "Restaurant / Hospitality" },
-  { value: "automotive", label: "Automotive Services" },
-  { value: "cleaning", label: "Cleaning Services" },
-  { value: "photography", label: "Photography" },
-  { value: "tutoring", label: "Tutoring & Education" },
-  { value: "veterinary", label: "Veterinary" },
+  { value: "general_services", label: "General Services — General" },
+
+  { value: "cleaning_residential", label: "Residential Cleaning — Home Services" },
+  { value: "cleaning_commercial", label: "Commercial Cleaning — Home Services" },
+  { value: "carpet_cleaning", label: "Carpet Cleaning — Home Services" },
+  { value: "window_cleaning", label: "Window Cleaning — Home Services" },
+  { value: "pressure_washing", label: "Pressure Washing — Home Services" },
+  { value: "janitorial", label: "Janitorial — Home Services" },
+  { value: "maid_service", label: "Maid Service — Home Services" },
+
+  { value: "hvac", label: "HVAC — Home Services" },
+  { value: "plumbing", label: "Plumbing — Home Services" },
+  { value: "electrical", label: "Electrical — Home Services" },
+  { value: "handyman", label: "Handyman — Home Services" },
+  { value: "roofing", label: "Roofing — Home Services" },
+  { value: "pest_control", label: "Pest Control — Home Services" },
+  { value: "landscaping", label: "Landscaping — Home Services" },
+  { value: "lawn_care", label: "Lawn Care — Home Services" },
+  { value: "tree_service", label: "Tree Service — Home Services" },
+  { value: "pool_service", label: "Pool Service — Home Services" },
+  { value: "painting", label: "Painting — Home Services" },
+  { value: "flooring", label: "Flooring — Home Services" },
+  { value: "appliance_repair", label: "Appliance Repair — Home Services" },
+  { value: "moving", label: "Moving — Home Services" },
+  { value: "locksmith", label: "Locksmith — Home Services" },
+  { value: "garage_door", label: "Garage Door — Home Services" },
+
+  { value: "salon", label: "Hair Salon — Beauty" },
+  { value: "barbershop", label: "Barbershop — Beauty" },
+  { value: "nail_salon", label: "Nail Salon — Beauty" },
+  { value: "esthetician", label: "Esthetician — Beauty" },
+  { value: "med_spa", label: "Med Spa — Beauty" },
+  { value: "spa", label: "Spa & Wellness — Beauty" },
+  { value: "massage", label: "Massage Therapy — Wellness" },
+
+  { value: "fitness", label: "Fitness & Personal Training — Wellness" },
+  { value: "yoga", label: "Yoga & Pilates — Wellness" },
+
+  { value: "chiropractic", label: "Chiropractic — Medical & Health" },
+  { value: "physical_therapy", label: "Physical Therapy — Medical & Health" },
+  { value: "therapy_counseling", label: "Therapy & Counseling — Medical & Health" },
+  { value: "dental", label: "Dental Clinic — Medical & Health" },
+  { value: "medical_clinic", label: "Medical Clinic — Medical & Health" },
+  { value: "ultrasound", label: "Ultrasound Clinic — Medical & Health" },
+  { value: "veterinary", label: "Veterinary — Medical & Health" },
+
+  { value: "automotive", label: "Automotive Services — Automotive" },
+  { value: "detailing", label: "Auto Detailing — Automotive" },
+
+  { value: "photography", label: "Photography — Creative" },
+  { value: "tattoo", label: "Tattoo & Piercing — Creative" },
+
+  { value: "tutoring", label: "Tutoring & Education — Education" },
+  { value: "music_lessons", label: "Music Lessons — Education" },
+
+  { value: "consulting", label: "Consulting & Coaching — Professional Services" },
+  { value: "accounting", label: "Accounting — Professional Services" },
+  { value: "legal", label: "Legal Services — Professional Services" },
+  { value: "real_estate", label: "Real Estate — Professional Services" },
+
+  { value: "restaurant", label: "Restaurant / Hospitality — Hospitality" },
+  { value: "event_services", label: "Event Services — Hospitality" },
+
   { value: "other", label: "Other" },
 ];
+
+export const INDUSTRY_DEFAULT_SERVICE_DURATION_MINUTES: Record<string, number> = {
+  general_services: 60,
+
+  cleaning_residential: 180,
+  cleaning_commercial: 180,
+  carpet_cleaning: 120,
+  window_cleaning: 120,
+  pressure_washing: 120,
+  janitorial: 180,
+  maid_service: 180,
+
+  hvac: 90,
+  plumbing: 90,
+  electrical: 90,
+  handyman: 120,
+  roofing: 120,
+  pest_control: 60,
+  landscaping: 120,
+  lawn_care: 60,
+  tree_service: 180,
+  pool_service: 60,
+  painting: 180,
+  flooring: 180,
+  appliance_repair: 60,
+  moving: 180,
+  locksmith: 45,
+  garage_door: 60,
+
+  salon: 60,
+  barbershop: 45,
+  nail_salon: 60,
+  esthetician: 60,
+  med_spa: 60,
+  spa: 60,
+  massage: 60,
+
+  fitness: 60,
+  yoga: 60,
+
+  chiropractic: 30,
+  physical_therapy: 60,
+  therapy_counseling: 60,
+  dental: 60,
+  medical_clinic: 30,
+  ultrasound: 45,
+  veterinary: 30,
+
+  automotive: 60,
+  detailing: 120,
+
+  photography: 60,
+  tattoo: 120,
+
+  tutoring: 60,
+  music_lessons: 60,
+
+  consulting: 60,
+  accounting: 60,
+  legal: 60,
+  real_estate: 60,
+
+  restaurant: 60,
+  event_services: 120,
+
+  other: 60,
+};
 
 // ─── Timezone options ────────────────────────
 export const TIMEZONE_OPTIONS = [
@@ -239,7 +353,7 @@ export function getErrorMessage(error: unknown): string {
 }
 
 // ─── Debounce ───────────────────────────────
-export function debounce<T extends (...args: unknown[]) => unknown>(
+export function debounce<T extends (...args: any[]) => any>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {

@@ -15,6 +15,8 @@ const updateSchema = z
     bio: z.string().max(1000).optional(),
     isActive: z.boolean().optional(),
     sortOrder: z.number().int().min(0).max(1000).optional(),
+    payRate: z.coerce.number().min(0).optional(),
+    payRateType: z.enum(["HOURLY", "PER_SALE", "PER_DAY", "PER_JOB"]).optional(),
     serviceIds: z.array(z.string()).optional(),
   })
   .strict();

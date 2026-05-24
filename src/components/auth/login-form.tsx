@@ -25,7 +25,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   OAuthSignin: "Something went wrong with Google sign-in. Please try again.",
   OAuthCallback: "Something went wrong with Google sign-in. Please try again.",
   AccessDenied: "Google sign-in was blocked. Please try again or use email/password. If this keeps happening, the Google OAuth app/redirect URIs need fixing.",
-  Configuration: "Sign-in is not configured correctly. Please contact support.",
+  Configuration:
+    "Sign-in is not configured correctly. If you’re running locally, confirm NEXTAUTH_URL matches the URL you opened and that NEXTAUTH_SECRET and DATABASE_URL are set. On Vercel, confirm NEXTAUTH_URL is https://www.diamond-booking.com and Google redirect URIs are configured.",
   EmailSignin: "Could not send verification email.",
   Default: "Something went wrong. Please try again.",
 };

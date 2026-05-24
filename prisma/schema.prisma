@@ -350,6 +350,8 @@ model Staff {
   avatarUrl String?
   bio       String? @db.Text
   commissionPercent Int?
+  payRate   Decimal? @db.Decimal(10, 2)
+  payRateType StaffPayRateType @default(HOURLY)
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
@@ -368,6 +370,13 @@ model Staff {
   @@index([businessId])
   @@index([businessId, isActive])
   @@map("staff")
+}
+
+enum StaffPayRateType {
+  HOURLY
+  PER_SALE
+  PER_DAY
+  PER_JOB
 }
 
 // ─────────────────────────────────────────────

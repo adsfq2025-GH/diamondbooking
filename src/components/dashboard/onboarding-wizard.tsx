@@ -19,6 +19,7 @@ import {
   TIMEZONE_OPTIONS,
 } from "@/lib/utils";
 import { PricingBuilder } from "@/components/dashboard/pricing-builder";
+import { OnboardingStepHelp } from "@/components/dashboard/onboarding-step-help";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -693,9 +694,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 1 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Choose your plan</h2>
-                <p className="text-sm text-gray-500">Select a tier to continue. No plan is selected by default.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Choose your plan</h2>
+                  <p className="text-sm text-gray-500">Select a tier to continue. No plan is selected by default.</p>
+                </div>
+                <OnboardingStepHelp step={1} />
               </div>
 
               {error && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>}
@@ -751,13 +755,16 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 2 && (
             <div className="space-y-5">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Account and business information</h2>
                   <p className="text-sm text-gray-500">Set up your business details. You can update these later.</p>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Error saving" : ""}
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-gray-500">
+                    {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Error saving" : ""}
+                  </div>
+                  <OnboardingStepHelp step={2} />
                 </div>
               </div>
 
@@ -838,20 +845,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 </div>
 
                 <div className="col-span-2 space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Booking Page URL</label>
-                  <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#1a1f36]/20 focus-within:border-[#1a1f36]">
-                    <span className="px-3 py-2 text-sm text-gray-400 bg-gray-50 border-r border-gray-200 shrink-0">/book/</span>
-                    <input
-                      className="flex-1 px-3 py-2 text-sm focus:outline-none"
-                      placeholder="your-business"
-                      value={bizSlug}
-                      onBlur={() => void persistDraft()}
-                      onChange={(e) => setBizSlug(generateSlug(e.target.value))}
-                    />
-                  </div>
-                </div>
-
-                <div className="col-span-2 space-y-1.5">
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">
                     Description <span className="font-normal normal-case text-gray-400">(optional)</span>
                   </label>
@@ -872,9 +865,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 3 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Subscription payment setup</h2>
-                <p className="text-sm text-gray-500">Save a payment method to start your free trial.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Subscription payment setup</h2>
+                  <p className="text-sm text-gray-500">Save a payment method to start your free trial.</p>
+                </div>
+                <OnboardingStepHelp step={3} />
               </div>
 
               {error && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>}
@@ -927,9 +923,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 4 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Let’s build your business system</h2>
-                <p className="text-sm text-gray-500">Next you’ll set hours, staff, services, pricing, and your booking widget.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Let’s build your business system</h2>
+                  <p className="text-sm text-gray-500">Next you’ll set hours, staff, services, pricing, and your booking widget.</p>
+                </div>
+                <OnboardingStepHelp step={4} />
               </div>
               <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-2 text-sm text-gray-700">
                 <div className="font-semibold text-[#1a1f36]">What’s coming</div>
@@ -947,9 +946,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 5 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Set your business hours</h2>
-                <p className="text-sm text-gray-500">Clients can only book within these windows</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Set your business hours</h2>
+                  <p className="text-sm text-gray-500">Clients can only book within these windows</p>
+                </div>
+                <OnboardingStepHelp step={5} />
               </div>
 
               <div className="space-y-2">
@@ -1001,9 +1003,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 7 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add your services</h2>
-                <p className="text-sm text-gray-500">What can clients book with you? You can always add more later.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add your services</h2>
+                  <p className="text-sm text-gray-500">What can clients book with you? You can always add more later.</p>
+                </div>
+                <OnboardingStepHelp step={7} />
               </div>
 
               {error && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>}
@@ -1162,11 +1167,14 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 8 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Pricing & intake</h2>
-                <p className="text-sm text-gray-500">
-                  Customize your booking questions, add-ons, commercial pricing, and recurring discounts. This is what powers live pricing on the booking widget.
-                </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Pricing & intake</h2>
+                  <p className="text-sm text-gray-500">
+                    Customize your booking questions, add-ons, commercial pricing, and recurring discounts. This is what powers live pricing on the booking widget.
+                  </p>
+                </div>
+                <OnboardingStepHelp step={8} />
               </div>
 
               <PricingBuilder />
@@ -1183,9 +1191,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 6 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add your team</h2>
-                <p className="text-sm text-gray-500">Set each person&apos;s name and their individual weekly availability</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Add your team</h2>
+                  <p className="text-sm text-gray-500">Set each person&apos;s name and their individual weekly availability</p>
+                </div>
+                <OnboardingStepHelp step={6} />
               </div>
 
               <div className="space-y-3">
@@ -1322,9 +1333,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
           {step === 9 && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Customize your booking widget</h2>
-                <p className="text-sm text-gray-500">Design how the calendar looks on your website and booking page</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Customize your booking widget</h2>
+                  <p className="text-sm text-gray-500">Design how the calendar looks on your website and booking page</p>
+                </div>
+                <OnboardingStepHelp step={9} />
               </div>
 
               <div className="grid grid-cols-5 gap-5">
@@ -1577,7 +1591,10 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               {/* Embed snippet */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Embed on Your Website</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Embed on Your Website</p>
+                    <OnboardingStepHelp step={10} />
+                  </div>
                   <button
                     onClick={copySnippet}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
@@ -1653,7 +1670,10 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 <div className="w-16 h-16 rounded-2xl bg-[#1a1f36] flex items-center justify-center mx-auto mb-3 shadow-lg shadow-gray-200/60">
                   <Check className="w-8 h-8 text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Final review</h2>
+                <div className="flex items-center justify-center gap-2">
+                  <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Final review</h2>
+                  <OnboardingStepHelp step={11} />
+                </div>
                 <p className="text-sm text-gray-500">Confirm your setup and finish.</p>
               </div>
 

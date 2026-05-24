@@ -48,6 +48,16 @@ const emptyAddOn = (): AddOn => ({
   price: 0,
 });
 
+async function readJson(res: Response) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return {};
+  }
+}
+
 export function PricingBuilder() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -75,7 +85,7 @@ export function PricingBuilder() {
       setError("");
       try {
         const res = await fetch("/api/business/config");
-        const json = await res.json();
+        const json = (await readJson(res)) as { error?: string; data?: unknown };
         if (!res.ok) throw new Error(json.error ?? "Failed to load config");
         const data = (json.data ?? null) as ConfigResponse;
         setMeta(data ? { industryKey: data.industryKey, pricingVersion: data.pricingVersion } : null);
@@ -98,7 +108,7 @@ export function PricingBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ config: safeCfg }),
       });
-      const json = await res.json();
+      const json = (await readJson(res)) as { error?: string; data?: unknown };
       if (!res.ok) throw new Error(json.error ?? "Failed to save config");
       const data = (json.data ?? null) as ConfigResponse;
       setMeta(data ? { industryKey: data.industryKey, pricingVersion: data.pricingVersion } : null);

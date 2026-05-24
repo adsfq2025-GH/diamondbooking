@@ -56,6 +56,8 @@ export default async function EditStaffPage({ params }: Params) {
               email: member.email,
               phone: member.phone,
               isActive: member.isActive,
+              payRate: member.payRate ? member.payRate.toString() : null,
+              payRateType: member.payRateType,
               serviceIds: member.services.map((s) => s.serviceId),
             }}
             services={services}

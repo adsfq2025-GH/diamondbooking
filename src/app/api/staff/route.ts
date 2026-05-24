@@ -11,6 +11,8 @@ const createSchema = z.object({
   phone: z.string().optional(),
   role: z.string().max(100).optional(),
   commissionPercent: z.number().int().min(0).max(100).optional(),
+  payRate: z.coerce.number().min(0).optional(),
+  payRateType: z.enum(["HOURLY", "PER_SALE", "PER_DAY", "PER_JOB"]).optional(),
   avatarUrl: z.string().optional(),
   serviceIds: z.array(z.string()).optional(),
   availability: z

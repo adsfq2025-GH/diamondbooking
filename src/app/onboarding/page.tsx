@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
+import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard-v2";
 
 export const metadata = { title: "Set Up Your Business — Diamond Booking" };
 

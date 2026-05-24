@@ -14,6 +14,8 @@ export function StaffForm({ services }: { services: ServiceOption[] }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [payRate, setPayRate] = useState("");
+  const [payRateType, setPayRateType] = useState<"HOURLY" | "PER_SALE" | "PER_DAY" | "PER_JOB">("HOURLY");
   const [serviceIds, setServiceIds] = useState<string[]>([]);
 
   const activeServices = useMemo(() => services.filter((s) => s.isActive), [services]);
@@ -35,6 +37,8 @@ export function StaffForm({ services }: { services: ServiceOption[] }) {
           name: name.trim(),
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
+          payRate: payRate.trim() ? Number(payRate) : undefined,
+          payRateType,
           serviceIds,
         }),
       });
@@ -81,6 +85,28 @@ export function StaffForm({ services }: { services: ServiceOption[] }) {
             className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none"
             placeholder="+1 555 555 5555"
           />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Pay rate (optional)</label>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={payRate}
+              onChange={(e) => setPayRate(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none"
+              inputMode="decimal"
+              placeholder="0.00"
+            />
+            <select
+              value={payRateType}
+              onChange={(e) => setPayRateType(e.target.value as typeof payRateType)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none"
+            >
+              <option value="HOURLY">Per hour</option>
+              <option value="PER_SALE">Per sale</option>
+              <option value="PER_DAY">Per day</option>
+              <option value="PER_JOB">Per job</option>
+            </select>
+          </div>
         </div>
       </div>
 

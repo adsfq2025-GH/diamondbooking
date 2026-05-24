@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { TIMEZONE_OPTIONS, INDUSTRY_OPTIONS, generateSlug } from "@/lib/utils";
 import type { Business } from "@prisma/client";
 import { toast } from "@/lib/use-toast";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 
 const schema = z.object({
   name: z.string().min(2, "Business name must be at least 2 characters"),
@@ -91,7 +92,22 @@ export function BusinessSettingsForm({ business }: { business: Business }) {
         <F label="Phone" name="phone" type="tel" placeholder="+1 (555) 000-0000" />
         <F label="Contact Email" name="email" type="email" placeholder="hello@yourbiz.com" />
         <F label="Website" name="website" type="url" placeholder="https://..." />
-        <F label="Address" name="address" />
+        <div className="space-y-1.5 col-span-2">
+          <Label htmlFor="address">Address</Label>
+          <AddressAutocomplete
+            value={watch("address") ?? ""}
+            onChange={(v) => setValue("address", v)}
+            onSelect={(v) => {
+              setValue("address", v.street);
+              setValue("city", v.city);
+              setValue("state", v.state);
+              setValue("zipCode", v.zip);
+            }}
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background"
+            placeholder="Start typing your address…"
+          />
+          {errors.address?.message && <div className="text-xs text-destructive">{errors.address.message}</div>}
+        </div>
         <F label="City" name="city" />
         <F label="State / Province" name="state" />
         <F label="Zip / Postal Code" name="zipCode" />

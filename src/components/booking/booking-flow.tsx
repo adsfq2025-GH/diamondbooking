@@ -1,11 +1,12 @@
 // src/components/booking/booking-flow.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { ChevronRight, Clock, DollarSign, User, ChevronLeft, Check, Calendar, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ChevronRight, Clock, DollarSign, User, ChevronLeft, Check, Calendar, CheckCircle2, HelpCircle, Star } from "lucide-react";
 import { formatTimeDisplay } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -254,38 +255,51 @@ export function BookingFlow({
       ? `${sel.durationMinutes / 60} hour${sel.durationMinutes / 60 === 1 ? "" : "s"}`
       : `${sel.durationMinutes} min`;
 
+  const recurringLabel = useMemo(() => {
+    if (!recurring) return "One-time";
+    if (!recurringInterval) return "One-time";
+    return recurring.intervals.find((i) => i.key === recurringInterval)?.label ?? "Recurring";
+  }, [recurring, recurringInterval]);
+
   return (
     <div className={embed ? "bg-transparent" : "min-h-screen bg-gray-50"} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
 
       {/* ── Business header ─────────────────────────────────────────────── */}
-      <div className="relative" style={{ background: primary }}>
+      <div className="relative" style={embed ? {} : { background: primary }}>
         {business.coverImageUrl && (
           <div className="absolute inset-0 opacity-20">
             <Image src={business.coverImageUrl} alt="" fill className="object-cover" />
           </div>
         )}
-        <div className="relative max-w-lg mx-auto px-6 py-8 text-center">
-          {business.logoUrl ? (
-            <Image src={business.logoUrl} alt={business.name} width={56} height={56}
-              className="w-14 h-14 rounded-2xl object-cover mx-auto mb-3 ring-4 ring-white/20" />
-          ) : (
-            <Image
-              src="/brand/logohead.webp"
-              alt="Diamond Booking"
-              width={56}
-              height={56}
-              className="w-14 h-14 rounded-2xl object-contain mx-auto mb-3 ring-4 ring-white/20"
-            />
-          )}
-          <h1 className="text-xl font-bold text-white">{business.name}</h1>
-          {business.welcomeMessage && (
-            <p className="text-sm text-white/70 mt-1">{business.welcomeMessage}</p>
-          )}
-        </div>
+        {!embed ? (
+          <div className="relative max-w-lg mx-auto px-6 py-8 text-center">
+            {business.logoUrl ? (
+              <Image src={business.logoUrl} alt={business.name} width={56} height={56}
+                className="w-14 h-14 rounded-2xl object-cover mx-auto mb-3 ring-4 ring-white/20" />
+            ) : (
+              <Image
+                src="/brand/logohead.webp"
+                alt="Diamond Booking"
+                width={56}
+                height={56}
+                className="w-14 h-14 rounded-2xl object-contain mx-auto mb-3 ring-4 ring-white/20"
+              />
+            )}
+            <h1 className="text-xl font-bold text-white">{business.name}</h1>
+            {business.welcomeMessage && (
+              <p className="text-sm text-white/70 mt-1">{business.welcomeMessage}</p>
+            )}
+          </div>
+        ) : (
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-6 text-center">
+            <h1 className="text-2xl sm:text-3xl font-black text-[#1a1f36]">Book your appointment</h1>
+            <p className="text-sm text-gray-500 mt-1">{business.name}</p>
+          </div>
+        )}
       </div>
 
       {/* ── Step indicator ──────────────────────────────────────────────── */}
-      {step < 5 && (
+      {!embed && step < 5 && (
         <div className="max-w-lg mx-auto px-6">
           <div className="flex items-center justify-center gap-2 py-5">
             {(["Service","Staff","Date & Time","Details"] as const).map((label, i) => {
@@ -322,55 +336,339 @@ export function BookingFlow({
         <div className={embed ? "grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start" : ""}>
           <div className="min-w-0">
 
-        {/* STEP 1 — Select service */}
+        {/* STEP 1 — Get pricing */}
         {step === 1 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">Choose a service</h2>
-            {services.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => {
-                  const defaultDuration =
-                    s.billingUnit === "PER_HOUR" ? (s.minDurationMinutes ?? s.duration) : s.duration;
-                  setSel((p) => ({
-                    ...p,
-                    service: s,
-                    staff: s.staff.length === 1 ? s.staff[0] : null,
-                    durationMinutes: defaultDuration,
-                    date: "",
-                    slot: null,
-                  }));
-                  setIntake({});
-                  setAddOnKeys([]);
-                  setIsCommercial(false);
-                  setRecurringInterval("");
-                  setPromoCode("");
-                  setQuote(null);
-                  setStep(2);
-                }}
-                className="w-full flex items-center gap-4 p-4 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-300 transition-all text-left group"
-              >
-                <div className="w-3 h-10 rounded-full shrink-0" style={{ background: s.color }} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800">{s.name}</p>
-                  {s.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{s.description}</p>}
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <Clock className="w-3 h-3" />
-                      {s.billingUnit === "PER_HOUR" ? `${s.minDurationMinutes ?? s.duration}+ min` : `${s.duration} min`}
-                    </span>
-                    {s.price > 0 && (
-                      <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: primary }}>
-                        <DollarSign className="w-3 h-3" />
-                        {formatCurrency(s.price, s.currency)}
-                        {s.billingUnit === "PER_HOUR" ? "/hr" : ""}
-                      </span>
-                    )}
+          <div className={embed ? "space-y-5" : "space-y-4"}>
+            <div className={embed ? "bg-[#1a1f36]/5 rounded-2xl p-5 border border-gray-100" : ""}>
+              <h2 className="text-xl font-black text-[#1a1f36]">Get Pricing &amp; Book In 60 Seconds</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Pick your service and options to see live pricing, then find the best day and time.
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>
+            )}
+
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-[#1a1f36]">Where will the service be taking place?</div>
+                  <HelpTooltip
+                    ariaLabel="Help: Zip code"
+                    content={
+                      <div className="space-y-2">
+                        <div className="text-sm font-semibold text-[#1a1f36]">Zip code</div>
+                        <div className="text-sm text-gray-600">Used for local pricing rules and service-area checks (if enabled).</div>
+                      </div>
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Enter Zip Code For Pricing</div>
+                  <input
+                    className={inp}
+                    inputMode="numeric"
+                    placeholder="Zip Code"
+                    value={String(intake.zipCode ?? "")}
+                    onChange={(e) => setIntake((p) => ({ ...p, zipCode: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-[#1a1f36]">Select your desired type of service</div>
+                  <HelpTooltip
+                    ariaLabel="Help: Service selection"
+                    content={
+                      <div className="space-y-2">
+                        <div className="text-sm font-semibold text-[#1a1f36]">Service selection</div>
+                        <div className="text-sm text-gray-600">Choose what you want to book. Pricing and availability update automatically.</div>
+                      </div>
+                    }
+                  />
+                </div>
+                <select
+                  className={inp + " bg-white"}
+                  value={sel.service?.id ?? ""}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    const s = services.find((x) => x.id === id) ?? null;
+                    if (!s) {
+                      setSel((p) => ({ ...p, service: null, staff: null, date: "", slot: null }));
+                      return;
+                    }
+                    const defaultDuration =
+                      s.billingUnit === "PER_HOUR" ? (s.minDurationMinutes ?? s.duration) : s.duration;
+                    setSel((p) => ({
+                      ...p,
+                      service: s,
+                      staff: null,
+                      durationMinutes: defaultDuration,
+                      date: "",
+                      slot: null,
+                    }));
+                    setAddOnKeys([]);
+                    setIsCommercial(false);
+                    setRecurringInterval("");
+                    setPromoCode("");
+                    setQuote(null);
+                  }}
+                >
+                  <option value="">Select a service…</option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}{s.price > 0 ? ` — ${formatCurrency(s.price, s.currency)}${s.billingUnit === "PER_HOUR" ? "/hr" : ""}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {!!sel.service?.staff?.length && sel.service.staff.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="text-xs font-bold text-[#1a1f36] hover:underline"
+                  >
+                    Choose a specific team member (optional)
+                  </button>
+                )}
+              </div>
+
+              {recurring && recurring.intervals.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-[#1a1f36]">Frequency</div>
+                    <HelpTooltip
+                      ariaLabel="Help: Frequency"
+                      content={
+                        <div className="space-y-2">
+                          <div className="text-sm font-semibold text-[#1a1f36]">Frequency</div>
+                          <div className="text-sm text-gray-600">Recurring bookings can qualify for discounts.</div>
+                        </div>
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRecurringInterval("")}
+                      className={`py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${
+                        !recurringInterval ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                      }`}
+                      style={!recurringInterval ? { background: primary } : {}}
+                    >
+                      One-time
+                    </button>
+                    {recurring.intervals.map((i) => (
+                      <button
+                        key={i.key}
+                        type="button"
+                        onClick={() => setRecurringInterval(i.key)}
+                        className={`py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${
+                          recurringInterval === i.key ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                        }`}
+                        style={recurringInterval === i.key ? { background: primary } : {}}
+                      >
+                        {i.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
+              )}
+
+              {(customerTypes || intakeFields.length > 0) && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-[#1a1f36]">What needs to be done?</div>
+                    <HelpTooltip
+                      ariaLabel="Help: Booking questions"
+                      content={
+                        <div className="space-y-2">
+                          <div className="text-sm font-semibold text-[#1a1f36]">Booking questions</div>
+                          <div className="text-sm text-gray-600">These questions help estimate pricing and duration before you choose a time.</div>
+                        </div>
+                      }
+                    />
+                  </div>
+
+                  {customerTypes && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setIsCommercial(false); setIntake((p) => ({ ...p, customerType: "residential" })); }}
+                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${!isCommercial ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"}`}
+                        style={!isCommercial ? { background: primary } : {}}
+                      >
+                        Residential
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsCommercial(true); setIntake((p) => ({ ...p, customerType: "commercial" })); }}
+                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${isCommercial ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"}`}
+                        style={isCommercial ? { background: primary } : {}}
+                      >
+                        Commercial
+                      </button>
+                    </div>
+                  )}
+
+                  <div className={embed ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-3"}>
+                    {intakeFields.map((field) => (
+                      <div key={field.key} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            {field.label}{field.required ? " *" : ""}
+                          </label>
+                          <HelpTooltip
+                            ariaLabel={`Help: ${field.label}`}
+                            content={
+                              <div className="space-y-2">
+                                <div className="text-sm font-semibold text-[#1a1f36]">{field.label}</div>
+                                <div className="text-sm text-gray-600">Answer based on your job so pricing can update accurately.</div>
+                              </div>
+                            }
+                          />
+                        </div>
+                        {field.type === "text" && (
+                          <input
+                            className={inp}
+                            value={String(intake[field.key] ?? "")}
+                            placeholder={(field as any).placeholder ?? ""}
+                            onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value }))}
+                          />
+                        )}
+                        {field.type === "number" && (
+                          <input
+                            className={inp}
+                            type="number"
+                            min={0}
+                            value={String(intake[field.key] ?? "")}
+                            placeholder={(field as any).placeholder ?? ""}
+                            onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value === "" ? "" : Number(e.target.value) }))}
+                          />
+                        )}
+                        {field.type === "boolean" && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setIntake((p) => ({ ...p, [field.key]: true }))}
+                              className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                                intake[field.key] === true ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                              }`}
+                              style={intake[field.key] === true ? { background: primary } : {}}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIntake((p) => ({ ...p, [field.key]: false }))}
+                              className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                                intake[field.key] === false ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                              }`}
+                              style={intake[field.key] === false ? { background: primary } : {}}
+                            >
+                              No
+                            </button>
+                          </div>
+                        )}
+                        {field.type === "select" && (
+                          <select
+                            className={inp + " bg-white"}
+                            value={String(intake[field.key] ?? "")}
+                            onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value }))}
+                          >
+                            <option value="">Select…</option>
+                            {(field.options ?? []).map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {addOns.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-[#1a1f36]">Select extras</div>
+                    <HelpTooltip
+                      ariaLabel="Help: Extras"
+                      content={
+                        <div className="space-y-2">
+                          <div className="text-sm font-semibold text-[#1a1f36]">Extras</div>
+                          <div className="text-sm text-gray-600">Add-ons are optional items you can include with your booking.</div>
+                        </div>
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {addOns.map((a) => {
+                      const checked = addOnKeys.includes(a.key);
+                      return (
+                        <button
+                          key={a.key}
+                          type="button"
+                          onClick={() =>
+                            setAddOnKeys((prev) =>
+                              prev.includes(a.key) ? prev.filter((k) => k !== a.key) : [...prev, a.key]
+                            )
+                          }
+                          className={`p-3 rounded-xl border-2 text-left transition-all ${
+                            checked ? "border-transparent text-white" : "border-gray-200 bg-white hover:border-gray-400"
+                          }`}
+                          style={checked ? { background: primary } : {}}
+                        >
+                          <div className="text-xs font-bold">{a.name}</div>
+                          <div className={`text-xs mt-1 ${checked ? "text-white/90" : "text-gray-500"}`}>
+                            +{formatCurrency(a.price, quote?.currency ?? business.currency)}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Email address</label>
+                  <HelpTooltip
+                    ariaLabel="Help: Email"
+                    content={
+                      <div className="space-y-2">
+                        <div className="text-sm font-semibold text-[#1a1f36]">Email</div>
+                        <div className="text-sm text-gray-600">We’ll send your booking confirmation here.</div>
+                      </div>
+                    }
+                  />
+                </div>
+                <input
+                  className={inp}
+                  type="email"
+                  placeholder="Ex: example@you.com"
+                  value={sel.email}
+                  onChange={(e) => setSel((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!sel.service) {
+                    setError("Please select a service first");
+                    return;
+                  }
+                  setError("");
+                  setStep(3);
+                }}
+                className="w-full py-3.5 font-bold text-white rounded-2xl transition-all flex items-center justify-center gap-2"
+                style={{ background: primary }}
+              >
+                Find Availability <ChevronRight className="w-4 h-4" />
               </button>
-            ))}
+            </div>
           </div>
         )}
 
@@ -424,7 +722,7 @@ export function BookingFlow({
         {/* STEP 3 — Pick date & time */}
         {step === 3 && sel.service && (
           <div className="space-y-4">
-            <button onClick={() => setStep(2)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-2">
+            <button onClick={() => setStep(embed ? 1 : 2)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-2">
               <ChevronLeft className="w-4 h-4" /> Back
             </button>
             <h2 className="text-lg font-bold text-gray-800">Pick a date & time</h2>
@@ -579,6 +877,7 @@ export function BookingFlow({
                 ["Date",        new Date(sel.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })],
                 ["Time",        formatTimeDisplay(sel.slot.startTime)],
                 ["Duration",    durationLabel],
+                ["Frequency", recurringLabel],
                 ...(sel.service.price > 0 ? [["Total", formatCurrency(total, currency)]] : []),
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between text-sm">
@@ -588,167 +887,21 @@ export function BookingFlow({
               ))}
             </div>
 
-            {(customerTypes || intakeFields.length > 0 || addOns.length > 0 || recurring) && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Service Options</p>
-
-                {customerTypes && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer Type</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => { setIsCommercial(false); setIntake((p) => ({ ...p, customerType: "residential" })); }}
-                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${!isCommercial ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"}`}
-                        style={!isCommercial ? { background: primary } : {}}
-                      >
-                        Residential
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setIsCommercial(true); setIntake((p) => ({ ...p, customerType: "commercial" })); }}
-                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${isCommercial ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"}`}
-                        style={isCommercial ? { background: primary } : {}}
-                      >
-                        Commercial
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {intakeFields.map((field) => (
-                  <div key={field.key} className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      {field.label}{field.required ? " *" : ""}
-                    </label>
-                    {field.type === "text" && (
-                      <input
-                        className={inp}
-                        value={String(intake[field.key] ?? "")}
-                        onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value }))}
-                      />
-                    )}
-                    {field.type === "number" && (
-                      <input
-                        className={inp}
-                        type="number"
-                        min={0}
-                        value={String(intake[field.key] ?? "")}
-                        onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value === "" ? "" : Number(e.target.value) }))}
-                      />
-                    )}
-                    {field.type === "boolean" && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIntake((p) => ({ ...p, [field.key]: true }))}
-                          className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-                            intake[field.key] === true ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
-                          }`}
-                          style={intake[field.key] === true ? { background: primary } : {}}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIntake((p) => ({ ...p, [field.key]: false }))}
-                          className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-                            intake[field.key] === false ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
-                          }`}
-                          style={intake[field.key] === false ? { background: primary } : {}}
-                        >
-                          No
-                        </button>
-                      </div>
-                    )}
-                    {field.type === "select" && (
-                      <select
-                        className={inp}
-                        value={String(intake[field.key] ?? "")}
-                        onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value }))}
-                      >
-                        <option value="">Select…</option>
-                        {(field.options ?? []).map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                ))}
-
-                {addOns.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add-ons</p>
-                    <div className="space-y-2">
-                      {addOns.map((a) => {
-                        const checked = addOnKeys.includes(a.key);
-                        return (
-                          <button
-                            key={a.key}
-                            type="button"
-                            onClick={() =>
-                              setAddOnKeys((prev) =>
-                                prev.includes(a.key) ? prev.filter((k) => k !== a.key) : [...prev, a.key]
-                              )
-                            }
-                            className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
-                              checked ? "border-transparent text-white" : "border-gray-200 bg-white hover:border-gray-400"
-                            }`}
-                            style={checked ? { background: primary } : {}}
-                          >
-                            <span className="text-sm font-semibold">{a.name}</span>
-                            <span className={`text-sm font-bold ${checked ? "text-white" : ""}`}>
-                              +{formatCurrency(a.price, quote?.currency ?? business.currency)}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {recurring && recurring.intervals.length > 0 && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Recurring</label>
-                    <select
-                      className={inp}
-                      value={recurringInterval}
-                      onChange={(e) => setRecurringInterval(e.target.value)}
-                    >
-                      <option value="">One-time</option>
-                      {recurring.intervals.map((i) => (
-                        <option key={i.key} value={i.key}>
-                          {i.label} ({i.discountPercent}% off)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Promo Code</label>
-                  <input className={inp} value={promoCode} onChange={(e) => setPromoCode(e.target.value)} placeholder="Optional" />
+            {!!quote?.breakdown?.length && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-[#1a1f36]">Pricing breakdown</div>
+                  {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
                 </div>
-
-                <div className="border-t border-gray-100 pt-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-gray-700">Total</p>
-                    <p className="text-sm font-black" style={{ color: primary }}>
-                      {quoteLoading ? "Calculating…" : quote ? formatCurrency(quote.total, quote.currency) : formatCurrency(sel.service.price, sel.service.currency)}
-                    </p>
-                  </div>
-                  {!!quote?.breakdown?.length && (
-                    <div className="space-y-1">
-                      {quote.breakdown.map((line) => (
-                        <div key={line.label} className="flex justify-between text-xs text-gray-500">
-                          <span className="truncate pr-2">{line.label}</span>
-                          <span className={line.amount < 0 ? "text-emerald-600 font-semibold" : "text-gray-700"}>
-                            {formatCurrency(line.amount, quote.currency)}
-                          </span>
-                        </div>
-                      ))}
+                <div className="space-y-1">
+                  {quote.breakdown.map((line) => (
+                    <div key={line.label} className="flex justify-between text-xs text-gray-500">
+                      <span className="truncate pr-2">{line.label}</span>
+                      <span className={line.amount < 0 ? "text-emerald-600 font-semibold" : "text-gray-700"}>
+                        {formatCurrency(line.amount, currency)}
+                      </span>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             )}
@@ -848,58 +1001,105 @@ export function BookingFlow({
 
           {embed && (
             <div className="sticky top-6">
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-[#1a1f36]">Summary</div>
-                  {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Service</span>
-                    <span className="font-semibold text-gray-800">{sel.service?.name ?? "—"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Staff</span>
-                    <span className="font-semibold text-gray-800">{sel.slot?.staffName ?? sel.staff?.name ?? "Any"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Date</span>
-                    <span className="font-semibold text-gray-800">{sel.date ? new Date(sel.date + "T12:00:00").toLocaleDateString() : "—"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Time</span>
-                    <span className="font-semibold text-gray-800">{sel.slot ? formatTimeDisplay(sel.slot.startTime) : "—"}</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-100 pt-3 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Discounts</span>
-                    <span className={discounts > 0 ? "font-semibold text-emerald-600" : "font-semibold text-gray-800"}>
-                      {discounts > 0 ? `-${formatCurrency(discounts, currency)}` : formatCurrency(0, currency)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm font-black">
-                    <span className="text-gray-700">Total</span>
-                    <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
-                  </div>
-                  {!!quote?.breakdown?.length && (
-                    <div className="pt-2 space-y-1">
-                      {quote.breakdown.map((line) => (
-                        <div key={line.label} className="flex justify-between text-xs text-gray-500">
-                          <span className="truncate pr-2">{line.label}</span>
-                          <span className={line.amount < 0 ? "text-emerald-600 font-semibold" : "text-gray-700"}>
-                            {formatCurrency(line.amount, currency)}
-                          </span>
-                        </div>
-                      ))}
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-bold text-[#1a1f36]">Booking Summary</div>
+                      <HelpTooltip
+                        ariaLabel="Help: Booking summary"
+                        content={
+                          <div className="space-y-2">
+                            <div className="text-sm font-semibold text-[#1a1f36]">Booking summary</div>
+                            <div className="text-sm text-gray-600">Updates live as you select services, extras, and frequency.</div>
+                          </div>
+                        }
+                      />
                     </div>
-                  )}
+                    {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Service</span>
+                      <span className="font-semibold text-gray-800">{sel.service?.name ?? "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Frequency</span>
+                      <span className="font-semibold text-gray-800">{recurringLabel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Extras</span>
+                      <span className="font-semibold text-gray-800">{addOnKeys.length ? `${addOnKeys.length} selected` : "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">ZIP</span>
+                      <span className="font-semibold text-gray-800">{String(intake.zipCode ?? "—") || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Date</span>
+                      <span className="font-semibold text-gray-800">{sel.date ? new Date(sel.date + "T12:00:00").toLocaleDateString() : "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Time</span>
+                      <span className="font-semibold text-gray-800">{sel.slot ? formatTimeDisplay(sel.slot.startTime) : "—"}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Discounts</span>
+                      <span className={discounts > 0 ? "font-semibold text-emerald-600" : "font-semibold text-gray-800"}>
+                        {discounts > 0 ? `-${formatCurrency(discounts, currency)}` : formatCurrency(0, currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm font-black">
+                      <span className="text-gray-700">TOTAL</span>
+                      <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-[#1a1f36]">Live Reviews</div>
+                    <button type="button" className="text-xs font-bold text-gray-400 hover:text-gray-600" aria-label="Reviews help">
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="rounded-xl bg-amber-50/60 border border-amber-100 p-3">
+                    <div className="text-xs text-gray-600">
+                      Great experience — on time, professional, and the place looked amazing after.
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-xs font-semibold text-gray-700">Amy G</div>
+                      <div className="flex items-center gap-0.5 text-amber-400">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+                  <div className="text-sm font-bold text-[#1a1f36]">Popular Questions</div>
+                  {[
+                    "Are you insured and bonded?",
+                    "How is pricing calculated?",
+                    "When will I get a confirmation?",
+                    "Can I reschedule my booking?",
+                    "Why do you need my ZIP code?",
+                  ].map((q) => (
+                    <div key={q} className="flex items-start gap-2 text-xs text-gray-600">
+                      <ChevronRight className="w-4 h-4 text-gray-300 mt-0.5" />
+                      <span>{q}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
