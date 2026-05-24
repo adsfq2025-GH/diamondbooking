@@ -108,6 +108,8 @@ export function BookingFlow({
   const addOns = cfg.addOns ?? [];
   const recurring = cfg.recurring?.enabled ? cfg.recurring : undefined;
   const customerTypes = cfg.customerTypes?.enabled ? cfg.customerTypes : undefined;
+  const customerTypesMode = (cfg.customerTypes as any)?.mode ?? (customerTypes ? "both" : "residential");
+  const showCustomerTypeToggle = !!customerTypes && customerTypesMode === "both";
 
   const [step, setStep]       = useState<Step>(1);
   const [loading, setLoading] = useState(false);
@@ -118,7 +120,7 @@ export function BookingFlow({
 
   const [intake, setIntake] = useState<Record<string, unknown>>({});
   const [addOnKeys, setAddOnKeys] = useState<string[]>([]);
-  const [isCommercial, setIsCommercial] = useState(false);
+  const [isCommercial, setIsCommercial] = useState(customerTypesMode === "commercial");
   const [recurringInterval, setRecurringInterval] = useState<string>("");
   const [promoCode, setPromoCode] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -491,7 +493,7 @@ export function BookingFlow({
                     />
                   </div>
 
-                  {customerTypes && (
+                  {showCustomerTypeToggle && (
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"

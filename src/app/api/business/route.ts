@@ -9,6 +9,7 @@ const updateSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   description: z.string().max(500).optional(),
+  industry: z.string().optional(),
   phone: z.string().optional(),
   email: z
     .preprocess((v) => (v === "" ? undefined : v), z.string().email().optional()),
@@ -20,6 +21,8 @@ const updateSchema = z.object({
   timezone: z.string().optional(),
   primaryColor: z.string().optional(),
   welcomeMessage: z.string().max(300).optional(),
+  logoUrl: z.string().url().optional().or(z.literal("")),
+  coverImageUrl: z.string().url().optional().or(z.literal("")),
   advanceBookingDays: z.number().min(1).max(365).optional(),
   minimumNoticeHours: z.number().min(0).max(168).optional(),
   bufferMinutes: z.number().min(0).max(120).optional(),

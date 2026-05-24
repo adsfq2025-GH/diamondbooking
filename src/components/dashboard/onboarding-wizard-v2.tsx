@@ -124,13 +124,13 @@ const STEPS: Array<{ n: Step; label: string }> = [
 ];
 
 const INTAKE_TEMPLATES: Record<string, IntakeFieldDraft[]> = {
-  cleaning_residential: [
+  cleaning_service_residential: [
     { id: "f1", category: "property", label: "Bedrooms", placeholder: "e.g. 3", type: "number", required: true, options: [] },
     { id: "f2", category: "property", label: "Bathrooms", placeholder: "e.g. 2", type: "number", required: true, options: [] },
     { id: "f3", category: "job", label: "Pets in home?", placeholder: "", type: "boolean", required: false, options: [] },
     { id: "f4", category: "job", label: "Special instructions", placeholder: "e.g. gate code, parking, preferences", type: "text", required: false, options: [] },
   ],
-  cleaning_commercial: [
+  cleaning_service_commercial: [
     { id: "f1", category: "property", label: "Square footage", placeholder: "e.g. 2500", type: "number", required: true, options: [] },
     { id: "f2", category: "job", label: "Service frequency", placeholder: "", type: "select", required: true, options: [
       { value: "one_time", label: "One-time" },
@@ -139,6 +139,12 @@ const INTAKE_TEMPLATES: Record<string, IntakeFieldDraft[]> = {
       { value: "monthly", label: "Monthly" },
     ] },
     { id: "f3", category: "job", label: "After-hours access available?", placeholder: "", type: "boolean", required: false, options: [] },
+  ],
+  janitorial_service: [
+    { id: "f1", category: "property", label: "Square footage", placeholder: "e.g. 2500", type: "number", required: true, options: [] },
+    { id: "f2", category: "job", label: "How many restrooms?", placeholder: "e.g. 2", type: "number", required: false, options: [] },
+    { id: "f3", category: "job", label: "After-hours access available?", placeholder: "", type: "boolean", required: false, options: [] },
+    { id: "f4", category: "job", label: "Notes / access details", placeholder: "e.g. gate code, suite, parking", type: "text", required: false, options: [] },
   ],
   hvac: [
     { id: "f1", category: "property", label: "System type", placeholder: "", type: "select", required: true, options: [
@@ -165,6 +171,15 @@ const INTAKE_TEMPLATES: Record<string, IntakeFieldDraft[]> = {
     { id: "f2", category: "job", label: "Notes", placeholder: "Any details we should know?", type: "text", required: false, options: [] },
   ],
 };
+
+function resolveIntakeTemplateKey(industry: string, market: "residential" | "commercial" | "both") {
+  if (industry === "cleaning_service") {
+    if (market === "commercial") return "cleaning_service_commercial";
+    return "cleaning_service_residential";
+  }
+  if (industry === "janitorial_service") return "janitorial_service";
+  return industry;
+}
 
 export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const router = useRouter();
@@ -197,10 +212,14 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   const [bizName, setBizName] = useState("");
   const [industry, setIndustry] = useState("general_services");
+  const [serviceMarket, setServiceMarket] = useState<"residential" | "commercial" | "both">("residential");
   const [phone, setPhone] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("#1a1f36");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [welcomeMessage, setWelcomeMessage] = useState("");
 
   const [address1, setAddress1] = useState("");
   const [city, setCity] = useState("");
@@ -282,8 +301,19 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   }, [businessSlug]);
 
   useEffect(() => {
-    const preset = INTAKE_TEMPLATES[industry] ?? INTAKE_TEMPLATES.default;
+    const key = resolveIntakeTemplateKey(industry, serviceMarket);
+    const preset = INTAKE_TEMPLATES[key] ?? INTAKE_TEMPLATES.default;
     setIntakeFields((prev) => (prev.length ? prev : preset.map((x, i) => ({ ...x, id: `${x.id}_${i}` }))));
+  }, [industry, serviceMarket]);
+
+  useEffect(() => {
+    if (industry === "cleaning_service") {
+      setServiceMarket("residential");
+      return;
+    }
+    if (industry === "janitorial_service") {
+      setServiceMarket("commercial");
+    }
   }, [industry]);
 
   const submitBasics = () =>
@@ -313,6 +343,9 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to save business");
       setBusinessSlug(json.data.slug);
+      setPrimaryColor(json.data.primaryColor ?? "#1a1f36");
+      setLogoUrl(json.data.logoUrl ?? "");
+      setWelcomeMessage(json.data.welcomeMessage ?? "");
       await updateSession({ businessId: json.data.id, businessSlug: json.data.slug });
 
       if (!paymentReady) {
@@ -454,6 +487,16 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       );
 
       if (pricingMode === "simple") {
+        const customerTypes =
+          industry === "cleaning_service" || industry === "janitorial_service"
+            ? {
+                enabled: serviceMarket === "both",
+                options: ["residential", "commercial"],
+                commercialMultiplier: 1.2,
+                mode: serviceMarket,
+              }
+            : undefined;
+
         const config = {
           addOns: addOns
             .filter((a) => a.name.trim())
@@ -476,6 +519,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               }
               return common;
             }),
+          ...(customerTypes ? { customerTypes } : {}),
         };
 
         await fetch("/api/business/config", {
@@ -489,19 +533,15 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     });
 
   const [copied, setCopied] = useState(false);
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "https://diamondbooking.com";
-  const snippet = `<!-- Diamond Booking Widget -->
-<div id="diamond-booking-widget"></div>
-<script>
-  (function(d,s,id){
-    var js,fjs=d.getElementsByTagName(s)[0];
-    if(d.getElementById(id))return;
-    js=d.createElement(s);js.id=id;
-    js.src="${appUrl}/widget.js";
-    js.setAttribute('data-business','${businessSlug}');
-    fjs.parentNode.insertBefore(js,fjs);
-  }(document,'script','db-widget'));
-</script>`;
+  const appUrl = useMemo(() => {
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (envUrl) return envUrl.replace(/\/+$/, "");
+    if (typeof window !== "undefined") return window.location.origin;
+    return "https://www.diamond-booking.com";
+  }, []);
+
+  const snippet = `<div id="diamond-booking-widget"></div>
+<script id="db-widget" src="${appUrl}/widget.js" data-business="${businessSlug}"></script>`;
 
   const copySnippet = () => {
     navigator.clipboard.writeText(snippet);
@@ -511,6 +551,15 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   const finish = () =>
     go(async () => {
+      await fetch("/api/business", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          primaryColor,
+          welcomeMessage: welcomeMessage.trim() || undefined,
+          logoUrl: logoUrl.trim() || undefined,
+        }),
+      });
       await fetch("/api/business/onboard/complete", { method: "POST" });
       router.push("/dashboard");
     });
@@ -654,6 +703,57 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                     ))}
                   </select>
                 </div>
+
+                {(industry === "cleaning_service" || industry === "janitorial_service") && (
+                  <div className="col-span-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-bold text-[#1a1f36]">Do you serve residential or commercial clients?</div>
+                      <HelpTooltip
+                        ariaLabel="Help: Residential vs commercial"
+                        content={
+                          <div className="space-y-2">
+                            <div className="text-sm font-semibold text-[#1a1f36]">Residential vs commercial</div>
+                            <div className="text-sm text-gray-600">
+                              This helps us pre-fill the right booking questions and pricing defaults. You can change it later.
+                            </div>
+                          </div>
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setServiceMarket("residential")}
+                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                          serviceMarket === "residential" ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                        }`}
+                        style={serviceMarket === "residential" ? { background: "#1a1f36" } : {}}
+                      >
+                        Residential
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setServiceMarket("commercial")}
+                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                          serviceMarket === "commercial" ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                        }`}
+                        style={serviceMarket === "commercial" ? { background: "#1a1f36" } : {}}
+                      >
+                        Commercial
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setServiceMarket("both")}
+                        className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                          serviceMarket === "both" ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
+                        }`}
+                        style={serviceMarket === "both" ? { background: "#1a1f36" } : {}}
+                      >
+                        Both
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <FieldLabel label="Business phone" help="Used for customer questions and confirmations. Use a number you answer." />
@@ -1230,6 +1330,55 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 </div>
                 <h2 className="text-xl font-bold text-[#1a1f36] mb-1">You’re live</h2>
                 <p className="text-sm text-gray-500">Copy your booking link or embed the widget on your site.</p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[#1a1f36]">Widget design</div>
+                    <div className="text-xs text-gray-500">Set your brand color and logo. You can change this later in Settings.</div>
+                  </div>
+                  <a
+                    href={`${appUrl}/book/${businessSlug}?embed=1`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-bold text-[#1a1f36] hover:underline"
+                  >
+                    Preview
+                  </a>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <FieldLabel label="Primary color" help="Used for buttons and key accents in the booking widget." />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="h-10 w-12 rounded-lg border border-gray-200 bg-white"
+                      />
+                      <input
+                        className={inp}
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        placeholder="#1a1f36"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <FieldLabel label="Logo URL (optional)" help="Paste a direct image URL (PNG/JPG/WebP). This shows on your booking page." />
+                    <input className={inp} value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" />
+                  </div>
+
+                  <div className="col-span-1 md:col-span-2 space-y-1.5">
+                    <FieldLabel label="Welcome message (optional)" help="Short sentence shown at the top of your booking page." />
+                    <input className={inp} value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)} placeholder="e.g. Book your cleaning in 60 seconds" />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">

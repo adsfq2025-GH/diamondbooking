@@ -196,13 +196,11 @@ export const DURATION_OPTIONS = [
 export const INDUSTRY_OPTIONS = [
   { value: "general_services", label: "General Services — General" },
 
-  { value: "cleaning_residential", label: "Residential Cleaning — Home Services" },
-  { value: "cleaning_commercial", label: "Commercial Cleaning — Home Services" },
+  { value: "cleaning_service", label: "Cleaning Service — Home Services" },
+  { value: "janitorial_service", label: "Janitorial Service — Home Services" },
   { value: "carpet_cleaning", label: "Carpet Cleaning — Home Services" },
   { value: "window_cleaning", label: "Window Cleaning — Home Services" },
   { value: "pressure_washing", label: "Pressure Washing — Home Services" },
-  { value: "janitorial", label: "Janitorial — Home Services" },
-  { value: "maid_service", label: "Maid Service — Home Services" },
 
   { value: "hvac", label: "HVAC — Home Services" },
   { value: "plumbing", label: "Plumbing — Home Services" },
@@ -257,19 +255,19 @@ export const INDUSTRY_OPTIONS = [
   { value: "restaurant", label: "Restaurant / Hospitality — Hospitality" },
   { value: "event_services", label: "Event Services — Hospitality" },
 
+  { value: "jewelry_store", label: "Jewelry Store — Retail & Luxury" },
+
   { value: "other", label: "Other" },
 ];
 
 export const INDUSTRY_DEFAULT_SERVICE_DURATION_MINUTES: Record<string, number> = {
   general_services: 60,
 
-  cleaning_residential: 180,
-  cleaning_commercial: 180,
+  cleaning_service: 180,
+  janitorial_service: 180,
   carpet_cleaning: 120,
   window_cleaning: 120,
   pressure_washing: 120,
-  janitorial: 180,
-  maid_service: 180,
 
   hvac: 90,
   plumbing: 90,
@@ -323,6 +321,8 @@ export const INDUSTRY_DEFAULT_SERVICE_DURATION_MINUTES: Record<string, number> =
 
   restaurant: 60,
   event_services: 120,
+
+  jewelry_store: 60,
 
   other: 60,
 };

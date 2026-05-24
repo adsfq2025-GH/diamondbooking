@@ -14,10 +14,7 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
 
   const bookingUrl = `${appUrl}/book/${slug}`;
   const snippet = `<div id="diamond-booking-widget"></div>
-<script src="${appUrl}/widget.js"></script>
-<script>
-  DiamondBookingWidget({ slug: "${slug}" });
-</script>`;
+<script id="db-widget" src="${appUrl}/widget.js" data-business="${slug}"></script>`;
 
   const copy = async (type: "link" | "snippet", value: string) => {
     await navigator.clipboard.writeText(value);
