@@ -253,6 +253,9 @@ export function BookingFlow({
     sel.service?.billingUnit === "PER_HOUR"
       ? `${sel.durationMinutes / 60} hour${sel.durationMinutes / 60 === 1 ? "" : "s"}`
       : `${sel.durationMinutes} min`;
+  const total = quote ? quote.total : sel.service ? sel.service.price : 0;
+  const subtotal = quote ? quote.subtotal : sel.service ? sel.service.price : 0;
+  const discounts = quote ? quote.discounts : 0;
 
   return (
     <div className={embed ? "bg-transparent" : "min-h-screen bg-gray-50"} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
