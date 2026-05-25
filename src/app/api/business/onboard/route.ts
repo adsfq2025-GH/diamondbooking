@@ -22,17 +22,33 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // #region debug-point A:entry
+    const traceId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    (() => { const fs = require("fs"); const p = ".dbg/business-create-failed.env"; let u = "http://127.0.0.1:7777/event", s = "business-create-failed"; try { const e = fs.readFileSync(p, "utf8"); u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u; s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s; } catch { } fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s, runId: "pre-fix", hypothesisId: "A", location: "api/business/onboard:entry", msg: "[DEBUG] POST /api/business/onboard entry", data: { traceId, method: req.method }, ts: Date.now() }) }).catch(() => { }); })();
+    // #endregion
+
     const session = await requireOwner();
+
+    // #region debug-point A:auth-ok
+    (() => { const fs = require("fs"); const p = ".dbg/business-create-failed.env"; let u = "http://127.0.0.1:7777/event", s = "business-create-failed"; try { const e = fs.readFileSync(p, "utf8"); u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u; s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s; } catch { } fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s, runId: "pre-fix", hypothesisId: "A", location: "api/business/onboard:auth", msg: "[DEBUG] requireOwner ok", data: { traceId, userId: session.user.id, role: session.user.role }, ts: Date.now() }) }).catch(() => { }); })();
+    // #endregion
+
     const body = await req.json();
     const parsed = schema.safeParse(body);
 
     if (!parsed.success) {
+      // #region debug-point B:validation-fail
+      (() => { const fs = require("fs"); const p = ".dbg/business-create-failed.env"; let u = "http://127.0.0.1:7777/event", s = "business-create-failed"; try { const e = fs.readFileSync(p, "utf8"); u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u; s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s; } catch { } fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s, runId: "pre-fix", hypothesisId: "B", location: "api/business/onboard:validate", msg: "[DEBUG] validation failed", data: { traceId, issue: parsed.error.issues[0] }, ts: Date.now() }) }).catch(() => { }); })();
+      // #endregion
       return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message }, { status: 400 });
     }
 
     // Check if business already exists
     const existing = await prisma.business.findUnique({ where: { ownerId: session.user.id } });
     if (existing) {
+      // #region debug-point C:update-existing
+      (() => { const fs = require("fs"); const p = ".dbg/business-create-failed.env"; let u = "http://127.0.0.1:7777/event", s = "business-create-failed"; try { const e = fs.readFileSync(p, "utf8"); u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u; s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s; } catch { } fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s, runId: "pre-fix", hypothesisId: "C", location: "api/business/onboard:update", msg: "[DEBUG] updating existing business", data: { traceId, businessId: existing.id, slug: existing.slug }, ts: Date.now() }) }).catch(() => { }); })();
+      // #endregion
       const updated = await prisma.business.update({
         where: { id: existing.id },
         data: {
@@ -77,6 +93,10 @@ export async function POST(req: NextRequest) {
     if (slugExists) {
       slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
     }
+
+    // #region debug-point C:create-start
+    (() => { const fs = require("fs"); const p = ".dbg/business-create-failed.env"; let u = "http://127.0.0.1:7777/event", s = "business-create-failed"; try { const e = fs.readFileSync(p, "utf8"); u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u; s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s; } catch { } fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s, runId: "pre-fix", hypothesisId: "C", location: "api/business/onboard:create", msg: "[DEBUG] creating business", data: { traceId, name: parsed.data.name, slug, industry: parsed.data.industry }, ts: Date.now() }) }).catch(() => { }); })();
+    // #endregion
 
     const business = await prisma.business.create({
       data: {
@@ -123,9 +143,16 @@ export async function POST(req: NextRequest) {
       targetName: business.name,
     });
 
+    // #region debug-point C:create-success
+    (() => { const fs = require("fs"); const p = ".dbg/business-create-failed.env"; let u = "http://127.0.0.1:7777/event", s = "business-create-failed"; try { const e = fs.readFileSync(p, "utf8"); u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u; s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s; } catch { } fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s, runId: "pre-fix", hypothesisId: "C", location: "api/business/onboard:success", msg: "[DEBUG] business created", data: { traceId, businessId: business.id, slug: business.slug }, ts: Date.now() }) }).catch(() => { }); })();
+    // #endregion
+
     return NextResponse.json({ success: true, data: business }, { status: 201 });
   } catch (error) {
     console.error("[/api/business/onboard]", error);
+    // #region debug-point D:catch
+    (() => { const fs = require("fs"); const p = ".dbg/business-create-failed.env"; let u = "http://127.0.0.1:7777/event", s = "business-create-failed"; try { const e = fs.readFileSync(p, "utf8"); u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u; s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s; } catch { } fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s, runId: "pre-fix", hypothesisId: "D", location: "api/business/onboard:catch", msg: "[DEBUG] exception thrown", data: { error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error) }, ts: Date.now() }) }).catch(() => { }); })();
+    // #endregion
     return NextResponse.json({ success: false, error: "Failed to create business" }, { status: 500 });
   }
 }
