@@ -353,12 +353,12 @@ export function getErrorMessage(error: unknown): string {
 }
 
 // ─── Debounce ───────────────────────────────
-export function debounce<T extends (...args: unknown[]) => unknown>(
-  fn: T,
+export function debounce<Args extends unknown[], R>(
+  fn: (...args: Args) => R,
   delay: number
-): (...args: Parameters<T>) => void {
+): (...args: Args) => void {
   let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
+  return (...args: Args) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => fn(...args), delay);
   };
