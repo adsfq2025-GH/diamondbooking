@@ -353,7 +353,7 @@ export function getErrorMessage(error: unknown): string {
 }
 
 // ─── Debounce ───────────────────────────────
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {

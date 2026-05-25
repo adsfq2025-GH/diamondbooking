@@ -48,7 +48,6 @@ export default async function TenantPortalHomePage({ params }: Props) {
       endTime: true,
       status: true,
       service: { select: { name: true } },
-      staff: { select: { name: true } },
       business: { select: { name: true } },
     },
   });
@@ -79,7 +78,7 @@ export default async function TenantPortalHomePage({ params }: Props) {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{b.service.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {b.business.name} • {b.staff.name}
+                      {b.business.name}
                     </p>
                   </div>
                   <div className="text-right">

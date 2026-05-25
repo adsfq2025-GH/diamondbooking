@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Zap } from "lucide-react";
 import Link from "next/link";
+import { StripeConnectCard } from "@/components/dashboard/stripe-connect-card";
 
 export const metadata = { title: "Billing" };
 export const dynamic = "force-dynamic";
@@ -49,11 +50,20 @@ export default async function BillingPage() {
   const session = await auth();
   if (!session?.user?.businessId) redirect("/onboarding");
 
-  const [subscription, usage] = await Promise.all([
+  const [subscription, usage, business] = await Promise.all([
     prisma.subscription.findUnique({
       where: { userId: session.user.id },
     }),
     getUsageStats(session.user.businessId),
+    prisma.business.findUnique({
+      where: { id: session.user.businessId },
+      select: {
+        stripeConnectAccountId: true,
+        stripeChargesEnabled: true,
+        stripePayoutsEnabled: true,
+        stripeDetailsSubmitted: true,
+      },
+    }),
   ]);
 
   const plan = subscription?.plan ?? "FREE";
@@ -137,6 +147,19 @@ export default async function BillingPage() {
           </div>
         </CardContent>
       </Card>
+
+      <StripeConnectCard
+        status={
+          business
+            ? {
+                accountId: business.stripeConnectAccountId,
+                chargesEnabled: business.stripeChargesEnabled,
+                payoutsEnabled: business.stripePayoutsEnabled,
+                detailsSubmitted: business.stripeDetailsSubmitted,
+              }
+            : null
+        }
+      />
 
       {/* Upgrade options */}
       {UPGRADES.length > 0 && plan !== "ENTERPRISE" && (

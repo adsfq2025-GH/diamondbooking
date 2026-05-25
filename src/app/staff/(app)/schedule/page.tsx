@@ -2,22 +2,14 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { staffBasePath } from "@/lib/tenant-paths";
 
 export const metadata = { title: "Staff Schedule" };
 export const dynamic = "force-dynamic";
 
-type Props = {
-  params: Promise<{ slug: string }>;
-};
-
-export default async function TenantStaffSchedulePage({ params }: Props) {
-  const { slug } = await params;
-
+export default async function StaffSchedulePage() {
   const session = await auth();
-  if (!session?.user) redirect(`/b/${slug}/staff/login`);
+  if (!session?.user) redirect("/staff/login");
   if (session.user.role !== "STAFF") redirect("/dashboard");
-  if (session.user.businessSlug !== slug) redirect(staffBasePath(session.user.businessSlug));
 
   if (!session.user.staffId) {
     return (
@@ -26,9 +18,7 @@ export default async function TenantStaffSchedulePage({ params }: Props) {
           <CardHeader>
             <CardTitle className="text-base">Schedule</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 text-sm text-muted-foreground">
-            This account is not linked to a staff profile yet.
-          </CardContent>
+          <CardContent className="pt-0 text-sm text-muted-foreground">This account is not linked to a staff profile yet.</CardContent>
         </Card>
       </div>
     );
@@ -93,3 +83,4 @@ export default async function TenantStaffSchedulePage({ params }: Props) {
     </div>
   );
 }
+

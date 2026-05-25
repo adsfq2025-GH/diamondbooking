@@ -1444,6 +1444,14 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 </div>
               </div>
 
+              <a
+                href="/dashboard/billing"
+                className="block p-4 rounded-xl border border-gray-100 bg-white hover:border-gray-200 transition-colors"
+              >
+                <div className="text-sm font-bold text-[#1a1f36]">Accept payments (optional)</div>
+                <div className="text-sm text-gray-500 mt-0.5">Connect your Stripe account to take payments inside your booking flow.</div>
+              </a>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setStep(3)} className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
                   Back

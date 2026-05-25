@@ -24,10 +24,7 @@ export default async function TenantStaffLoginPage({ params, searchParams }: Pro
   const callbackUrl = sp?.callbackUrl ?? `/b/${slug}/staff`;
 
   return (
-    <AuthShell
-      title={`${business.name} Staff Portal`}
-      subtitle="Sign in to view your schedule and appointments."
-    >
+    <AuthShell title={`${business.name} Staff Portal`} subtitle="Sign in to view your schedule and appointments.">
       <LoginForm callbackUrl={callbackUrl} businessSlug={slug} hideGoogle />
     </AuthShell>
   );

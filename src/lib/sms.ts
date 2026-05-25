@@ -69,7 +69,7 @@ export function buildBookingSms(args: {
     timeZone: args.timezone,
   }).format(args.startTime);
 
-  const base = `${args.businessName}: ${args.serviceName} with ${args.staffName} on ${when}.`;
+  const base = `${args.businessName}: ${args.serviceName} on ${when}.`;
 
   if (args.type === "BOOKING_CONFIRMATION") {
     return `Confirmed. ${base}${args.bookingUrl ? ` ${args.bookingUrl}` : ""}`;

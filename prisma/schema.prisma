@@ -234,6 +234,12 @@ model Business {
   primaryColor   String  @default("#1a1f36")
   welcomeMessage String? @db.Text
 
+  // Payments (Stripe Connect)
+  stripeConnectAccountId String? @unique
+  stripeChargesEnabled   Boolean @default(false)
+  stripePayoutsEnabled   Boolean @default(false)
+  stripeDetailsSubmitted Boolean @default(false)
+
   // Config
   timezone String @default("America/New_York")
   currency String @default("USD")

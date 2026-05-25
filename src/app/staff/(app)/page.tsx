@@ -9,17 +9,10 @@ import { staffBasePath } from "@/lib/tenant-paths";
 export const metadata = { title: "Staff Overview" };
 export const dynamic = "force-dynamic";
 
-type Props = {
-  params: Promise<{ slug: string }>;
-};
-
-export default async function TenantStaffHomePage({ params }: Props) {
-  const { slug } = await params;
-
+export default async function StaffHomePage() {
   const session = await auth();
-  if (!session?.user) redirect(`/b/${slug}/staff/login`);
+  if (!session?.user) redirect("/staff/login");
   if (session.user.role !== "STAFF") redirect("/dashboard");
-  if (session.user.businessSlug !== slug) redirect(staffBasePath(session.user.businessSlug));
 
   if (!session.user.staffId) {
     return (
@@ -37,7 +30,7 @@ export default async function TenantStaffHomePage({ params }: Props) {
   }
 
   const now = new Date();
-  const basePath = staffBasePath(slug);
+  const basePath = staffBasePath(session.user.businessSlug);
   const upcoming = await prisma.booking.findMany({
     where: { staffId: session.user.staffId, startTime: { gte: now } },
     orderBy: { startTime: "asc" },
@@ -92,3 +85,4 @@ export default async function TenantStaffHomePage({ params }: Props) {
     </div>
   );
 }
+

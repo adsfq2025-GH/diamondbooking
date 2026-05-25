@@ -32,7 +32,7 @@ interface ServiceData {
   staff: StaffMember[];
 }
 
-interface SlotData { startTime: string; endTime: string; startUTC: string; endUTC: string; staffId: string; staffName: string }
+interface SlotData { startTime: string; endTime: string; startUTC: string; endUTC: string; staffId: string }
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -52,6 +52,7 @@ type BookingConfig = {
     label: string;
     type: "text" | "number" | "select" | "boolean";
     required?: boolean;
+    placeholder?: string;
     options?: Array<{ value: string; label: string }>;
   }>;
   customerTypes?: {
@@ -108,7 +109,12 @@ export function BookingFlow({
   const addOns = cfg.addOns ?? [];
   const recurring = cfg.recurring?.enabled ? cfg.recurring : undefined;
   const customerTypes = cfg.customerTypes?.enabled ? cfg.customerTypes : undefined;
-  const customerTypesMode = (cfg.customerTypes as any)?.mode ?? (customerTypes ? "both" : "residential");
+  const customerTypesMode =
+    customerTypes?.options?.includes("residential") && customerTypes?.options?.includes("commercial")
+      ? "both"
+      : customerTypes?.options?.includes("commercial")
+        ? "commercial"
+        : "residential";
   const showCustomerTypeToggle = !!customerTypes && customerTypesMode === "both";
 
   const [step, setStep]       = useState<Step>(1);
@@ -304,18 +310,17 @@ export function BookingFlow({
       {!embed && step < 5 && (
         <div className="max-w-lg mx-auto px-6">
           <div className="flex items-center justify-center gap-2 py-5">
-            {(["Service","Staff","Date & Time","Details"] as const).map((label, i) => {
-              const n = (i + 1) as Step;
-              const done   = step > n;
-              const active = step === n;
+            {(["Pricing","Date & Time","Details"] as const).map((label, i) => {
+              const current = step === 1 ? 1 : step === 3 ? 2 : 3;
+              const n = i + 1;
+              const done = current > n;
+              const active = current === n;
               return (
                 <div key={label} className="flex items-center gap-1.5">
                   <div className="flex flex-col items-center gap-1">
                     <div
                       className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                        done   ? "text-white"
-                        : active ? "text-white"
-                        : "bg-white border-2 border-gray-200 text-gray-400"
+                        done ? "text-white" : active ? "text-white" : "bg-white border-2 border-gray-200 text-gray-400"
                       }`}
                       style={done || active ? { background: primary } : {}}
                     >
@@ -325,7 +330,7 @@ export function BookingFlow({
                       {label}
                     </span>
                   </div>
-                  {i < 3 && <div className={`w-6 h-0.5 rounded-full mb-4 ${done ? "" : "bg-gray-200"}`} style={done ? { background: primary } : {}} />}
+                  {i < 2 && <div className={`w-6 h-0.5 rounded-full mb-4 ${done ? "" : "bg-gray-200"}`} style={done ? { background: primary } : {}} />}
                 </div>
               );
             })}
@@ -426,13 +431,9 @@ export function BookingFlow({
                   ))}
                 </select>
                 {!!sel.service?.staff?.length && sel.service.staff.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setStep(2)}
-                    className="text-xs font-bold text-[#1a1f36] hover:underline"
-                  >
-                    Choose a specific team member (optional)
-                  </button>
+                  <div className="text-xs text-gray-500">
+                    A team member will be assigned automatically based on availability.
+                  </div>
                 )}
               </div>
 
@@ -535,7 +536,7 @@ export function BookingFlow({
                           <input
                             className={inp}
                             value={String(intake[field.key] ?? "")}
-                            placeholder={(field as any).placeholder ?? ""}
+                            placeholder={field.placeholder ?? ""}
                             onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value }))}
                           />
                         )}
@@ -545,7 +546,7 @@ export function BookingFlow({
                             type="number"
                             min={0}
                             value={String(intake[field.key] ?? "")}
-                            placeholder={(field as any).placeholder ?? ""}
+                            placeholder={field.placeholder ?? ""}
                             onChange={(e) => setIntake((p) => ({ ...p, [field.key]: e.target.value === "" ? "" : Number(e.target.value) }))}
                           />
                         )}
@@ -655,6 +656,29 @@ export function BookingFlow({
                 />
               </div>
 
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-[#1a1f36]">Pricing summary</div>
+                  {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
+                </div>
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Discounts</span>
+                    <span className={discounts > 0 ? "font-semibold text-emerald-600" : "font-semibold text-gray-800"}>
+                      {discounts > 0 ? `-${formatCurrency(discounts, currency)}` : formatCurrency(0, currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm font-black">
+                    <span className="text-gray-700">TOTAL</span>
+                    <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => {
@@ -674,57 +698,10 @@ export function BookingFlow({
           </div>
         )}
 
-        {/* STEP 2 — Select staff */}
-        {step === 2 && sel.service && (
-          <div className="space-y-3">
-            <button onClick={() => setStep(1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-2">
-              <ChevronLeft className="w-4 h-4" /> Back
-            </button>
-            <h2 className="text-lg font-bold text-gray-800 mb-4">Choose a team member</h2>
-
-            {/* "Any available" option */}
-            <button
-              onClick={() => { setSel((p) => ({ ...p, staff: null })); setStep(3); }}
-              className={`w-full flex items-center gap-4 p-4 bg-white rounded-2xl border-2 transition-all text-left ${
-                sel.staff === null ? "border-2" : "border-gray-100 hover:border-gray-300"
-              }`}
-              style={sel.staff === null ? { borderColor: primary } : {}}
-            >
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                <User className="w-5 h-5 text-gray-400" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-800">Any available</p>
-                <p className="text-xs text-gray-400">First available team member</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-            </button>
-
-            {sel.service.staff.map((member) => (
-              <button
-                key={member.id}
-                onClick={() => { setSel((p) => ({ ...p, staff: member })); setStep(3); }}
-                className={`w-full flex items-center gap-4 p-4 bg-white rounded-2xl border-2 transition-all text-left ${
-                  sel.staff?.id === member.id ? "border-2" : "border-gray-100 hover:border-gray-300"
-                }`}
-                style={sel.staff?.id === member.id ? { borderColor: primary } : {}}
-              >
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center shrink-0 text-sm font-bold text-gray-600">
-                  {member.name[0].toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-800">{member.name}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* STEP 3 — Pick date & time */}
         {step === 3 && sel.service && (
           <div className="space-y-4">
-            <button onClick={() => setStep(embed ? 1 : 2)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-2">
+            <button onClick={() => setStep(1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-2">
               <ChevronLeft className="w-4 h-4" /> Back
             </button>
             <h2 className="text-lg font-bold text-gray-800">Pick a date & time</h2>
@@ -875,7 +852,6 @@ export function BookingFlow({
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Booking Summary</p>
               {[
                 ["Service",     sel.service.name],
-                ["With",        sel.slot.staffName],
                 ["Date",        new Date(sel.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })],
                 ["Time",        formatTimeDisplay(sel.slot.startTime)],
                 ["Duration",    durationLabel],
@@ -971,7 +947,6 @@ export function BookingFlow({
             <div className="bg-white rounded-2xl border border-gray-100 p-5 text-left mb-6 space-y-2">
               {[
                 ["Service",  sel.service.name],
-                ["With",     sel.slot.staffName],
                 ["Date",     new Date(sel.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })],
                 ["Time",     formatTimeDisplay(sel.slot.startTime)],
               ].map(([label, value]) => (

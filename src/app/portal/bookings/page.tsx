@@ -36,7 +36,6 @@ export default async function PortalBookingsPage() {
       endTime: true,
       status: true,
       service: { select: { name: true } },
-      staff: { select: { name: true } },
       business: { select: { name: true } },
     },
   });
@@ -62,7 +61,7 @@ export default async function PortalBookingsPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{b.service.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {b.business.name} • {b.staff.name}
+                      {b.business.name}
                     </p>
                     <p className="text-xs text-muted-foreground">{b.status}</p>
                   </div>

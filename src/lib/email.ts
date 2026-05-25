@@ -70,7 +70,6 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
             <tr><td style="padding:24px">
               ${[
                 ["Service",  data.serviceName],
-                ["With",     data.staffName],
                 ["When",     dateStr],
                 ...(data.notes ? [["Notes", data.notes]] : []),
               ].map(([label, value]) => `
@@ -153,7 +152,6 @@ export async function sendBookingReminder(data: BookingEmailData) {
     <p style="font-size:14px;color:#555">Hi ${data.customerName}, just a reminder about your upcoming appointment:</p>
     <div style="background:#f8f9ff;border-radius:8px;padding:20px;margin:16px 0">
       <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1a1f36">${data.serviceName}</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#666">With ${data.staffName}</p>
       <p style="margin:0;font-size:13px;color:#666">${dateStr}</p>
     </div>
     <p style="font-size:12px;color:#bbb">This is an automated reminder from ${data.businessName} via Diamond Booking</p>
