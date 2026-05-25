@@ -463,6 +463,25 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       );
     });
 
+    });
+
+  const startPayment = () =>
+    go(async () => {
+      if (!selectedTier) throw new Error("Select a plan first");
+      const plan =
+        selectedTier === "starter"
+          ? "STARTER"
+          : selectedTier === "pro"
+            ? "PROFESSIONAL"
+            : "ENTERPRISE";
+
+      const returnTo = encodeURIComponent("/onboarding?step=4");
+      const cancelTo = encodeURIComponent("/onboarding?step=3");
+      window.location.assign(
+        `/api/billing/create-checkout?plan=${encodeURIComponent(plan)}&interval=monthly&trialDays=14&returnTo=${returnTo}&cancelTo=${cancelTo}`
+      );
+    });
+
   const submitIntro = () =>
     go(async () => {
       await persistDraft();
@@ -478,6 +497,33 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       });
       await persistDraft();
       setStep(6);
+    });
+
+  const submitStaff = () =>
+    go(async () => {
+      const valid = staff.filter((s) => s.name.trim());
+      if (valid.length) {
+        await Promise.all(
+          valid.map((s) =>
+            fetch("/api/staff", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: s.name,
+                email: s.email || undefined,
+                phone: s.phone || undefined,
+                role: s.role || undefined,
+                commissionPercent: s.commissionPercent ? Number(s.commissionPercent) : undefined,
+                availability: s.availability,
+              }),
+            })
+          )
+        );
+      }
+      await persistDraft();
+      setStep(7);
+    });
+
     });
 
   const submitStaff = () =>

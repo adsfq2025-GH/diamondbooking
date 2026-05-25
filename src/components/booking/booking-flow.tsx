@@ -262,6 +262,9 @@ export function BookingFlow({
     sel.service?.billingUnit === "PER_HOUR"
       ? `${sel.durationMinutes / 60} hour${sel.durationMinutes / 60 === 1 ? "" : "s"}`
       : `${sel.durationMinutes} min`;
+  const total = quote ? quote.total : sel.service ? sel.service.price : 0;
+  const subtotal = quote ? quote.subtotal : sel.service ? sel.service.price : 0;
+  const discounts = quote ? quote.discounts : 0;
 
   const recurringLabel = useMemo(() => {
     if (!recurring) return "One-time";
