@@ -341,6 +341,11 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         }),
       });
       const json = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        const callbackUrl = encodeURIComponent("/onboarding?step=1");
+        window.location.assign(`/auth/login?callbackUrl=${callbackUrl}`);
+        return;
+      }
       if (!res.ok) throw new Error(json.error ?? "Failed to save business");
       setBusinessSlug(json.data.slug);
       setPrimaryColor(json.data.primaryColor ?? "#1a1f36");
