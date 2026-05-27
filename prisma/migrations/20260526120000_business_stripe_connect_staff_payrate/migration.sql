@@ -1,0 +1,21 @@
+DO $$ BEGIN
+  CREATE TYPE "StaffPayRateType" AS ENUM ('HOURLY', 'PER_SALE', 'PER_DAY', 'PER_JOB');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE "staff"
+  ADD COLUMN IF NOT EXISTS "payRate" DECIMAL(10,2),
+  ADD COLUMN IF NOT EXISTS "payRateType" "StaffPayRateType" NOT NULL DEFAULT 'HOURLY';
+
+ALTER TABLE "businesses"
+  ADD COLUMN IF NOT EXISTS "logoUrl" TEXT,
+  ADD COLUMN IF NOT EXISTS "coverImageUrl" TEXT,
+  ADD COLUMN IF NOT EXISTS "welcomeMessage" TEXT,
+  ADD COLUMN IF NOT EXISTS "stripeConnectAccountId" TEXT,
+  ADD COLUMN IF NOT EXISTS "stripeChargesEnabled" BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS "stripePayoutsEnabled" BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS "stripeDetailsSubmitted" BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "businesses_stripeConnectAccountId_key" ON "businesses" ("stripeConnectAccountId");
+
