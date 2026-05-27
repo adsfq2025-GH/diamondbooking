@@ -93,6 +93,20 @@ function keyFromLabel(label: string) {
   return base || "field";
 }
 
+function inferAddOnIconId(name: string) {
+  const n = name.toLowerCase();
+  if (n.includes("fridge")) return "refrigerator";
+  if (n.includes("microwave")) return "microwave";
+  if (n.includes("oven")) return "cooking-pot";
+  if (n.includes("window")) return "app-window";
+  if (n.includes("blind")) return "blinds";
+  if (n.includes("fence")) return "fence";
+  if (n.includes("roof")) return "home";
+  if (n.includes("vip")) return "gem";
+  if (n.includes("image")) return "images";
+  return undefined;
+}
+
 function FieldLabel({
   label,
   help,
@@ -184,7 +198,7 @@ function resolveIntakeTemplateKey(industry: string, market: "residential" | "com
 export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { update: updateSession } = useSession();
+  const { data: session, update: updateSession } = useSession();
 
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
@@ -218,6 +232,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#1a1f36");
+  const [accentColor, setAccentColor] = useState("#d4a843");
   const [logoUrl, setLogoUrl] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
@@ -270,6 +285,31 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     const n = Number(stepParam);
     if (n === 1 || n === 2 || n === 3 || n === 4) setStep(n);
   }, [searchParams]);
+
+  useEffect(() => {
+    if (businessSlug) return;
+    const s = session?.user?.businessSlug;
+    if (s) setBusinessSlug(s);
+  }, [session, businessSlug]);
+
+  useEffect(() => {
+    if (businessSlug) return;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/business");
+        const json = await res.json();
+        if (!res.ok) return;
+        const b = json.data as { name?: string; slug?: string; primaryColor?: string; logoUrl?: string | null; welcomeMessage?: string | null };
+        if (b.slug) setBusinessSlug(b.slug);
+        if (!bizName && b.name) setBizName(b.name);
+        if (b.primaryColor) setPrimaryColor(b.primaryColor);
+        if (!logoUrl && b.logoUrl) setLogoUrl(b.logoUrl);
+        if (!welcomeMessage && b.welcomeMessage) setWelcomeMessage(b.welcomeMessage);
+      } catch {
+      }
+    };
+    void load();
+  }, [businessSlug, bizName, logoUrl, welcomeMessage]);
 
   useEffect(() => {
     const loadSubscription = async () => {
@@ -502,10 +542,29 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               }
             : undefined;
 
+        let existingConfig: Record<string, unknown> = {};
+        try {
+          const res = await fetch("/api/business/config");
+          const json = await res.json();
+          if (res.ok && json?.data?.config && typeof json.data.config === "object") {
+            existingConfig = json.data.config as Record<string, unknown>;
+          }
+        } catch {
+        }
+
+        const existingTheme = (existingConfig.theme ?? {}) as Record<string, unknown>;
+        const existingUi = (existingConfig.ui ?? {}) as Record<string, unknown>;
+
+        const nextAddOns = addOns
+          .filter((a) => a.name.trim())
+          .map((a) => {
+            const key = keyFromLabel(a.name);
+            return { key, name: a.name.trim(), price: Number(a.price || 0), iconId: inferAddOnIconId(a.name) };
+          });
+
         const config = {
-          addOns: addOns
-            .filter((a) => a.name.trim())
-            .map((a) => ({ key: keyFromLabel(a.name), name: a.name.trim(), price: Number(a.price || 0) })),
+          ...existingConfig,
+          ...(nextAddOns.length ? { addOns: nextAddOns } : {}),
           intakeFields: intakeFields
             .filter((f) => f.label.trim())
             .map((f, idx) => {
@@ -525,6 +584,8 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               return common;
             }),
           ...(customerTypes ? { customerTypes } : {}),
+          theme: { ...existingTheme, accentColor },
+          ui: { ...existingUi, showLivePricing: true, showIcons: true },
         };
 
         await fetch("/api/business/config", {
@@ -545,10 +606,15 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     return "https://www.diamond-booking.com";
   }, []);
 
-  const snippet = `<div id="diamond-booking-widget"></div>
-<script id="db-widget" src="${appUrl}/widget.js" data-business="${businessSlug}"></script>`;
+  const bookingUrl = businessSlug ? `${appUrl}/book/${businessSlug}` : "";
+  const snippet = businessSlug
+    ? `<div id="diamond-booking-widget"></div>
+<script id="db-widget" src="${appUrl}/widget.js" data-business="${businessSlug}"></script>`
+    : `<div id="diamond-booking-widget"></div>
+<script id="db-widget" src="${appUrl}/widget.js" data-business="YOUR_BUSINESS_SLUG"></script>`;
 
   const copySnippet = () => {
+    if (!businessSlug) return;
     navigator.clipboard.writeText(snippet);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -556,6 +622,26 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   const finish = () =>
     go(async () => {
+      try {
+        const res = await fetch("/api/business/config");
+        const json = await res.json();
+        if (res.ok) {
+          const current = (json.data?.config ?? {}) as Record<string, unknown>;
+          const theme = (current.theme ?? {}) as Record<string, unknown>;
+          const ui = (current.ui ?? {}) as Record<string, unknown>;
+          const next = {
+            ...current,
+            theme: { ...theme, accentColor },
+            ui: { ...ui, showLivePricing: true, showIcons: true },
+          };
+          await fetch("/api/business/config", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ config: next }),
+          });
+        }
+      } catch {
+      }
       await fetch("/api/business", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -1343,18 +1429,19 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                     <div className="text-sm font-semibold text-[#1a1f36]">Widget design</div>
                     <div className="text-xs text-gray-500">Set your brand color and logo. You can change this later in Settings.</div>
                   </div>
-                  <a
-                    href={`${appUrl}/book/${businessSlug}?embed=1`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold text-[#1a1f36] hover:underline"
+                  <button
+                    type="button"
+                    onClick={() => bookingUrl && window.open(`${bookingUrl}?embed=1`, "_blank", "noreferrer")}
+                    disabled={!businessSlug}
+                    className={`text-xs font-bold ${businessSlug ? "text-[#1a1f36] hover:underline" : "text-gray-300 cursor-not-allowed"}`}
                   >
                     Preview
-                  </a>
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <FieldLabel label="Primary color" help="Used for buttons and key accents in the booking widget." />
                     </div>
@@ -1374,14 +1461,53 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                    <div className="space-y-1.5">
+                      <FieldLabel label="Accent color (optional)" help="Used for highlights like badges, dividers, and secondary emphasis." />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={accentColor}
+                          onChange={(e) => setAccentColor(e.target.value)}
+                          className="h-10 w-12 rounded-lg border border-gray-200 bg-white"
+                        />
+                        <input
+                          className={inp}
+                          value={accentColor}
+                          onChange={(e) => setAccentColor(e.target.value)}
+                          placeholder="#d4a843"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
                     <FieldLabel label="Logo URL (optional)" help="Paste a direct image URL (PNG/JPG/WebP). This shows on your booking page." />
                     <input className={inp} value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" />
                   </div>
 
-                  <div className="col-span-1 md:col-span-2 space-y-1.5">
+                    <div className="space-y-1.5">
                     <FieldLabel label="Welcome message (optional)" help="Short sentence shown at the top of your booking page." />
                     <input className={inp} value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)} placeholder="e.g. Book your cleaning in 60 seconds" />
+                  </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: primaryColor }} />
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: accentColor }} />
+                      </div>
+                    </div>
+                    {businessSlug ? (
+                      <iframe
+                        title="Widget preview"
+                        src={`${bookingUrl}?embed=1`}
+                        className="w-full"
+                        style={{ height: 520, border: 0 }}
+                      />
+                    ) : (
+                      <div className="p-4 text-sm text-gray-500">Saving your business…</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1396,11 +1522,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   )}
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                  <span className="flex-1 text-sm font-medium text-[#1a1f36] truncate">{appUrl}/book/{businessSlug}</span>
+                  <span className="flex-1 text-sm font-medium text-[#1a1f36] truncate">{bookingUrl || `${appUrl}/book/<your-slug>`}</span>
                   <button
                     type="button"
-                    onClick={() => navigator.clipboard.writeText(`${appUrl}/book/${businessSlug}`)}
-                    className="px-3 py-1.5 text-xs font-bold bg-[#1a1f36] text-white rounded-lg hover:bg-[#1a1f36]/90 transition-colors shrink-0"
+                    onClick={() => bookingUrl && navigator.clipboard.writeText(bookingUrl)}
+                    disabled={!businessSlug}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors shrink-0 ${businessSlug ? "bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >
                     Copy Link
                   </button>
@@ -1413,6 +1540,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   <button
                     type="button"
                     onClick={copySnippet}
+                    disabled={!businessSlug}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${copied ? "bg-green-500 text-white" : "bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90"}`}
                   >
                     {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy Code</>}

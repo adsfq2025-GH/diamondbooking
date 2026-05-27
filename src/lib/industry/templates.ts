@@ -1,5 +1,5 @@
 export type IndustryTemplateConfig = {
-  addOns: Array<{ key: string; name: string; price: number; extraMinutes?: number }>;
+  addOns: Array<{ key: string; name: string; price: number; extraMinutes?: number; iconId?: string }>;
   intakeFields: Array<{
     key: string;
     label: string;
@@ -17,6 +17,8 @@ export type IndustryTemplateConfig = {
     enabled: boolean;
     intervals: Array<{ key: string; label: string; discountPercent: number }>;
   };
+  theme?: { accentColor?: string };
+  ui?: { showIcons?: boolean; showLivePricing?: boolean };
 };
 
 export type IndustryTemplateSeed = {
@@ -42,6 +44,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
       ],
       customerTypes: { enabled: false, options: ["residential", "commercial"] },
       recurring: { enabled: false, intervals: [] },
+      ui: { showIcons: true, showLivePricing: true },
     },
   },
   {
@@ -52,9 +55,9 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
     sortOrder: 10,
     defaultConfig: {
       addOns: [
-        { key: "inside_fridge", name: "Inside fridge", price: 25 },
-        { key: "inside_oven", name: "Inside oven", price: 30 },
-        { key: "windows", name: "Interior windows", price: 40 },
+        { key: "inside_fridge", name: "Inside fridge", price: 25, iconId: "refrigerator" },
+        { key: "inside_oven", name: "Inside oven", price: 30, iconId: "cooking-pot" },
+        { key: "windows", name: "Interior windows", price: 40, iconId: "app-window" },
       ],
       intakeFields: [
         { key: "customerType", label: "Residential or commercial?", type: "select", required: true, options: [{ value: "residential", label: "Residential" }, { value: "commercial", label: "Commercial" }] },
@@ -72,6 +75,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
           { key: "weekly", label: "Once per week", discountPercent: 20 },
         ],
       },
+      ui: { showIcons: true, showLivePricing: true },
     },
   },
   {
@@ -82,8 +86,8 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
     sortOrder: 20,
     defaultConfig: {
       addOns: [
-        { key: "fence", name: "Fence cleaning", price: 60 },
-        { key: "roof", name: "Roof soft wash", price: 150 },
+        { key: "fence", name: "Fence cleaning", price: 60, iconId: "fence" },
+        { key: "roof", name: "Roof soft wash", price: 150, iconId: "home" },
       ],
       intakeFields: [
         { key: "customerType", label: "Residential or commercial?", type: "select", required: true, options: [{ value: "residential", label: "Residential" }, { value: "commercial", label: "Commercial" }] },
@@ -92,6 +96,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
       ],
       customerTypes: { enabled: true, options: ["residential", "commercial"], commercialMultiplier: 1.2 },
       recurring: { enabled: false, intervals: [] },
+      ui: { showIcons: true, showLivePricing: true },
     },
   },
   {
@@ -110,6 +115,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
       ],
       customerTypes: { enabled: true, options: ["residential", "commercial"], commercialMultiplier: 1.15 },
       recurring: { enabled: false, intervals: [] },
+      ui: { showIcons: true, showLivePricing: true },
     },
   },
   {
@@ -120,7 +126,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
     sortOrder: 40,
     defaultConfig: {
       addOns: [
-        { key: "extra_images", name: "Extra images package", price: 25 },
+        { key: "extra_images", name: "Extra images package", price: 25, iconId: "images" },
       ],
       intakeFields: [
         { key: "scanType", label: "Scan type", type: "select", required: true, options: [{ value: "basic", label: "Basic scan" }, { value: "3d4d", label: "3D/4D scan" }], pricing: { type: "choicePrice", prices: { basic: 0, "3d4d": 60 } } },
@@ -129,6 +135,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
       ],
       customerTypes: { enabled: false, options: ["residential", "commercial"] },
       recurring: { enabled: false, intervals: [] },
+      ui: { showIcons: true, showLivePricing: true },
     },
   },
   {
@@ -145,6 +152,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
       ],
       customerTypes: { enabled: false, options: ["residential", "commercial"] },
       recurring: { enabled: false, intervals: [] },
+      ui: { showIcons: true, showLivePricing: true },
     },
   },
   {
@@ -155,13 +163,14 @@ export const INDUSTRY_TEMPLATES: IndustryTemplateSeed[] = [
     sortOrder: 60,
     defaultConfig: {
       addOns: [
-        { key: "vip", name: "VIP priority slot", price: 30 },
+        { key: "vip", name: "VIP priority slot", price: 30, iconId: "gem" },
       ],
       intakeFields: [
         { key: "serviceType", label: "Service type", type: "select", required: true, options: [{ value: "repair", label: "Jewelry repair" }, { value: "ring_sizing", label: "Ring sizing" }, { value: "custom_design", label: "Custom design consultation" }, { value: "watch_battery", label: "Watch battery replacement" }], pricing: { type: "choicePrice", prices: { repair: 0, ring_sizing: 20, custom_design: 0, watch_battery: 15 } } },
       ],
       customerTypes: { enabled: false, options: ["residential", "commercial"] },
       recurring: { enabled: false, intervals: [] },
+      ui: { showIcons: true, showLivePricing: true },
     },
   },
 ];

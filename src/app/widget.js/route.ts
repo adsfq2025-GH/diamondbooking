@@ -88,9 +88,22 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  var auto = findAutoConfig();
-  if (auto && auto.slug) {
-    window.DiamondBookingWidget(auto);
+  function boot(attempt) {
+    var auto = findAutoConfig();
+    var root = document.getElementById("diamond-booking-widget");
+    if (auto && auto.slug && root) {
+      auto.root = root;
+      window.DiamondBookingWidget(auto);
+      return;
+    }
+    if (attempt >= 50) return;
+    setTimeout(function () { boot(attempt + 1); }, 100);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () { boot(0); });
+  } else {
+    boot(0);
   }
 })();
 `);

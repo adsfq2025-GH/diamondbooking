@@ -2,7 +2,24 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ChevronRight, Clock, DollarSign, User, ChevronLeft, Check, Calendar, CheckCircle2, HelpCircle, Star } from "lucide-react";
+import {
+  AppWindow,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  CookingPot,
+  Fence,
+  Gem,
+  HelpCircle,
+  Home,
+  Images,
+  Microwave,
+  Refrigerator,
+  Star,
+} from "lucide-react";
 import { formatTimeDisplay } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -46,7 +63,7 @@ interface BookingSelection {
 }
 
 type BookingConfig = {
-  addOns?: Array<{ key: string; name: string; price: number; extraMinutes?: number }>;
+  addOns?: Array<{ key: string; name: string; price: number; extraMinutes?: number; iconId?: string }>;
   intakeFields?: Array<{
     key: string;
     label: string;
@@ -63,6 +80,8 @@ type BookingConfig = {
     enabled: boolean;
     intervals: Array<{ key: string; label: string; discountPercent: number }>;
   };
+  theme?: { accentColor?: string };
+  ui?: { showIcons?: boolean; showLivePricing?: boolean };
 };
 
 type Quote = {
@@ -105,6 +124,31 @@ export function BookingFlow({
 }) {
   const primary = business.primaryColor || "#1a1f36";
   const cfg = (config ?? {}) as BookingConfig;
+  const showIcons = cfg.ui?.showIcons !== false;
+  const showLivePricing = cfg.ui?.showLivePricing !== false;
+  const accent = cfg.theme?.accentColor ?? "#d4a843";
+
+  const addOnIconMap = useMemo(
+    () => ({
+      refrigerator: Refrigerator,
+      microwave: Microwave,
+      "cooking-pot": CookingPot,
+      "app-window": AppWindow,
+      fence: Fence,
+      home: Home,
+      images: Images,
+      gem: Gem,
+    }),
+    []
+  );
+
+  const renderAddOnIcon = (iconId?: string) => {
+    if (!showIcons) return null;
+    const key = (iconId ?? "").trim();
+    const Icon = (addOnIconMap as Record<string, typeof Refrigerator>)[key];
+    if (!Icon) return null;
+    return <Icon className="w-4 h-4" />;
+  };
   const intakeFields = (cfg.intakeFields ?? []).filter((f) => f.key !== "customerType");
   const addOns = cfg.addOns ?? [];
   const recurring = cfg.recurring?.enabled ? cfg.recurring : undefined;
@@ -623,7 +667,17 @@ export function BookingFlow({
                           }`}
                           style={checked ? { background: primary } : {}}
                         >
-                          <div className="text-xs font-bold">{a.name}</div>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                checked ? "bg-white/15" : "bg-gray-50 border border-gray-100"
+                              }`}
+                              style={!checked && showIcons ? { color: accent } : {}}
+                            >
+                              {renderAddOnIcon(a.iconId)}
+                            </div>
+                            <div className="text-xs font-bold">{a.name}</div>
+                          </div>
                           <div className={`text-xs mt-1 ${checked ? "text-white/90" : "text-gray-500"}`}>
                             +{formatCurrency(a.price, quote?.currency ?? business.currency)}
                           </div>
@@ -656,6 +710,7 @@ export function BookingFlow({
                 />
               </div>
 
+              {showLivePricing && (
               <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-bold text-[#1a1f36]">Pricing summary</div>
@@ -678,6 +733,7 @@ export function BookingFlow({
                   </div>
                 </div>
               </div>
+              )}
 
               <button
                 type="button"
@@ -1023,22 +1079,24 @@ export function BookingFlow({
                     </div>
                   </div>
 
-                  <div className="border-t border-gray-100 pt-3 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Subtotal</span>
-                      <span className="font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
+                  {showLivePricing && (
+                    <div className="border-t border-gray-100 pt-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Subtotal</span>
+                        <span className="font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Discounts</span>
+                        <span className={discounts > 0 ? "font-semibold text-emerald-600" : "font-semibold text-gray-800"}>
+                          {discounts > 0 ? `-${formatCurrency(discounts, currency)}` : formatCurrency(0, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm font-black">
+                        <span className="text-gray-700">TOTAL</span>
+                        <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Discounts</span>
-                      <span className={discounts > 0 ? "font-semibold text-emerald-600" : "font-semibold text-gray-800"}>
-                        {discounts > 0 ? `-${formatCurrency(discounts, currency)}` : formatCurrency(0, currency)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm font-black">
-                      <span className="text-gray-700">TOTAL</span>
-                      <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
