@@ -3,7 +3,7 @@
 
 import { PrismaClient, Role, SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { INDUSTRY_TEMPLATES } from "../src/lib/industry/templates";
+import { INDUSTRY_TEMPLATES, resolveIndustryTemplateKey } from "../src/lib/industry/templates";
 
 const prisma = new PrismaClient();
 
@@ -235,7 +235,8 @@ async function main() {
   // Ensure every business has a config row
   const businesses = await prisma.business.findMany({ select: { id: true, industry: true } });
   for (const b of businesses) {
-    const industryKey = b.industry && typeof b.industry === "string" ? b.industry : "generic";
+    const rawIndustryKey = b.industry && typeof b.industry === "string" ? b.industry : "generic";
+    const industryKey = resolveIndustryTemplateKey(rawIndustryKey);
     const template = INDUSTRY_TEMPLATES.find((t) => t.key === industryKey) ?? INDUSTRY_TEMPLATES[0];
     await prisma.businessConfig.upsert({
       where: { businessId: b.id },

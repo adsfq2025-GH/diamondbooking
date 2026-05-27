@@ -3,7 +3,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
+  Apple,
   AppWindow,
+  Blinds,
+  Bug,
   Calendar,
   Check,
   CheckCircle2,
@@ -11,14 +14,27 @@ import {
   ChevronRight,
   Clock,
   CookingPot,
+  Droplets,
   Fence,
+  FileText,
+  Filter,
+  Flame,
   Gem,
   HelpCircle,
   Home,
   Images,
+  Leaf,
   Microwave,
+  Package,
   Refrigerator,
+  Repeat,
+  Scissors,
+  Shield,
+  Sparkles,
   Star,
+  Trees,
+  Truck,
+  Wind,
 } from "lucide-react";
 import { formatTimeDisplay } from "@/lib/utils";
 import Image from "next/image";
@@ -130,14 +146,31 @@ export function BookingFlow({
 
   const addOnIconMap = useMemo(
     () => ({
+      apple: Apple,
+      blinds: Blinds,
+      bug: Bug,
+      clock: Clock,
       refrigerator: Refrigerator,
       microwave: Microwave,
       "cooking-pot": CookingPot,
+      droplets: Droplets,
       "app-window": AppWindow,
       fence: Fence,
+      "file-text": FileText,
+      filter: Filter,
+      flame: Flame,
       home: Home,
       images: Images,
       gem: Gem,
+      leaf: Leaf,
+      package: Package,
+      repeat: Repeat,
+      scissors: Scissors,
+      shield: Shield,
+      sparkles: Sparkles,
+      trees: Trees,
+      truck: Truck,
+      wind: Wind,
     }),
     []
   );

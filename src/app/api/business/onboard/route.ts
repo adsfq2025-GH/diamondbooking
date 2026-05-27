@@ -4,6 +4,7 @@ import { requireOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateSlug } from "@/lib/utils";
 import { Prisma } from "@prisma/client";
+import { resolveIndustryTemplateKey } from "@/lib/industry/templates";
 import { z } from "zod";
 import { createAuditLog } from "@/lib/audit";
 
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest) {
       });
       const cfg = await prisma.businessConfig.findUnique({ where: { businessId: existing.id }, select: { id: true } });
       if (!cfg) {
-        const industryKey = (existing.industry as string | null) ?? "generic";
+        const rawIndustryKey = (existing.industry as string | null) ?? "generic";
+        const industryKey = resolveIndustryTemplateKey(rawIndustryKey);
         const template = await prisma.industryTemplate.findFirst({
           where: { key: industryKey, isActive: true },
           select: { key: true, defaultConfig: true },
@@ -105,7 +107,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const industryKey = parsed.data.industry ?? "generic";
+    const rawIndustryKey = parsed.data.industry ?? "generic";
+    const industryKey = resolveIndustryTemplateKey(rawIndustryKey);
     const template = await prisma.industryTemplate.findFirst({
       where: { key: industryKey, isActive: true },
       select: { key: true, defaultConfig: true },
