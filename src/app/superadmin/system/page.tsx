@@ -60,7 +60,7 @@ export default async function SystemPage() {
   const QUICK_LINKS = [
     { label: "Stripe Dashboard", url: "https://dashboard.stripe.com" },
     { label: "Vercel Dashboard", url: "https://vercel.com/dashboard" },
-    { label: "Supabase", url: "https://supabase.com/dashboard" },
+    { label: "Neon", url: "https://console.neon.tech" },
     { label: "Resend Dashboard", url: "https://resend.com/emails" },
   ];
 
@@ -78,7 +78,7 @@ export default async function SystemPage() {
         </div>
         <div className="divide-y divide-border">
           {[
-            { label: "Database (PostgreSQL)", key: "database", desc: "Prisma + Supabase/Neon" },
+            { label: "Database (PostgreSQL)", key: "database", desc: "Prisma + Neon" },
             { label: "Payment Processing (Stripe)", key: "stripe", desc: "Subscriptions & webhooks" },
             { label: "Email (Resend)", key: "email", desc: "Transactional emails", warn: true },
           ].map(({ label, key, desc, warn }) => {

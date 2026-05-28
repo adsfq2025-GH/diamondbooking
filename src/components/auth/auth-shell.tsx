@@ -63,6 +63,16 @@ export function AuthShell({
           className="h-6 w-auto"
         />
       </div>
+
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-xs text-primary/60 px-6">
+        <Link href="/terms" className="underline">
+          Terms
+        </Link>{" "}
+        ·{" "}
+        <Link href="/privacy" className="underline">
+          Privacy
+        </Link>
+      </div>
     </div>
   );
 }

@@ -51,17 +51,6 @@ export default async function RegisterPage() {
           <Link href="/login" className="font-semibold text-primary hover:underline">
             Sign in
           </Link>
-          <div className="mt-3 text-xs text-primary/60">
-            By creating an account, you agree to our{" "}
-            <Link href="/terms" className="underline">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" className="underline">
-              Privacy Policy
-            </Link>
-            .
-          </div>
         </>
       }
     >
