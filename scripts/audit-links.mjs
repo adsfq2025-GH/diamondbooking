@@ -28,7 +28,11 @@ function routePathFromAppFile(filePath) {
   if (!rel.endsWith("/page.tsx") && !rel.endsWith("/route.ts")) return null;
   if (rel === "route.ts") return "/api";
   const without = rel.replace(/\/(page\.tsx|route\.ts)$/, "");
-  const asPath = "/" + without;
+  const cleaned = without
+    .split("/")
+    .filter((seg) => !(seg.startsWith("(") && seg.endsWith(")")))
+    .join("/");
+  const asPath = "/" + cleaned;
   return asPath.replace(/\/index$/g, "/");
 }
 

@@ -35,12 +35,18 @@ export async function GET(req: NextRequest) {
   }
 
   function createEmbed(slug, opts) {
+    var rootId = (opts && opts.rootId) ? String(opts.rootId) : "diamond-booking-widget";
     var root = (opts && opts.root) ? opts.root : null;
-    if (!root) root = document.getElementById("diamond-booking-widget");
-    if (!root) return;
+    if (!root) root = document.getElementById(rootId);
+    if (!root && document.body) {
+      root = document.createElement("div");
+      root.id = rootId;
+      document.body.appendChild(root);
+    }
+    if (!root) return false;
 
     var cleanSlug = normalizeSlug(slug);
-    if (!cleanSlug) return;
+    if (!cleanSlug) return false;
 
     var iframe = document.createElement("iframe");
     iframe.src = "${origin}/book/" + encodeURIComponent(cleanSlug) + "?embed=1";
@@ -54,6 +60,7 @@ export async function GET(req: NextRequest) {
 
     root.innerHTML = "";
     root.appendChild(iframe);
+    return true;
   }
 
   window.DiamondBookingWidget = function (config) {
@@ -77,11 +84,12 @@ export async function GET(req: NextRequest) {
     }
     if (!script || !script.getAttribute) return null;
 
-    var slug = script.getAttribute("data-business");
+    var slug = script.getAttribute("data-business") || script.getAttribute("data-slug");
     if (!slug) return null;
 
     return {
       slug: slug,
+      rootId: script.getAttribute("data-root-id") || script.getAttribute("data-root") || "diamond-booking-widget",
       borderRadius: script.getAttribute("data-radius") || undefined,
       title: script.getAttribute("data-title") || undefined,
       minHeight: script.getAttribute("data-min-height") || undefined,
@@ -90,13 +98,10 @@ export async function GET(req: NextRequest) {
 
   function boot(attempt) {
     var auto = findAutoConfig();
-    var root = document.getElementById("diamond-booking-widget");
-    if (auto && auto.slug && root) {
-      auto.root = root;
-      window.DiamondBookingWidget(auto);
-      return;
+    if (auto && auto.slug) {
+      if (createEmbed(auto.slug, auto)) return;
     }
-    if (attempt >= 50) return;
+    if (attempt >= 600) return;
     setTimeout(function () { boot(attempt + 1); }, 100);
   }
 

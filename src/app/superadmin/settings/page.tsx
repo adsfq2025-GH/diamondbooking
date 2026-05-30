@@ -7,11 +7,24 @@ export const metadata = { title: "Platform Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
+  const stripeSecret = process.env.STRIPE_SECRET_KEY ?? "";
+  const stripeMode =
+    stripeSecret.startsWith("sk_live_") ? "live" : stripeSecret.startsWith("sk_test_") ? "test" : "unknown";
+  const stripeStatus = {
+    mode: stripeSecret ? stripeMode : "missing",
+    hasSecret: !!stripeSecret,
+    hasWebhook: !!process.env.STRIPE_WEBHOOK_SECRET,
+    hasPrices:
+      !!process.env.STRIPE_PRICE_STARTER_MONTHLY &&
+      !!process.env.STRIPE_PRICE_PRO_MONTHLY &&
+      !!process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY,
+  };
+
   const [settings, plans] = await Promise.all([
     prisma.platformSettings.upsert({
       where: { id: 1 },
       update: {},
-      create: { id: 1, updatedAt: new Date() },
+      create: { id: 1, supportEmail: "support@diamond-booking.com", updatedAt: new Date() },
     }),
     prisma.planConfig.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
@@ -27,6 +40,51 @@ export default async function SettingsPage() {
       <div className="bg-card border border-border rounded-xl p-6">
         <h3 className="text-sm font-semibold text-foreground mb-4">General</h3>
         <PlatformSettingsForm settings={settings} />
+      </div>
+
+      <div className="bg-card border border-border rounded-xl p-6">
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-foreground">Stripe Billing</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Keys are managed in Vercel environment variables. This section shows current status only.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-border bg-secondary p-4">
+            <div className="text-xs font-medium text-muted-foreground">Mode</div>
+            <div className="mt-2 text-sm font-semibold text-foreground">{stripeStatus.mode}</div>
+          </div>
+          <div className="rounded-lg border border-border bg-secondary p-4">
+            <div className="text-xs font-medium text-muted-foreground">Secret Key</div>
+            <div className="mt-2 text-sm font-semibold text-foreground">
+              {stripeStatus.hasSecret ? "Configured" : "Missing"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-secondary p-4">
+            <div className="text-xs font-medium text-muted-foreground">Webhook + Prices</div>
+            <div className="mt-2 text-sm font-semibold text-foreground">
+              {stripeStatus.hasWebhook && stripeStatus.hasPrices ? "Configured" : "Needs review"}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href="https://dashboard.stripe.com"
+            target="_blank"
+            rel="noreferrer"
+            className="px-4 py-2 text-sm bg-secondary border border-border rounded-lg hover:bg-secondary/70 transition-colors"
+          >
+            Open Stripe Dashboard
+          </a>
+          <a
+            href="https://vercel.com/dashboard"
+            target="_blank"
+            rel="noreferrer"
+            className="px-4 py-2 text-sm bg-secondary border border-border rounded-lg hover:bg-secondary/70 transition-colors"
+          >
+            Open Vercel Env Vars
+          </a>
+        </div>
       </div>
 
       {/* Subscription plans */}

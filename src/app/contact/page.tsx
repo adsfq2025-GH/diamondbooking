@@ -33,10 +33,29 @@ export default function ContactPage() {
           <h1 className="text-3xl font-extrabold tracking-tight text-primary">
             Contact
           </h1>
-          <p className="mt-4 text-sm text-primary/70">
-            For support, email the address listed in your site footer or your billing
-            emails.
+          <p className="mt-4 text-sm leading-relaxed text-primary/70">
+            For support, email{" "}
+            <a href="mailto:support@diamond-booking.com" className="underline">
+              support@diamond-booking.com
+            </a>
+            . For faster help, include your business name (or slug) and a screenshot
+            of the issue.
           </p>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/help"
+              className="inline-flex items-center justify-center rounded-md border border-primary/15 bg-white px-4 py-2 text-sm font-bold text-primary hover:bg-primary/5"
+            >
+              Help Center
+            </Link>
+            <Link
+              href="/docs"
+              className="inline-flex items-center justify-center rounded-md border border-primary/15 bg-white px-4 py-2 text-sm font-bold text-primary hover:bg-primary/5"
+            >
+              Documentation
+            </Link>
+          </div>
         </div>
       </main>
     </div>

@@ -551,7 +551,7 @@ export default function LandingPage() {
                 <p className="text-sm font-bold">Support</p>
                 <ul className="mt-3 space-y-2 text-sm text-white/70">
                   <li>
-                    <Link href="/faq" className="hover:text-white">
+                    <Link href="/help" className="hover:text-white">
                       Help Center
                     </Link>
                   </li>
@@ -577,12 +577,12 @@ export default function LandingPage() {
                 <p className="text-sm font-bold">Company</p>
                 <ul className="mt-3 space-y-2 text-sm text-white/70">
                   <li>
-                    <Link href="/" className="hover:text-white">
+                    <Link href="/about" className="hover:text-white">
                       About
                     </Link>
                   </li>
                   <li>
-                    <Link href="/" className="hover:text-white">
+                    <Link href="/docs" className="hover:text-white">
                       Documentation
                     </Link>
                   </li>

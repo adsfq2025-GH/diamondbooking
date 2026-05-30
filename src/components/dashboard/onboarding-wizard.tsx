@@ -20,6 +20,7 @@ import {
 } from "@/lib/utils";
 import { PricingBuilder } from "@/components/dashboard/pricing-builder";
 import { OnboardingStepHelp } from "@/components/dashboard/onboarding-step-help";
+import { buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -572,24 +573,8 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   // ── embed snippet ──────────────────────────────────────────────────────────
 
-  const appUrl   = typeof window !== "undefined" ? window.location.origin : "https://diamondbooking.com";
-  const snippet  = `<!-- Diamond Booking Widget -->
-<div id="diamond-booking-widget"></div>
-<script>
-  (function(d,s,id){
-    var js,fjs=d.getElementsByTagName(s)[0];
-    if(d.getElementById(id))return;
-    js=d.createElement(s);js.id=id;
-    js.src="${appUrl}/widget.js";
-    js.setAttribute('data-business','${businessSlug}');
-    js.setAttribute('data-theme','${widget.theme}');
-    js.setAttribute('data-primary','${encodeURIComponent(widget.primaryColor)}');
-    js.setAttribute('data-accent','${encodeURIComponent(widget.accentColor)}');
-    js.setAttribute('data-radius','${widget.borderRadius}');
-    js.setAttribute('data-font','${encodeURIComponent(widget.fontFamily)}');
-    fjs.parentNode.insertBefore(js,fjs);
-  }(document,'script','db-widget'));
-</script>`;
+  const appUrl = getPublicAppUrl();
+  const snippet = buildWidgetEmbedSnippet(businessSlug);
 
   const copySnippet = () => {
     navigator.clipboard.writeText(snippet);

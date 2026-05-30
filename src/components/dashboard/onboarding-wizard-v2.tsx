@@ -26,6 +26,8 @@ import {
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { PricingBuilder } from "@/components/dashboard/pricing-builder";
+import { buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
+import { inferAddOnIconId } from "@/lib/addon-icons";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -91,20 +93,6 @@ function defaultAvail(): DayAvail[] {
 function keyFromLabel(label: string) {
   const base = generateSlug(label).replace(/-/g, "_");
   return base || "field";
-}
-
-function inferAddOnIconId(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes("fridge")) return "refrigerator";
-  if (n.includes("microwave")) return "microwave";
-  if (n.includes("oven")) return "cooking-pot";
-  if (n.includes("window")) return "app-window";
-  if (n.includes("blind")) return "blinds";
-  if (n.includes("fence")) return "fence";
-  if (n.includes("roof")) return "home";
-  if (n.includes("vip")) return "gem";
-  if (n.includes("image")) return "images";
-  return undefined;
 }
 
 function FieldLabel({
@@ -600,18 +588,13 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   const [copied, setCopied] = useState(false);
   const appUrl = useMemo(() => {
-    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (envUrl) return envUrl.replace(/\/+$/, "");
-    if (typeof window !== "undefined") return window.location.origin;
-    return "https://www.diamond-booking.com";
+    return getPublicAppUrl();
   }, []);
 
   const bookingUrl = businessSlug ? `${appUrl}/book/${businessSlug}` : "";
   const snippet = businessSlug
-    ? `<div id="diamond-booking-widget"></div>
-<script id="db-widget" src="${appUrl}/widget.js" data-business="${businessSlug}"></script>`
-    : `<div id="diamond-booking-widget"></div>
-<script id="db-widget" src="${appUrl}/widget.js" data-business="YOUR_BUSINESS_SLUG"></script>`;
+    ? buildWidgetEmbedSnippet(businessSlug)
+    : buildWidgetEmbedSnippet("YOUR_BUSINESS_SLUG");
 
   const copySnippet = () => {
     if (!businessSlug) return;

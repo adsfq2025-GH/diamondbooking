@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ADDON_ICON_OPTIONS, inferAddOnIconId } from "@/lib/addon-icons";
 
-type AddOn = { key: string; name: string; price: number; extraMinutes?: number };
+type AddOn = { key: string; name: string; price: number; extraMinutes?: number; iconId?: string };
 type IntakeField = {
   key: string;
   label: string;
@@ -46,6 +47,7 @@ const emptyAddOn = (): AddOn => ({
   key: "",
   name: "",
   price: 0,
+  iconId: undefined,
 });
 
 async function readJson(res: Response) {
@@ -313,7 +315,7 @@ export function PricingBuilder() {
 
         <div className="space-y-2">
           {(safeCfg.addOns ?? []).map((a, idx) => (
-            <div key={idx} className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            <div key={idx} className="grid grid-cols-1 sm:grid-cols-5 gap-2">
               <input
                 value={a.key}
                 onChange={(e) =>
@@ -331,7 +333,10 @@ export function PricingBuilder() {
                 onChange={(e) =>
                   setCfg((p) => {
                     const addOns = [...(p.addOns ?? [])];
-                    addOns[idx] = { ...addOns[idx], name: e.target.value };
+                    const existing = addOns[idx] ?? emptyAddOn();
+                    const nextName = e.target.value;
+                    const nextIcon = existing.iconId ? existing.iconId : inferAddOnIconId(nextName);
+                    addOns[idx] = { ...existing, name: nextName, ...(nextIcon ? { iconId: nextIcon } : {}) };
                     return { ...p, addOns };
                   })
                 }
@@ -353,6 +358,25 @@ export function PricingBuilder() {
                 placeholder="Price"
                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background"
               />
+              <select
+                value={a.iconId ?? ""}
+                onChange={(e) =>
+                  setCfg((p) => {
+                    const addOns = [...(p.addOns ?? [])];
+                    const next = e.target.value.trim();
+                    addOns[idx] = { ...addOns[idx], iconId: next || undefined };
+                    return { ...p, addOns };
+                  })
+                }
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background"
+              >
+                <option value="">Auto</option>
+                {ADDON_ICON_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
               <div className="flex gap-2">
                 <input
                   type="number"

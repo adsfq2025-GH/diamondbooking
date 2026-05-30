@@ -1,20 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
 
 export function WidgetAccessCard({ slug }: { slug: string }) {
   const [copied, setCopied] = useState<"link" | "snippet" | "">("");
 
-  const appUrl = useMemo(() => {
-    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (envUrl) return envUrl.replace(/\/+$/, "");
-    if (typeof window !== "undefined") return window.location.origin;
-    return "";
-  }, []);
+  const appUrl = useMemo(() => getPublicAppUrl(), []);
 
   const bookingUrl = `${appUrl}/book/${slug}`;
-  const snippet = `<div id="diamond-booking-widget"></div>
-<script id="db-widget" src="${appUrl}/widget.js" data-business="${slug}"></script>`;
+  const snippet = buildWidgetEmbedSnippet(slug);
 
   const copy = async (type: "link" | "snippet", value: string) => {
     await navigator.clipboard.writeText(value);
