@@ -3,9 +3,15 @@
 
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error("Missing RESEND_API_KEY");
+  return new Resend(key);
+}
 
-const FROM = `${process.env.RESEND_FROM_NAME ?? "Diamond Booking"} <${process.env.RESEND_FROM_EMAIL ?? "noreply@diamondbooking.com"}>`;
+function getFrom() {
+  return `${process.env.RESEND_FROM_NAME ?? "Diamond Booking"} <${process.env.RESEND_FROM_EMAIL ?? "noreply@diamondbooking.com"}>`;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,8 +48,8 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
   const dateStr = formatDateTime(data.startTime, data.timezone);
 
   try {
-    await resend.emails.send({
-      from:    FROM,
+    await getResend().emails.send({
+      from:    getFrom(),
       to:      data.customerEmail,
       subject: `Booking confirmed: ${data.serviceName} at ${data.businessName}`,
       html: `
@@ -104,8 +110,8 @@ export async function sendNewBookingNotification(data: BookingEmailData & { owne
   const dateStr = formatDateTime(data.startTime, data.timezone);
 
   try {
-    await resend.emails.send({
-      from:    FROM,
+    await getResend().emails.send({
+      from:    getFrom(),
       to:      data.ownerEmail,
       subject: `New booking: ${data.customerName} — ${data.serviceName}`,
       html: `
@@ -139,8 +145,8 @@ export async function sendBookingReminder(data: BookingEmailData) {
   const dateStr = formatDateTime(data.startTime, data.timezone);
 
   try {
-    await resend.emails.send({
-      from:    FROM,
+    await getResend().emails.send({
+      from:    getFrom(),
       to:      data.customerEmail,
       subject: `Reminder: ${data.serviceName} tomorrow at ${data.businessName}`,
       html: `
@@ -166,8 +172,8 @@ export async function sendBookingReminder(data: BookingEmailData) {
 
 export async function sendFollowUpEmail(data: BookingEmailData) {
   try {
-    await resend.emails.send({
-      from: FROM,
+    await getResend().emails.send({
+      from: getFrom(),
       to: data.customerEmail,
       subject: `Thanks for visiting ${data.businessName}`,
       html: `
@@ -192,8 +198,8 @@ export async function sendFollowUpEmail(data: BookingEmailData) {
 
 export async function sendCancellationEmail(data: BookingEmailData) {
   try {
-    await resend.emails.send({
-      from:    FROM,
+    await getResend().emails.send({
+      from:    getFrom(),
       to:      data.customerEmail,
       subject: `Booking cancelled: ${data.serviceName} at ${data.businessName}`,
       html: `
@@ -217,8 +223,8 @@ export async function sendCancellationEmail(data: BookingEmailData) {
 
 export async function sendWelcomeEmail(to: string, name: string) {
   try {
-    await resend.emails.send({
-      from:    FROM,
+    await getResend().emails.send({
+      from:    getFrom(),
       to,
       subject: "Welcome to Diamond Booking 💎",
       html: `
@@ -253,8 +259,8 @@ export async function sendWelcomeEmail(to: string, name: string) {
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   try {
-    await resend.emails.send({
-      from: FROM,
+    await getResend().emails.send({
+      from: getFrom(),
       to,
       subject: "Reset your Diamond Booking password",
       html: `
