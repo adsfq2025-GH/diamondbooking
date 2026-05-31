@@ -304,7 +304,25 @@ export function BookingFlow({
     }
   };
 
+  // Auto-resize the parent iframe when embedded
   useEffect(() => {
+    if (!embed) return;
+    const sendHeight = () => {
+      const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: "db:resize", height: h }, "*");
+    };
+    sendHeight();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(sendHeight) : null;
+    if (ro) ro.observe(document.body);
+    return () => { if (ro) ro.disconnect(); };
+  }, [embed, step]);
+
+  useEffect(() => {
+    if (!showLivePricing) {
+      setQuote(null);
+      setQuoteLoading(false);
+      return;
+    }
     if (!sel.service) return;
     const serviceId = sel.service.id;
     const controller = new AbortController();
@@ -332,9 +350,12 @@ export function BookingFlow({
         setQuoteLoading(false);
       }
     };
-    void load();
-    return () => controller.abort();
-  }, [sel.service, sel.durationMinutes, sel.email, business.slug, intake, addOnKeys, isCommercial, recurringInterval, promoCode]);
+    const t = window.setTimeout(() => void load(), 250);
+    return () => {
+      window.clearTimeout(t);
+      controller.abort();
+    };
+  }, [showLivePricing, sel.service, sel.durationMinutes, sel.email, business.slug, intake, addOnKeys, isCommercial, recurringInterval, promoCode]);
 
   const inp = "w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all"
             + ` focus:ring-[${primary}]/20`;
@@ -359,6 +380,37 @@ export function BookingFlow({
     if (!recurringInterval) return "One-time";
     return recurring.intervals.find((i) => i.key === recurringInterval)?.label ?? "Recurring";
   }, [recurring, recurringInterval]);
+
+  const ctaLabel =
+    step === 1
+      ? "Find Availability"
+      : step === 4
+        ? loading
+          ? "Confirming…"
+          : "Confirm Booking"
+        : "Continue";
+
+  const ctaDisabled =
+    step === 1
+      ? !sel.service
+      : step === 4
+        ? loading || !sel.name || !sel.email || !sel.service || !sel.slot
+        : true;
+
+  const onCta = () => {
+    if (step === 1) {
+      if (!sel.service) {
+        setError("Please select a service first");
+        return;
+      }
+      setError("");
+      setStep(3);
+      return;
+    }
+    if (step === 4) {
+      void submit();
+    }
+  };
 
   return (
     <div className={embed ? "bg-transparent" : "min-h-screen bg-gray-50"} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -430,8 +482,8 @@ export function BookingFlow({
       )}
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      <div className={embed ? "max-w-6xl mx-auto px-4 sm:px-6 pb-10" : "max-w-lg mx-auto px-6 pb-12"}>
-        <div className={embed ? "grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start" : ""}>
+      <div className={embed ? "max-w-6xl mx-auto px-4 sm:px-6 pb-10" : "max-w-lg lg:max-w-6xl mx-auto px-6 lg:px-8 pb-12"}>
+        <div className={embed ? "grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start" : "lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start"}>
           <div className="min-w-0">
 
         {/* STEP 1 — Get pricing */}
@@ -758,7 +810,7 @@ export function BookingFlow({
               </div>
 
               {showLivePricing && (
-              <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 lg:hidden">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-bold text-[#1a1f36]">Pricing summary</div>
                   {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
@@ -792,7 +844,7 @@ export function BookingFlow({
                   setError("");
                   setStep(3);
                 }}
-                className="w-full py-3.5 font-bold text-white rounded-2xl transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 font-bold text-white rounded-2xl transition-all flex items-center justify-center gap-2 lg:hidden"
                 style={{ background: primary }}
               >
                 Find Availability <ChevronRight className="w-4 h-4" />
@@ -1021,7 +1073,7 @@ export function BookingFlow({
               <button
                 onClick={submit}
                 disabled={loading || !sel.name || !sel.email}
-                className="w-full py-3.5 font-bold text-white rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-3.5 font-bold text-white rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 lg:hidden"
                 style={{ background: primary }}
               >
                 {loading ? (
@@ -1079,8 +1131,8 @@ export function BookingFlow({
         )}
           </div>
 
-          {embed && (
-            <div className="sticky top-6">
+          {step < 5 && (
+            <div className={embed ? "sticky top-6" : "hidden lg:block sticky top-6"}>
               <div className="space-y-4">
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -1143,6 +1195,18 @@ export function BookingFlow({
                         <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
                       </div>
                     </div>
+                  )}
+
+                  {(step === 1 || step === 4) && (
+                    <button
+                      type="button"
+                      onClick={onCta}
+                      disabled={ctaDisabled}
+                      className="w-full py-3 font-bold text-white rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={{ background: primary }}
+                    >
+                      {ctaLabel} {step === 1 ? <ChevronRight className="w-4 h-4" /> : null}
+                    </button>
                   )}
                 </div>
 

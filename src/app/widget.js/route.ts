@@ -1,23 +1,56 @@
-import { NextRequest } from "next/server";
-
-export const dynamic = "force-dynamic";
-
 function js(content: string) {
   return new Response(content, {
     status: 200,
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Cache-Control": "public, max-age=0, must-revalidate",
+      // CDN + browser caching. Widget script content is safe to cache.
+      "Cache-Control": "public, s-maxage=300, max-age=300, stale-while-revalidate=3600",
+      "Access-Control-Allow-Origin": "*",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }
 
-export async function GET(req: NextRequest) {
-  const origin = req.nextUrl.origin;
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
+
+function getRequestOrigin(request: Request) {
+  // Prefer canonical configured origin if present.
+  const env = process.env.NEXT_PUBLIC_APP_URL;
+  if (env) return env.replace(/\/+$/, "");
+
+  // Otherwise, infer from forwarded headers (reverse proxies / Vercel).
+  const h = request.headers;
+  const proto = (h.get("x-forwarded-proto") ?? "https").split(",")[0]?.trim();
+  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(",")[0]?.trim();
+  if (host) return `${proto}://${host}`.replace(/\/+$/, "");
+
+  // Last resort: URL parsing.
+  try {
+    return new URL(request.url).origin.replace(/\/+$/, "");
+  } catch {
+    return "https://www.diamond-booking.com";
+  }
+}
+
+export async function GET(request: Request) {
+  const origin = getRequestOrigin(request);
 
   return js(`
 (function () {
-  if (window.DiamondBookingWidget) return;
+  "use strict";
+  if (window.__DiamondBookingLoaded) return;
+  window.__DiamondBookingLoaded = true;
+
+  var APP_ORIGIN = "${origin}";
 
   function normalizeSlug(slug) {
     if (!slug) return "";
@@ -36,8 +69,7 @@ export async function GET(req: NextRequest) {
 
   function createEmbed(slug, opts) {
     var rootId = (opts && opts.rootId) ? String(opts.rootId) : "diamond-booking-widget";
-    var root = (opts && opts.root) ? opts.root : null;
-    if (!root) root = document.getElementById(rootId);
+    var root = (opts && opts.root) ? opts.root : document.getElementById(rootId);
     if (!root && document.body) {
       root = document.createElement("div");
       root.id = rootId;
@@ -48,15 +80,41 @@ export async function GET(req: NextRequest) {
     var cleanSlug = normalizeSlug(slug);
     if (!cleanSlug) return false;
 
+    // Avoid double-embedding
+    if (root.getAttribute("data-db-embedded") === cleanSlug) return true;
+    root.setAttribute("data-db-embedded", cleanSlug);
+
     var iframe = document.createElement("iframe");
-    iframe.src = "${origin}/book/" + encodeURIComponent(cleanSlug) + "?embed=1";
-    iframe.style.width = "100%";
-    iframe.style.border = "0";
-    iframe.style.borderRadius = (opts && opts.borderRadius) ? radiusToPx(opts.borderRadius) : "16px";
-    iframe.style.minHeight = (opts && opts.minHeight) ? String(opts.minHeight) : "920px";
-    iframe.loading = "lazy";
-    iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    iframe.setAttribute("title", (opts && opts.title) ? String(opts.title) : "Booking");
+    iframe.src = APP_ORIGIN + "/book/" + encodeURIComponent(cleanSlug) + "?embed=1";
+    iframe.style.cssText = [
+      "width:100%",
+      "border:0",
+      "border-radius:" + ((opts && opts.borderRadius) ? radiusToPx(opts.borderRadius) : "16px"),
+      "min-height:" + ((opts && opts.minHeight) ? String(opts.minHeight) : "920px"),
+      "display:block",
+      "overflow:hidden",
+      "background:transparent",
+    ].join(";");
+    iframe.setAttribute("loading", "lazy");
+    iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    iframe.setAttribute("title", (opts && opts.title) ? String(opts.title) : "Book an appointment");
+    iframe.setAttribute("allow", "payment; clipboard-write");
+    iframe.setAttribute("allowfullscreen", "");
+    iframe.setAttribute("scrolling", "no");
+
+    // Auto-resize via postMessage
+    function onMessage(e) {
+      if (e.source !== iframe.contentWindow) return;
+      if (e.origin !== APP_ORIGIN) return;
+      if (!e.data || typeof e.data !== "object") return;
+      if (e.data.type !== "db:resize") return;
+      var h = Number(e.data.height);
+      if (!isNaN(h) && h > 0) {
+        var minH = opts && opts.minHeight ? Number(opts.minHeight) : 920;
+        iframe.style.minHeight = Math.max(h, minH) + "px";
+      }
+    }
+    window.addEventListener("message", onMessage);
 
     root.innerHTML = "";
     root.appendChild(iframe);
@@ -83,10 +141,8 @@ export async function GET(req: NextRequest) {
       }
     }
     if (!script || !script.getAttribute) return null;
-
     var slug = script.getAttribute("data-business") || script.getAttribute("data-slug");
     if (!slug) return null;
-
     return {
       slug: slug,
       rootId: script.getAttribute("data-root-id") || script.getAttribute("data-root") || "diamond-booking-widget",
@@ -101,8 +157,20 @@ export async function GET(req: NextRequest) {
     if (auto && auto.slug) {
       if (createEmbed(auto.slug, auto)) return;
     }
-    if (attempt >= 600) return;
-    setTimeout(function () { boot(attempt + 1); }, 100);
+    if (attempt >= 100) {
+      // MutationObserver fallback for SPA frameworks that replace the DOM
+      if (typeof MutationObserver !== "undefined" && document.documentElement) {
+        var observer = new MutationObserver(function () {
+          var cfg = findAutoConfig();
+          if (cfg && cfg.slug && createEmbed(cfg.slug, cfg)) {
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      }
+      return;
+    }
+    setTimeout(function () { boot(attempt + 1); }, 50);
   }
 
   if (document.readyState === "loading") {
@@ -113,4 +181,3 @@ export async function GET(req: NextRequest) {
 })();
 `);
 }
-

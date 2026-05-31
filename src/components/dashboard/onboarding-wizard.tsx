@@ -20,7 +20,7 @@ import {
 } from "@/lib/utils";
 import { PricingBuilder } from "@/components/dashboard/pricing-builder";
 import { OnboardingStepHelp } from "@/components/dashboard/onboarding-step-help";
-import { buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
+import { buildBookingUrl, buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -276,7 +276,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         skippedSteps,
         business: {
           bizName,
-          bizSlug,
+          bizSlug: businessSlug || bizSlug,
           industry,
           phone,
           timezone,
@@ -358,7 +358,10 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       if (parsed.selectedTier) setSelectedTier(parsed.selectedTier);
       if (Array.isArray(parsed.skippedSteps)) setSkippedSteps(parsed.skippedSteps);
       if (parsed.business?.bizName) setBizName(parsed.business.bizName);
-      if (parsed.business?.bizSlug) setBizSlug(parsed.business.bizSlug);
+      if (parsed.business?.bizSlug) {
+        setBizSlug(parsed.business.bizSlug);
+        setBusinessSlug(parsed.business.bizSlug);
+      } 
       if (parsed.business?.industry) setIndustry(parsed.business.industry);
       if (parsed.business?.phone) setPhone(parsed.business.phone);
       if (parsed.business?.timezone) setTimezone(parsed.business.timezone);
@@ -574,7 +577,10 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   // ── embed snippet ──────────────────────────────────────────────────────────
 
   const appUrl = getPublicAppUrl();
-  const snippet = buildWidgetEmbedSnippet(businessSlug);
+  const bookingUrl = businessSlug ? buildBookingUrl(businessSlug) : `${appUrl}/book/<your-slug>`;
+  const snippet = businessSlug
+    ? buildWidgetEmbedSnippet(businessSlug)
+    : "<!-- Saving your business… paste this once it appears -->";
 
   const copySnippet = () => {
     navigator.clipboard.writeText(snippet);
@@ -1536,10 +1542,10 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your Booking Link</p>
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
                   <span className="flex-1 text-sm font-medium text-[#1a1f36] truncate">
-                    {typeof window !== "undefined" ? window.location.origin : "https://diamondbooking.com"}/book/{businessSlug}
+                    {bookingUrl}
                   </span>
                   <button
-                    onClick={() => navigator.clipboard.writeText(`${typeof window !== "undefined" ? window.location.origin : ""}/book/${businessSlug}`)}
+                    onClick={() => businessSlug && navigator.clipboard.writeText(buildBookingUrl(businessSlug))}
                     className="px-3 py-1.5 text-xs font-bold bg-[#1a1f36] text-white rounded-lg hover:bg-[#1a1f36]/90 transition-colors shrink-0"
                   >
                     Copy Link

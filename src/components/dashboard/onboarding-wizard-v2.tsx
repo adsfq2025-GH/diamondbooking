@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import QRCode from "qrcode";
 import {
   Check,
   CheckCheck,
@@ -26,7 +25,7 @@ import {
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { PricingBuilder } from "@/components/dashboard/pricing-builder";
-import { buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
+import { WidgetAccessCard } from "@/components/dashboard/widget-access-card";
 import { getAddOnIconOptionsForIndustry, inferAddOnIconId } from "@/lib/addon-icons";
 import { StripeConnectCard } from "@/components/dashboard/stripe-connect-card";
 
@@ -243,7 +242,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const [zip, setZip] = useState("");
 
   const [businessSlug, setBusinessSlug] = useState("");
-  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   const [hours, setHours] = useState<DayAvail[]>(defaultAvail());
   const [staff, setStaff] = useState<StaffDraft[]>([
@@ -291,6 +289,36 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     if (!stepParam) return;
     const n = Number(stepParam);
     if (n === 1 || n === 2 || n === 3 || n === 4) setStep(n);
+  }, [searchParams]);
+
+  // Refresh Stripe status after returning from Stripe Connect onboarding
+  useEffect(() => {
+    const connectParam = searchParams.get("connect");
+    if (connectParam !== "return" && connectParam !== "refresh") return;
+    const refresh = async () => {
+      try {
+        // Sync Stripe fields on the business record
+        await fetch("/api/connect/account", { method: "POST" });
+        const bizRes = await fetch("/api/business");
+        const bizJson = await bizRes.json();
+        if (!bizRes.ok) return;
+        const b = bizJson.data as {
+          stripeConnectAccountId?: string | null;
+          stripeChargesEnabled?: boolean;
+          stripePayoutsEnabled?: boolean;
+          stripeDetailsSubmitted?: boolean;
+        };
+        setStripeStatus({
+          accountId: b.stripeConnectAccountId ?? null,
+          chargesEnabled: !!b.stripeChargesEnabled,
+          payoutsEnabled: !!b.stripePayoutsEnabled,
+          detailsSubmitted: !!b.stripeDetailsSubmitted,
+        });
+      } catch {
+        // silent
+      }
+    };
+    void refresh();
   }, [searchParams]);
 
   useEffect(() => {
@@ -353,15 +381,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     };
     void loadSubscription();
   }, [selectedTier]);
-
-  useEffect(() => {
-    if (!businessSlug) return;
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://www.diamond-booking.com";
-    const link = `${origin}/book/${businessSlug}`;
-    QRCode.toDataURL(link, { margin: 1, width: 256 })
-      .then((url) => setQrDataUrl(url))
-      .catch(() => {});
-  }, [businessSlug]);
 
   useEffect(() => {
     const key = resolveIntakeTemplateKey(industry, serviceMarket);
@@ -640,23 +659,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
       setStep(4);
     });
-
-  const [copied, setCopied] = useState(false);
-  const appUrl = useMemo(() => {
-    return getPublicAppUrl();
-  }, []);
-
-  const bookingUrl = businessSlug ? `${appUrl}/book/${businessSlug}` : "";
-  const snippet = businessSlug
-    ? buildWidgetEmbedSnippet(businessSlug)
-    : buildWidgetEmbedSnippet("YOUR_BUSINESS_SLUG");
-
-  const copySnippet = () => {
-    if (!businessSlug) return;
-    navigator.clipboard.writeText(snippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
 
   const finish = () =>
     go(async () => {
@@ -1520,14 +1522,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                     <div className="text-sm font-semibold text-[#1a1f36]">Widget design</div>
                     <div className="text-xs text-gray-500">Set your brand color and logo. You can change this later in Settings.</div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => bookingUrl && window.open(`${bookingUrl}?embed=1`, "_blank", "noreferrer")}
-                    disabled={!businessSlug}
-                    className={`text-xs font-bold ${businessSlug ? "text-[#1a1f36] hover:underline" : "text-gray-300 cursor-not-allowed"}`}
-                  >
-                    Preview
-                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
@@ -1581,78 +1575,21 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: primaryColor }} />
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: accentColor }} />
-                      </div>
-                    </div>
-                    {businessSlug ? (
-                      <iframe
-                        title="Widget preview"
-                        src={`${bookingUrl}?embed=1`}
-                        className="w-full"
-                        style={{ height: 520, border: 0 }}
-                      />
-                    ) : (
-                      <div className="p-4 text-sm text-gray-500">Saving your business…</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your booking link</p>
-                  {qrDataUrl && (
-                    <a href={qrDataUrl} download={`${businessSlug}-qr.png`} className="text-xs font-bold text-[#1a1f36] hover:underline">
-                      Download QR
-                    </a>
+                  {businessSlug ? (
+                    <WidgetAccessCard slug={businessSlug} />
+                  ) : (
+                    <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border border-gray-200">Saving your business…</div>
                   )}
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                  <span className="flex-1 text-sm font-medium text-[#1a1f36] truncate">{bookingUrl || `${appUrl}/book/<your-slug>`}</span>
-                  <button
-                    type="button"
-                    onClick={() => bookingUrl && navigator.clipboard.writeText(bookingUrl)}
-                    disabled={!businessSlug}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors shrink-0 ${businessSlug ? "bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
-                  >
-                    Copy Link
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Embed on your website</p>
-                  <button
-                    type="button"
-                    onClick={copySnippet}
-                    disabled={!businessSlug}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${copied ? "bg-green-500 text-white" : "bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90"}`}
-                  >
-                    {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy Code</>}
-                  </button>
-                </div>
-                <div className="relative rounded-xl overflow-hidden border border-gray-800">
-                  <div className="flex items-center gap-1.5 px-3 py-2 bg-[#1a1f36]">
-                    {["#ff5f57", "#febc2e", "#28c840"].map((c) => (
-                      <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
-                    ))}
-                    <span className="ml-2 text-[11px] text-gray-400 font-mono">embed snippet</span>
-                  </div>
-                  <pre className="p-4 bg-[#0f1117] text-[11px] leading-relaxed overflow-x-auto font-mono text-[#a8b4cc] whitespace-pre-wrap break-all">
-                    <code>{snippet}</code>
-                  </pre>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Accept payments</p>
-                <StripeConnectCard status={stripeStatus} />
+                <StripeConnectCard
+                  status={stripeStatus}
+                  returnTo="/onboarding?step=4&connect=return"
+                  refreshTo="/onboarding?step=4&connect=refresh"
+                />
               </div>
 
               <div className="p-4 bg-gradient-to-br from-[#1a1f36]/5 to-[#d4a843]/5 rounded-xl border border-[#d4a843]/20">
@@ -1672,14 +1609,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   ))}
                 </div>
               </div>
-
-              <a
-                href="/dashboard/billing"
-                className="block p-4 rounded-xl border border-gray-100 bg-white hover:border-gray-200 transition-colors"
-              >
-                <div className="text-sm font-bold text-[#1a1f36]">Accept payments (optional)</div>
-                <div className="text-sm text-gray-500 mt-0.5">Connect your Stripe account to take payments inside your booking flow.</div>
-              </a>
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setStep(3)} className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">

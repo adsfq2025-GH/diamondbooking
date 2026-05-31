@@ -17,6 +17,8 @@ async function readJson(res: Response) {
 
 export function StripeConnectCard({
   status,
+  returnTo,
+  refreshTo,
 }: {
   status: null | {
     accountId: string | null;
@@ -24,6 +26,8 @@ export function StripeConnectCard({
     payoutsEnabled: boolean;
     detailsSubmitted: boolean;
   };
+  returnTo?: string;
+  refreshTo?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -49,7 +53,14 @@ export function StripeConnectCard({
     setLoading(true);
     try {
       await ensureAccount();
-      const res = await fetch("/api/connect/onboard-link", { method: "POST" });
+      const body: Record<string, string> = {};
+      if (returnTo) body.returnTo = returnTo;
+      if (refreshTo) body.refreshTo = refreshTo;
+      const res = await fetch("/api/connect/onboard-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       if (res.status === 401 || res.status === 403) {
         redirectToLogin();
         return;
