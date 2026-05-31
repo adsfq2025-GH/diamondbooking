@@ -27,7 +27,8 @@ import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { PricingBuilder } from "@/components/dashboard/pricing-builder";
 import { buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
-import { inferAddOnIconId } from "@/lib/addon-icons";
+import { ADDON_ICON_OPTIONS, inferAddOnIconId } from "@/lib/addon-icons";
+import { StripeConnectCard } from "@/components/dashboard/stripe-connect-card";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -69,6 +70,8 @@ type ServiceDraft = {
 type IntakeCategory = "contact" | "property" | "job" | "other";
 type IntakeType = "text" | "number" | "select" | "boolean";
 
+type IntakeOptionDraft = { id: string; value: string; label: string };
+
 type IntakeFieldDraft = {
   id: string;
   category: IntakeCategory;
@@ -76,10 +79,10 @@ type IntakeFieldDraft = {
   placeholder: string;
   type: IntakeType;
   required: boolean;
-  options: Array<{ value: string; label: string }>;
+  options: Array<Partial<IntakeOptionDraft> & Pick<IntakeOptionDraft, "value" | "label">>;
 };
 
-type AddOnDraft = { id: string; name: string; price: string };
+type AddOnDraft = { id: string; name: string; price: string; iconId?: string };
 
 function defaultAvail(): DayAvail[] {
   return DAYS_OF_WEEK.map((d) => ({
@@ -93,6 +96,16 @@ function defaultAvail(): DayAvail[] {
 function keyFromLabel(label: string) {
   const base = generateSlug(label).replace(/-/g, "_");
   return base || "field";
+}
+
+function makeId(prefix: string) {
+  try {
+    const c = globalThis.crypto as Crypto | undefined;
+    const id = c?.randomUUID?.();
+    if (id) return `${prefix}_${id}`;
+  } catch {
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
 function FieldLabel({
@@ -266,6 +279,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const [addOns, setAddOns] = useState<AddOnDraft[]>([]);
   const [intakeFields, setIntakeFields] = useState<IntakeFieldDraft[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [stripeStatus, setStripeStatus] = useState<null | {
+    accountId: string | null;
+    chargesEnabled: boolean;
+    payoutsEnabled: boolean;
+    detailsSubmitted: boolean;
+  }>(null);
 
   useEffect(() => {
     const stepParam = searchParams.get("step");
@@ -287,12 +306,28 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         const res = await fetch("/api/business");
         const json = await res.json();
         if (!res.ok) return;
-        const b = json.data as { name?: string; slug?: string; primaryColor?: string; logoUrl?: string | null; welcomeMessage?: string | null };
+        const b = json.data as {
+          name?: string;
+          slug?: string;
+          primaryColor?: string;
+          logoUrl?: string | null;
+          welcomeMessage?: string | null;
+          stripeConnectAccountId?: string | null;
+          stripeChargesEnabled?: boolean;
+          stripePayoutsEnabled?: boolean;
+          stripeDetailsSubmitted?: boolean;
+        };
         if (b.slug) setBusinessSlug(b.slug);
         if (!bizName && b.name) setBizName(b.name);
         if (b.primaryColor) setPrimaryColor(b.primaryColor);
         if (!logoUrl && b.logoUrl) setLogoUrl(b.logoUrl);
         if (!welcomeMessage && b.welcomeMessage) setWelcomeMessage(b.welcomeMessage);
+        setStripeStatus({
+          accountId: b.stripeConnectAccountId ?? null,
+          chargesEnabled: !!b.stripeChargesEnabled,
+          payoutsEnabled: !!b.stripePayoutsEnabled,
+          detailsSubmitted: !!b.stripeDetailsSubmitted,
+        });
       } catch {
       }
     };
@@ -331,7 +366,17 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   useEffect(() => {
     const key = resolveIntakeTemplateKey(industry, serviceMarket);
     const preset = INTAKE_TEMPLATES[key] ?? INTAKE_TEMPLATES.default;
-    setIntakeFields((prev) => (prev.length ? prev : preset.map((x, i) => ({ ...x, id: `${x.id}_${i}` }))));
+    setIntakeFields((prev) => {
+      if (prev.length) return prev;
+      return preset.map((x, i) => {
+        const fieldId = `${x.id}_${i}`;
+        const options = (x.options ?? []).map((o, oi) => ({
+          ...o,
+          id: (o as IntakeOptionDraft).id ?? `${fieldId}_opt_${oi}`,
+        }));
+        return { ...x, id: fieldId, options };
+      });
+    });
   }, [industry, serviceMarket]);
 
   useEffect(() => {
@@ -543,11 +588,19 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         const existingTheme = (existingConfig.theme ?? {}) as Record<string, unknown>;
         const existingUi = (existingConfig.ui ?? {}) as Record<string, unknown>;
 
+        const iconPool = ADDON_ICON_OPTIONS.map((o) => o.id);
+        const usedIcons = new Set<string>();
         const nextAddOns = addOns
           .filter((a) => a.name.trim())
           .map((a) => {
             const key = keyFromLabel(a.name);
-            return { key, name: a.name.trim(), price: Number(a.price || 0), iconId: inferAddOnIconId(a.name) };
+            const preferred = a.iconId?.trim() ? a.iconId.trim() : inferAddOnIconId(a.name);
+            let iconId = preferred;
+            if (!iconId || usedIcons.has(iconId)) {
+              iconId = iconPool.find((id) => !usedIcons.has(id)) ?? iconId ?? "sparkles";
+            }
+            usedIcons.add(iconId);
+            return { key, name: a.name.trim(), price: Number(a.price || 0), iconId };
           });
 
         const config = {
@@ -567,7 +620,9 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 category: f.category,
               } as Record<string, unknown>;
               if (f.type === "select") {
-                common.options = f.options.length ? f.options : [];
+                common.options = f.options
+                  .filter((o) => (o.label ?? "").trim())
+                  .map((o) => ({ value: o.value, label: o.label }));
               }
               return common;
             }),
@@ -1238,18 +1293,48 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                           <div className="text-sm font-semibold text-gray-800">Add-ons</div>
                           <HelpTooltip ariaLabel="Help: Add-ons" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Add-ons</div><div className="text-sm text-gray-600">Optional upsells customers can add during booking (flat fee for now).</div></div>} />
                         </div>
-                        <button type="button" onClick={() => setAddOns((p) => [...p, { id: `a${Date.now()}`, name: "", price: "" }])} className="text-xs font-bold text-[#1a1f36] hover:underline">
+                        <button type="button" onClick={() => setAddOns((p) => [...p, { id: `a${Date.now()}`, name: "", price: "", iconId: undefined }])} className="text-xs font-bold text-[#1a1f36] hover:underline">
                           + Add add-on
                         </button>
                       </div>
                       <div className="space-y-2">
                         {addOns.map((a) => (
-                          <div key={a.id} className="grid grid-cols-[1fr_140px_32px] gap-2 items-center">
-                            <input className={inp} placeholder="e.g. Inside fridge cleaning" value={a.name} onChange={(e) => setAddOns((p) => p.map((x) => (x.id === a.id ? { ...x, name: e.target.value } : x)))} />
+                          <div key={a.id} className="grid grid-cols-1 md:grid-cols-[1fr_140px_180px_32px] gap-2 items-center">
+                            <input
+                              className={inp}
+                              placeholder="e.g. Inside fridge cleaning"
+                              value={a.name}
+                              onChange={(e) => {
+                                const nextName = e.target.value;
+                                setAddOns((p) =>
+                                  p.map((x) => {
+                                    if (x.id !== a.id) return x;
+                                    if (x.iconId) return { ...x, name: nextName };
+                                    const inferred = inferAddOnIconId(nextName);
+                                    return { ...x, name: nextName, ...(inferred ? { iconId: inferred } : {}) };
+                                  })
+                                );
+                              }}
+                            />
                             <div className="relative">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                               <input className={inp + " pl-7"} inputMode="decimal" placeholder="0.00" value={a.price} onChange={(e) => setAddOns((p) => p.map((x) => (x.id === a.id ? { ...x, price: e.target.value } : x)))} />
                             </div>
+                            <select
+                              className={inp + " appearance-none"}
+                              value={a.iconId ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value.trim();
+                                setAddOns((p) => p.map((x) => (x.id === a.id ? { ...x, iconId: v || undefined } : x)));
+                              }}
+                            >
+                              <option value="">Auto icon</option>
+                              {ADDON_ICON_OPTIONS.map((o) => (
+                                <option key={o.id} value={o.id}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
                             <button type="button" onClick={() => setAddOns((p) => p.filter((x) => x.id !== a.id))} className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center">
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1299,7 +1384,21 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                                         <div className="text-xs font-semibold text-gray-700">Type</div>
                                         <HelpTooltip ariaLabel="Help: Field type" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Type</div><div className="text-sm text-gray-600">Controls how customers answer (text, number, dropdown, yes/no).</div></div>} />
                                       </div>
-                                      <select className={inp + " appearance-none"} value={f.type} onChange={(e) => updateField(f.id, { type: e.target.value as IntakeType })}>
+                                      <select
+                                        className={inp + " appearance-none"}
+                                        value={f.type}
+                                        onChange={(e) => {
+                                          const nextType = e.target.value as IntakeType;
+                                          if (nextType === "select") {
+                                            const nextOptions = f.options.length
+                                              ? f.options
+                                              : [{ id: makeId("opt"), value: "opt_1", label: "" }];
+                                            updateField(f.id, { type: nextType, options: nextOptions });
+                                            return;
+                                          }
+                                          updateField(f.id, { type: nextType, options: [] });
+                                        }}
+                                      >
                                         <option value="text">Text</option>
                                         <option value="number">Number</option>
                                         <option value="select">Dropdown</option>
@@ -1331,22 +1430,31 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                                         </div>
                                         <button
                                           type="button"
-                                          onClick={() => updateField(f.id, { options: [...f.options, { value: `opt_${f.options.length + 1}`, label: "" }] })}
+                                          onClick={() =>
+                                            updateField(f.id, {
+                                              options: [
+                                                ...f.options,
+                                                { id: makeId("opt"), value: `opt_${f.options.length + 1}`, label: "" },
+                                              ],
+                                            })
+                                          }
                                           className="text-xs font-bold text-[#1a1f36] hover:underline"
                                         >
                                           + Add option
                                         </button>
                                       </div>
                                       <div className="space-y-2">
-                                        {(f.options.length ? f.options : [{ value: "opt_1", label: "" }]).map((o, idx) => (
-                                          <div key={`${f.id}_${o.value}_${idx}`} className="grid grid-cols-[1fr_32px] gap-2 items-center">
+                                        {f.options.map((o, idx) => (
+                                          <div key={(o as IntakeOptionDraft).id ?? `${f.id}_opt_${idx}`} className="grid grid-cols-[1fr_32px] gap-2 items-center">
                                             <input
                                               className={inp}
                                               placeholder={`Option ${idx + 1}`}
                                               value={o.label}
                                               onChange={(e) => {
-                                                const next = [...(f.options.length ? f.options : [{ value: "opt_1", label: "" }])];
-                                                next[idx] = { ...next[idx], label: e.target.value, value: generateSlug(e.target.value).replace(/-/g, "_") || next[idx].value };
+                                                const next = [...f.options];
+                                                const nextLabel = e.target.value;
+                                                const nextValue = generateSlug(nextLabel).replace(/-/g, "_") || next[idx]?.value || `opt_${idx + 1}`;
+                                                next[idx] = { ...next[idx], label: nextLabel, value: nextValue };
                                                 updateField(f.id, { options: next });
                                               }}
                                             />
@@ -1355,7 +1463,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                                               onClick={() => {
                                                 const next = [...f.options];
                                                 next.splice(idx, 1);
-                                                updateField(f.id, { options: next });
+                                                updateField(f.id, { options: next.length ? next : [{ id: makeId("opt"), value: "opt_1", label: "" }] });
                                               }}
                                               className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center"
                                             >
@@ -1540,6 +1648,11 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                     <code>{snippet}</code>
                   </pre>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Accept payments</p>
+                <StripeConnectCard status={stripeStatus} />
               </div>
 
               <div className="p-4 bg-gradient-to-br from-[#1a1f36]/5 to-[#d4a843]/5 rounded-xl border border-[#d4a843]/20">
