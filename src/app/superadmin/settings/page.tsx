@@ -72,7 +72,7 @@ export default async function SettingsPage() {
             href="https://dashboard.stripe.com"
             target="_blank"
             rel="noreferrer"
-            className="px-4 py-2 text-sm bg-secondary border border-border rounded-lg hover:bg-secondary/70 transition-colors"
+            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium bg-secondary border border-border rounded-lg text-foreground hover:bg-secondary/70 focus:outline-none focus:ring-1 focus:ring-accent transition-colors"
           >
             Open Stripe Dashboard
           </a>
@@ -80,7 +80,7 @@ export default async function SettingsPage() {
             href="https://vercel.com/dashboard"
             target="_blank"
             rel="noreferrer"
-            className="px-4 py-2 text-sm bg-secondary border border-border rounded-lg hover:bg-secondary/70 transition-colors"
+            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium bg-secondary border border-border rounded-lg text-foreground hover:bg-secondary/70 focus:outline-none focus:ring-1 focus:ring-accent transition-colors"
           >
             Open Vercel Env Vars
           </a>
