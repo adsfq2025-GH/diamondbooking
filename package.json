@@ -69,7 +69,6 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^25.8.0",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
