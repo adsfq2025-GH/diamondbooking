@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+async function readJson(res: Response) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return {};
+  }
+}
+
 export function StripeConnectCard({
   status,
 }: {
@@ -18,11 +28,20 @@ export function StripeConnectCard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
+  const redirectToLogin = () => {
+    const cb = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+    window.location.assign(`/auth/login?callbackUrl=${cb}`);
+  };
+
   const ensureAccount = async () => {
     const res = await fetch("/api/connect/account", { method: "POST" });
-    const json = await res.json();
+    if (res.status === 401 || res.status === 403) {
+      redirectToLogin();
+      throw new Error("Unauthorized");
+    }
+    const json = (await readJson(res)) as { error?: string; data?: unknown };
     if (!res.ok) throw new Error(json.error ?? "Failed to create Stripe account");
-    return json.data as { accountId: string };
+    return (json.data ?? {}) as { accountId: string };
   };
 
   const startOnboarding = async () => {
@@ -31,8 +50,13 @@ export function StripeConnectCard({
     try {
       await ensureAccount();
       const res = await fetch("/api/connect/onboard-link", { method: "POST" });
-      const json = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        redirectToLogin();
+        return;
+      }
+      const json = (await readJson(res)) as { error?: string; data?: { url?: string } };
       if (!res.ok) throw new Error(json.error ?? "Failed to create onboarding link");
+      if (!json.data?.url) throw new Error("Missing onboarding URL");
       window.location.assign(json.data.url);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -45,8 +69,13 @@ export function StripeConnectCard({
     setLoading(true);
     try {
       const res = await fetch("/api/connect/login-link", { method: "POST" });
-      const json = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        redirectToLogin();
+        return;
+      }
+      const json = (await readJson(res)) as { error?: string; data?: { url?: string } };
       if (!res.ok) throw new Error(json.error ?? "Failed to create Stripe login link");
+      if (!json.data?.url) throw new Error("Missing Stripe dashboard URL");
       window.open(json.data.url, "_blank", "noopener,noreferrer");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -94,4 +123,3 @@ export function StripeConnectCard({
     </Card>
   );
 }
-

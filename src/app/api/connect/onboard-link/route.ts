@@ -10,29 +10,39 @@ function getStripe() {
 }
 
 export async function POST() {
-  const session = await requireOwner();
-  if (!session.user.businessId) {
-    return NextResponse.json({ success: false, error: "No business found" }, { status: 400 });
+  try {
+    const session = await requireOwner();
+    if (!session.user.businessId) {
+      return NextResponse.json({ success: false, error: "No business found" }, { status: 400 });
+    }
+
+    const business = await prisma.business.findUnique({
+      where: { id: session.user.businessId },
+      select: { id: true, stripeConnectAccountId: true },
+    });
+    if (!business?.stripeConnectAccountId) {
+      return NextResponse.json({ success: false, error: "Stripe account not created" }, { status: 400 });
+    }
+
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com").replace(/\/+$/, "");
+    const stripe = getStripe();
+
+    const link = await stripe.accountLinks.create({
+      account: business.stripeConnectAccountId,
+      type: "account_onboarding",
+      refresh_url: `${appUrl}/dashboard/billing?connect=refresh`,
+      return_url: `${appUrl}/dashboard/billing?connect=return`,
+    });
+
+    return NextResponse.json({ success: true, data: { url: link.url } });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Something went wrong";
+    if (msg === "UNAUTHORIZED") {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+    if (msg === "FORBIDDEN") {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
-
-  const business = await prisma.business.findUnique({
-    where: { id: session.user.businessId },
-    select: { id: true, stripeConnectAccountId: true },
-  });
-  if (!business?.stripeConnectAccountId) {
-    return NextResponse.json({ success: false, error: "Stripe account not created" }, { status: 400 });
-  }
-
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com").replace(/\/+$/, "");
-  const stripe = getStripe();
-
-  const link = await stripe.accountLinks.create({
-    account: business.stripeConnectAccountId,
-    type: "account_onboarding",
-    refresh_url: `${appUrl}/dashboard/billing?connect=refresh`,
-    return_url: `${appUrl}/dashboard/billing?connect=return`,
-  });
-
-  return NextResponse.json({ success: true, data: { url: link.url } });
 }
-

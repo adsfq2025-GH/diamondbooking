@@ -27,7 +27,7 @@ import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { PricingBuilder } from "@/components/dashboard/pricing-builder";
 import { buildWidgetEmbedSnippet, getPublicAppUrl } from "@/lib/widget-embed";
-import { ADDON_ICON_OPTIONS, inferAddOnIconId } from "@/lib/addon-icons";
+import { getAddOnIconOptionsForIndustry, inferAddOnIconId } from "@/lib/addon-icons";
 import { StripeConnectCard } from "@/components/dashboard/stripe-connect-card";
 
 type Step = 1 | 2 | 3 | 4;
@@ -588,7 +588,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         const existingTheme = (existingConfig.theme ?? {}) as Record<string, unknown>;
         const existingUi = (existingConfig.ui ?? {}) as Record<string, unknown>;
 
-        const iconPool = ADDON_ICON_OPTIONS.map((o) => o.id);
+        const iconPool = getAddOnIconOptionsForIndustry(industry).map((o) => o.id);
         const usedIcons = new Set<string>();
         const nextAddOns = addOns
           .filter((a) => a.name.trim())
@@ -1329,7 +1329,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                               }}
                             >
                               <option value="">Auto icon</option>
-                              {ADDON_ICON_OPTIONS.map((o) => (
+                              {getAddOnIconOptionsForIndustry(industry).map((o) => (
                                 <option key={o.id} value={o.id}>
                                   {o.label}
                                 </option>
