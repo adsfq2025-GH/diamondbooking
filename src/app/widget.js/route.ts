@@ -22,27 +22,14 @@ export async function OPTIONS() {
   });
 }
 
-function getRequestOrigin(request: Request) {
-  // Prefer canonical configured origin if present.
+function getWidgetOrigin() {
   const env = process.env.NEXT_PUBLIC_APP_URL;
   if (env) return env.replace(/\/+$/, "");
-
-  // Otherwise, infer from forwarded headers (reverse proxies / Vercel).
-  const h = request.headers;
-  const proto = (h.get("x-forwarded-proto") ?? "https").split(",")[0]?.trim();
-  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(",")[0]?.trim();
-  if (host) return `${proto}://${host}`.replace(/\/+$/, "");
-
-  // Last resort: URL parsing.
-  try {
-    return new URL(request.url).origin.replace(/\/+$/, "");
-  } catch {
-    return "https://www.diamond-booking.com";
-  }
+  return "https://www.diamond-booking.com";
 }
 
-export async function GET(request: Request) {
-  const origin = getRequestOrigin(request);
+export async function GET() {
+  const origin = getWidgetOrigin();
 
   return js(`
 (function () {
@@ -50,7 +37,7 @@ export async function GET(request: Request) {
   if (window.__DiamondBookingLoaded) return;
   window.__DiamondBookingLoaded = true;
 
-  var APP_ORIGIN = "${origin}";
+  var APP_ORIGIN = ${JSON.stringify(origin)};
 
   function normalizeSlug(slug) {
     if (!slug) return "";
@@ -107,11 +94,20 @@ export async function GET(request: Request) {
       if (e.source !== iframe.contentWindow) return;
       if (e.origin !== APP_ORIGIN) return;
       if (!e.data || typeof e.data !== "object") return;
-      if (e.data.type !== "db:resize") return;
-      var h = Number(e.data.height);
-      if (!isNaN(h) && h > 0) {
-        var minH = opts && opts.minHeight ? Number(opts.minHeight) : 920;
-        iframe.style.minHeight = Math.max(h, minH) + "px";
+      if (e.data.type === "db:resize") {
+        var h = Number(e.data.height);
+        if (!isNaN(h) && h > 0) {
+          var minH = opts && opts.minHeight ? Number(opts.minHeight) : 920;
+          iframe.style.minHeight = Math.max(h, minH) + "px";
+        }
+        return;
+      }
+      if (e.data.type === "db:booking-complete") {
+        try {
+          var evt = new CustomEvent("diamondbooking:booking-complete", { detail: e.data });
+          window.dispatchEvent(evt);
+        } catch (err) {}
+        return;
       }
     }
     window.addEventListener("message", onMessage);
