@@ -51,18 +51,13 @@ export async function GET(req: NextRequest) {
         metadata: { userId: session.user.id },
       });
       stripeCustomerId = customer.id;
-      const trialStart = new Date();
-      const trialEnd = new Date(trialStart);
-      trialEnd.setDate(trialEnd.getDate() + 14);
       await prisma.subscription.upsert({
         where: { userId: session.user.id },
         create: {
           userId: session.user.id,
           stripeCustomerId,
           plan: "FREE",
-          status: "TRIALING",
-          trialStart,
-          trialEnd,
+          status: "INCOMPLETE",
         },
         update: { stripeCustomerId },
       });
@@ -80,6 +75,20 @@ export async function GET(req: NextRequest) {
     const successUrl = `${appUrl}${successReturn}${successReturn.includes("?") ? "&" : "?"}success=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${appUrl}${cancelReturn}${cancelReturn.includes("?") ? "&" : "?"}canceled=1`;
 
+    const trialDaysInt =
+      trialDays && Number.isFinite(trialDays) && trialDays > 0
+        ? Math.floor(trialDays)
+        : null;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const trialEndSec = trialDaysInt ? nowSec + trialDaysInt * 86400 : null;
+
+    const subscriptionData = {
+      metadata: { userId: session.user.id, plan },
+      ...(trialEndSec
+        ? { trial_end: trialEndSec, billing_cycle_anchor: trialEndSec, proration_behavior: "none" }
+        : {}),
+    } as any;
+
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: "subscription",
@@ -88,10 +97,7 @@ export async function GET(req: NextRequest) {
       metadata: { userId: session.user.id, plan },
       success_url: successUrl,
       cancel_url: cancelUrl,
-      subscription_data: {
-        metadata: { userId: session.user.id, plan },
-        ...(trialDays && Number.isFinite(trialDays) && trialDays > 0 ? { trial_period_days: Math.floor(trialDays) } : {}),
-      },
+      subscription_data: subscriptionData,
       allow_promotion_codes: true,
     });
 

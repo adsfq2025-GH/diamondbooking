@@ -54,6 +54,15 @@ export async function GET() {
     return "16px";
   }
 
+  function parsePxNumber(v, fallback) {
+    if (v === null || v === undefined) return fallback;
+    var s = String(v).trim();
+    var m = s.match(/(\\d+)/);
+    var n = m ? Number(m[1]) : NaN;
+    if (isNaN(n) || n <= 0) return fallback;
+    return n;
+  }
+
   function createEmbed(slug, opts) {
     var rootId = (opts && opts.rootId) ? String(opts.rootId) : "diamond-booking-widget";
     var root = (opts && opts.root) ? opts.root : document.getElementById(rootId);
@@ -67,27 +76,47 @@ export async function GET() {
     var cleanSlug = normalizeSlug(slug);
     if (!cleanSlug) return false;
 
+    var radius = (opts && opts.borderRadius) ? radiusToPx(opts.borderRadius) : "16px";
+    var minHeightStr = (opts && opts.minHeight) ? String(opts.minHeight).trim() : "920px";
+    var minHeightNum = parsePxNumber(minHeightStr, 920);
+    var title = (opts && opts.title) ? String(opts.title) : "Book an appointment";
+
     // Avoid double-embedding
-    if (root.getAttribute("data-db-embedded") === cleanSlug) return true;
+    if (root.getAttribute("data-db-embedded") === cleanSlug) {
+      var existing = root.querySelector("iframe");
+      if (existing) {
+        existing.style.borderRadius = radius;
+        existing.style.minHeight = minHeightStr;
+        existing.setAttribute("data-db-min-height", String(minHeightNum));
+        existing.setAttribute("title", title);
+      }
+      return true;
+    }
     root.setAttribute("data-db-embedded", cleanSlug);
+
+    var oldIframe = root.querySelector("iframe");
+    if (oldIframe && oldIframe.__dbOnMessage) {
+      window.removeEventListener("message", oldIframe.__dbOnMessage);
+    }
 
     var iframe = document.createElement("iframe");
     iframe.src = APP_ORIGIN + "/book/" + encodeURIComponent(cleanSlug) + "?embed=1";
     iframe.style.cssText = [
       "width:100%",
       "border:0",
-      "border-radius:" + ((opts && opts.borderRadius) ? radiusToPx(opts.borderRadius) : "16px"),
-      "min-height:" + ((opts && opts.minHeight) ? String(opts.minHeight) : "920px"),
+      "border-radius:" + radius,
+      "min-height:" + minHeightStr,
       "display:block",
       "overflow:hidden",
       "background:transparent",
     ].join(";");
     iframe.setAttribute("loading", "lazy");
     iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
-    iframe.setAttribute("title", (opts && opts.title) ? String(opts.title) : "Book an appointment");
+    iframe.setAttribute("title", title);
     iframe.setAttribute("allow", "payment; clipboard-write");
     iframe.setAttribute("allowfullscreen", "");
     iframe.setAttribute("scrolling", "no");
+    iframe.setAttribute("data-db-min-height", String(minHeightNum));
 
     // Auto-resize via postMessage
     function onMessage(e) {
@@ -97,7 +126,8 @@ export async function GET() {
       if (e.data.type === "db:resize") {
         var h = Number(e.data.height);
         if (!isNaN(h) && h > 0) {
-          var minH = opts && opts.minHeight ? Number(opts.minHeight) : 920;
+          var minH = Number(iframe.getAttribute("data-db-min-height") || 920);
+          if (isNaN(minH) || minH <= 0) minH = 920;
           iframe.style.minHeight = Math.max(h, minH) + "px";
         }
         return;
@@ -110,6 +140,7 @@ export async function GET() {
         return;
       }
     }
+    iframe.__dbOnMessage = onMessage;
     window.addEventListener("message", onMessage);
 
     root.innerHTML = "";

@@ -141,6 +141,10 @@ function toIcsUtc(tsUtc: string) {
   return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
 }
 
+function icsEscape(v: string) {
+  return v.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, " ");
+}
+
 function makeIcs(opts: { uid: string; summary: string; description?: string; startUtc: string; endUtc: string }) {
   const lines = [
     "BEGIN:VCALENDAR",
@@ -153,12 +157,28 @@ function makeIcs(opts: { uid: string; summary: string; description?: string; sta
     `DTSTAMP:${toIcsUtc(new Date().toISOString())}`,
     `DTSTART:${toIcsUtc(opts.startUtc)}`,
     `DTEND:${toIcsUtc(opts.endUtc)}`,
-    `SUMMARY:${String(opts.summary).replace(/\n/g, " ")}`,
-    opts.description ? `DESCRIPTION:${String(opts.description).replace(/\n/g, " ")}` : "",
+    `SUMMARY:${icsEscape(String(opts.summary))}`,
+    opts.description ? `DESCRIPTION:${icsEscape(String(opts.description))}` : "",
     "END:VEVENT",
     "END:VCALENDAR",
   ].filter(Boolean);
   return lines.join("\r\n");
+}
+
+function formatDateToYmdInTimeZone(dt: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(dt);
+  const year = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const month = parts.find((p) => p.type === "month")?.value ?? "01";
+  const day = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
+const WEEKDAY_TO_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function weekdayIndexInTimeZone(dateStr: string, timeZone: string) {
+  const dt = ymdToDateNoonUTC(dateStr);
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(dt);
+  return WEEKDAY_TO_INDEX[weekday] ?? dt.getUTCDay();
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -277,8 +297,16 @@ export function BookingFlow({
       const res = await fetch(
         `/api/public/availability/${business.slug}?date=${date}&serviceId=${serviceId}&staffId=${staffId}&durationMinutes=${encodeURIComponent(String(durationMinutes))}`
       );
-      const json = await res.json();
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {}
+      if (!res.ok) throw new Error(json?.error ?? "Failed to load availability");
       setSlots(json.data ?? []);
+      setError("");
+    } catch (e: unknown) {
+      setSlots([]);
+      setError(e instanceof Error ? e.message : "Failed to load availability");
     } finally {
       setSlotsLoading(false);
     }
@@ -292,11 +320,13 @@ export function BookingFlow({
 
   // Check if a date is available (within business hours, not in past, within advance window)
   const isDateAvailable = (year: number, month: number, day: number) => {
-    const d = new Date(year, month, day);
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const maxDate = new Date(today.getTime() + business.advanceBookingDays * 86400000);
-    if (d < today || d > maxDate) return false;
-    const dow = d.getDay();
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const tz = business.timezone || "UTC";
+    const todayStr = formatDateToYmdInTimeZone(new Date(), tz);
+    const maxDate = new Date(ymdToDateNoonUTC(todayStr).getTime() + business.advanceBookingDays * 86400000);
+    const maxStr = formatDateToYmdInTimeZone(maxDate, tz);
+    if (dateStr < todayStr || dateStr > maxStr) return false;
+    const dow = weekdayIndexInTimeZone(dateStr, tz);
     const hours = business.businessHours.find((h) => h.dayOfWeek === dow);
     return hours ? !hours.isClosed : false;
   };
@@ -1101,15 +1131,19 @@ export function BookingFlow({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {[
-                      ["Morning", slotGroups.morning],
-                      ["Afternoon", slotGroups.afternoon],
-                      ["Evening", slotGroups.evening],
-                    ].filter(([, arr]) => (arr as SlotData[]).length > 0).map(([label, arr]) => (
-                      <div key={label}>
-                        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</div>
+                    {(
+                      [
+                        { label: "Morning", slots: slotGroups.morning },
+                        { label: "Afternoon", slots: slotGroups.afternoon },
+                        { label: "Evening", slots: slotGroups.evening },
+                      ] as Array<{ label: string; slots: SlotData[] }>
+                    )
+                      .filter((g) => g.slots.length > 0)
+                      .map((g) => (
+                      <div key={g.label}>
+                        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">{g.label}</div>
                         <div className="grid grid-cols-3 gap-2">
-                          {(arr as SlotData[]).map((slot) => (
+                          {g.slots.map((slot) => (
                             <button
                               key={`${slot.startUTC}-${slot.staffId}`}
                               onClick={() => { setSel((p) => ({ ...p, slot })); setStep(4); }}

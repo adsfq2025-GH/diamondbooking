@@ -176,6 +176,48 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "customer.subscription.created": {
+        const stripeSub = event.data.object as StripeSubscription;
+        const status = mapStripeSubscriptionStatus(stripeSub.status) ?? "ACTIVE";
+        const plan = getStripeSubscriptionPlan(stripeSub, STRIPE_PLAN_MAP);
+        const customerId = stripeSub.customer as string;
+        const userId = await getUserIdFromStripeCustomer(stripe, customerId);
+
+        await runIdempotentWebhookEvent(event, async (tx) => {
+          if (!userId) return null;
+          await tx.subscription.upsert({
+            where: { userId },
+            create: {
+              userId,
+              stripeCustomerId: customerId,
+              stripeSubscriptionId: stripeSub.id,
+              plan: (plan ?? "STARTER") as never,
+              status: status as never,
+              currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+              currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+              cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+              trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+              trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+              cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+            },
+            update: {
+              stripeCustomerId: customerId,
+              stripeSubscriptionId: stripeSub.id,
+              ...(plan ? { plan: plan as never } : {}),
+              status: status as never,
+              currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+              currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+              cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+              trialStart: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000) : null,
+              trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+              cancelledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+            },
+          });
+          return null;
+        });
+        break;
+      }
+
       // ── Invoice paid/succeeded → renew period ──────────────────────────
       case "invoice.paid":
       case "invoice.payment_succeeded": {
