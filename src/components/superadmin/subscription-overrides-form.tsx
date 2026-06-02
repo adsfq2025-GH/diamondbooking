@@ -9,6 +9,14 @@ type FeatureKey = (typeof FEATURE_KEYS)[number];
 
 type FeatureOverride = { enabled: boolean; expiresAt?: string | null };
 
+const FEATURE_LABELS: Record<FeatureKey, { label: string; description: string }> = {
+  removesBranding: { label: "White label / Remove branding", description: "Hide Diamond Booking branding in customer-facing UI." },
+  emailReminders: { label: "Email reminders", description: "Send email reminders and confirmations." },
+  customDomain: { label: "Custom domain", description: "Use a custom domain for booking pages/widgets." },
+  apiAccess: { label: "API access", description: "Enable API access for integrations." },
+  prioritySupport: { label: "Priority support", description: "Priority support and faster response." },
+};
+
 function toDateInputValue(d: Date | null | undefined) {
   if (!d) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -143,10 +151,11 @@ export function SubscriptionOverridesForm({
             const o = featureOverrides[key];
             const enabled = o ? o.enabled : null;
             const expiry = o?.expiresAt ? toDateInputValue(new Date(o.expiresAt)) : "";
+            const meta = FEATURE_LABELS[key];
             return (
               <div key={key} className="rounded-lg border border-border bg-secondary p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-foreground">{key}</div>
+                  <div className="text-sm text-foreground">{meta.label}</div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -162,6 +171,7 @@ export function SubscriptionOverridesForm({
                     />
                   </div>
                 </div>
+                <div className="mt-1 text-xs text-muted-foreground">{meta.description}</div>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Override mode</label>
@@ -207,4 +217,3 @@ export function SubscriptionOverridesForm({
     </div>
   );
 }
-
