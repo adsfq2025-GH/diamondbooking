@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatDateTime, formatCurrency, getPlanBadgeClass, cn } from "@/lib/utils";
 import { BusinessAdminActions } from "@/components/superadmin/business-admin-actions";
+import { SubscriptionOverridesForm } from "@/components/superadmin/subscription-overrides-form";
 import { ArrowLeft, MapPin, Phone, Mail, Globe, Users, Wrench, Calendar, UserCheck } from "lucide-react";
 import Link from "next/link";
 
@@ -250,6 +251,8 @@ export default async function BusinessDetailPage({
               )}
             </div>
           </div>
+
+          <SubscriptionOverridesForm businessId={business.id} subscription={business.owner.subscription} />
 
           {/* Admin notes */}
           <div className="bg-card border border-border rounded-xl p-5">

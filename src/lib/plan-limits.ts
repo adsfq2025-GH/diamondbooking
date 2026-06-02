@@ -13,6 +13,7 @@ const PLAN_LIMITS: Record<SubscriptionPlan, {
   emailReminders: boolean;
   customDomain: boolean;
   apiAccess: boolean;
+  prioritySupport: boolean;
 }> = {
   FREE: {
     maxStaff: 1,
@@ -22,6 +23,7 @@ const PLAN_LIMITS: Record<SubscriptionPlan, {
     emailReminders: false,
     customDomain: false,
     apiAccess: false,
+    prioritySupport: false,
   },
   STARTER: {
     maxStaff: 3,
@@ -31,6 +33,7 @@ const PLAN_LIMITS: Record<SubscriptionPlan, {
     emailReminders: false,
     customDomain: false,
     apiAccess: false,
+    prioritySupport: false,
   },
   PROFESSIONAL: {
     maxStaff: 10,
@@ -40,6 +43,7 @@ const PLAN_LIMITS: Record<SubscriptionPlan, {
     emailReminders: true,
     customDomain: false,
     apiAccess: false,
+    prioritySupport: true,
   },
   ENTERPRISE: {
     maxStaff: -1,
@@ -49,8 +53,48 @@ const PLAN_LIMITS: Record<SubscriptionPlan, {
     emailReminders: true,
     customDomain: true,
     apiAccess: true,
+    prioritySupport: true,
   },
 };
+
+const FEATURE_KEYS = ["removesBranding", "emailReminders", "customDomain", "apiAccess", "prioritySupport"] as const;
+type FeatureKey = (typeof FEATURE_KEYS)[number];
+
+function isAfterNow(d: Date) {
+  return d.getTime() > Date.now();
+}
+
+function parseDateMaybe(v: unknown) {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isCompActive(sub: { isComped: boolean; compExpiresAt: Date | null }) {
+  if (!sub.isComped) return false;
+  if (!sub.compExpiresAt) return true;
+  return isAfterNow(sub.compExpiresAt);
+}
+
+function applyFeatureOverrides<T extends Record<FeatureKey, boolean>>(
+  base: T,
+  overrides: unknown
+): T {
+  if (!overrides || typeof overrides !== "object") return base;
+  const next = { ...base };
+
+  for (const k of FEATURE_KEYS) {
+    const raw = (overrides as any)[k];
+    if (!raw || typeof raw !== "object") continue;
+    const enabled = typeof raw.enabled === "boolean" ? raw.enabled : null;
+    if (enabled === null) continue;
+    const expiresAt = parseDateMaybe(raw.expiresAt);
+    if (expiresAt && !isAfterNow(expiresAt)) continue;
+    next[k] = enabled;
+  }
+
+  return next;
+}
 
 /**
  * Get plan limits from DB (falls back to hardcoded).
@@ -196,6 +240,7 @@ export async function isSubscriptionActive(userId: string): Promise<boolean> {
 
   if (!subscription) return false;
 
+  if (isCompActive({ isComped: subscription.isComped, compExpiresAt: subscription.compExpiresAt })) return true;
   return ["ACTIVE", "TRIALING"].includes(subscription.status);
 }
 
@@ -225,6 +270,18 @@ export async function getUsageStats(businessId: string) {
 
   const plan = (business?.owner.subscription?.plan ?? "FREE") as SubscriptionPlan;
   const limits = await getPlanLimits(plan);
+  const sub = business?.owner.subscription;
+  const comped = sub ? isCompActive({ isComped: sub.isComped, compExpiresAt: sub.compExpiresAt }) : false;
+  const effectiveFeatures = applyFeatureOverrides(
+    {
+      removesBranding: !!limits.removesBranding,
+      emailReminders: !!limits.emailReminders,
+      customDomain: !!limits.customDomain,
+      apiAccess: !!limits.apiAccess,
+      prioritySupport: !!(limits as any).prioritySupport,
+    },
+    sub?.featureOverrides
+  );
 
   return {
     plan,
@@ -232,10 +289,8 @@ export async function getUsageStats(businessId: string) {
     services: { current: serviceCount, limit: limits.maxServices },
     bookingsThisMonth: { current: bookingCount, limit: limits.maxBookingsPerMonth },
     features: {
-      removesBranding: limits.removesBranding,
-      emailReminders: limits.emailReminders,
-      customDomain: limits.customDomain,
-      apiAccess: limits.apiAccess,
+      ...effectiveFeatures,
+      comped,
     },
   };
 }

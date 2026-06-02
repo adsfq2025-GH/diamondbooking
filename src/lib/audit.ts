@@ -29,6 +29,7 @@ export type AuditAction =
   | "SUBSCRIPTION_REACTIVATED"
   | "SUBSCRIPTION_COMPED"
   | "SUBSCRIPTION_TRIAL_EXTENDED"
+  | "SUBSCRIPTION_FEATURE_OVERRIDES_UPDATED"
   | "PAYMENT_FAILED"
   | "PAYMENT_SUCCEEDED"
   // Booking actions
@@ -132,6 +133,7 @@ export function getAuditActionLabel(action: AuditAction): string {
     SUBSCRIPTION_REACTIVATED: "Subscription reactivated",
     SUBSCRIPTION_COMPED: "Subscription comped",
     SUBSCRIPTION_TRIAL_EXTENDED: "Trial extended",
+    SUBSCRIPTION_FEATURE_OVERRIDES_UPDATED: "Subscription overrides updated",
     PAYMENT_FAILED: "Payment failed",
     PAYMENT_SUCCEEDED: "Payment succeeded",
     BOOKING_CREATED: "Booking created",

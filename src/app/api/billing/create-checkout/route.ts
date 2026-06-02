@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
     const interval = searchParams.get("interval") ?? "monthly";
     const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
     const trialDaysParam = searchParams.get("trialDays");
-    const trialDays = trialDaysParam ? Number(trialDaysParam) : undefined;
     const returnToParam = searchParams.get("returnTo");
     const cancelToParam = searchParams.get("cancelTo");
 
@@ -75,10 +74,20 @@ export async function GET(req: NextRequest) {
     const successUrl = `${appUrl}${successReturn}${successReturn.includes("?") ? "&" : "?"}success=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${appUrl}${cancelReturn}${cancelReturn.includes("?") ? "&" : "?"}canceled=1`;
 
-    const trialDaysInt =
-      trialDays && Number.isFinite(trialDays) && trialDays > 0
-        ? Math.floor(trialDays)
+    const settings = await prisma.platformSettings.findUnique({ where: { id: 1 }, select: { defaultTrialDays: true } });
+    const parsedTrialDays =
+      trialDaysParam !== null && trialDaysParam !== undefined && trialDaysParam !== ""
+        ? Number(trialDaysParam)
         : null;
+    const eligibleForDefaultTrial = !subscription?.stripeSubscriptionId && (subscription?.plan ?? "FREE") === "FREE";
+    const defaultTrialDays = settings?.defaultTrialDays ?? 14;
+    const trialDaysFinal =
+      parsedTrialDays !== null && Number.isFinite(parsedTrialDays) && parsedTrialDays >= 0
+        ? Math.floor(parsedTrialDays)
+        : eligibleForDefaultTrial
+          ? defaultTrialDays
+          : 0;
+    const trialDaysInt = trialDaysFinal > 0 ? trialDaysFinal : null;
     const nowSec = Math.floor(Date.now() / 1000);
     const trialEndSec = trialDaysInt ? nowSec + trialDaysInt * 86400 : null;
 

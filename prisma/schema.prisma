@@ -714,6 +714,7 @@ model Subscription {
   isComped      Boolean   @default(false)
   compExpiresAt DateTime?
   compNote      String?
+  featureOverrides Json @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
