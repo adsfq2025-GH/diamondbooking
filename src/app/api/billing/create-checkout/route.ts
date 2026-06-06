@@ -125,11 +125,20 @@ export async function GET(req: NextRequest) {
     console.error("[create-checkout]", err);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
     if (wantsJson) {
+      const anyErr = err as any;
+      const stripeCode = typeof anyErr?.code === "string" ? anyErr.code : undefined;
+      const stripeType = typeof anyErr?.type === "string" ? anyErr.type : undefined;
       const message =
-        err instanceof Error && err.message.includes("STRIPE_")
-          ? err.message
-          : "Checkout failed";
-      return NextResponse.json({ success: false, error: message }, { status: 500 });
+        typeof anyErr?.raw?.message === "string"
+          ? anyErr.raw.message
+          : err instanceof Error && typeof err.message === "string" && err.message.trim()
+            ? err.message
+            : "Checkout failed";
+
+      return NextResponse.json(
+        { success: false, error: message, stripeCode, stripeType },
+        { status: 500 }
+      );
     }
     return NextResponse.redirect(`${appUrl}/dashboard/billing?error=checkout_failed`);
   }
