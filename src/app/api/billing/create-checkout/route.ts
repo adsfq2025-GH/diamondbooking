@@ -17,13 +17,17 @@ const PLAN_PRICES: Record<string, { monthly?: string; yearly?: string }> = {
 };
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = req.nextUrl;
+  const wantsJson =
+    searchParams.get("json") === "1" ||
+    (req.headers.get("accept")?.includes("application/json") ?? false);
+
   try {
     if (req.headers.get("sec-fetch-site") === "cross-site") {
       return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 
     const session  = await requireOwner();
-    const { searchParams } = req.nextUrl;
     const plan     = searchParams.get("plan") ?? "STARTER";
     const interval = searchParams.get("interval") ?? "monthly";
     const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
@@ -33,6 +37,9 @@ export async function GET(req: NextRequest) {
 
     const priceId = PLAN_PRICES[plan]?.[interval as "monthly" | "yearly"];
     if (!priceId) {
+      if (wantsJson) {
+        return NextResponse.json({ success: false, error: "Invalid plan" }, { status: 400 });
+      }
       return NextResponse.redirect(`${appUrl}/dashboard/billing?error=invalid_plan`);
     }
 
@@ -110,10 +117,20 @@ export async function GET(req: NextRequest) {
       allow_promotion_codes: true,
     });
 
+    if (wantsJson) {
+      return NextResponse.json({ success: true, data: { url: checkoutSession.url } });
+    }
     return NextResponse.redirect(checkoutSession.url!);
   } catch (err) {
     console.error("[create-checkout]", err);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.diamond-booking.com";
+    if (wantsJson) {
+      const message =
+        err instanceof Error && err.message.includes("STRIPE_")
+          ? err.message
+          : "Checkout failed";
+      return NextResponse.json({ success: false, error: message }, { status: 500 });
+    }
     return NextResponse.redirect(`${appUrl}/dashboard/billing?error=checkout_failed`);
   }
 }

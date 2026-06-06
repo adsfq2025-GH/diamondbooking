@@ -277,6 +277,32 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const [addOns, setAddOns] = useState<AddOnDraft[]>([]);
   const [intakeFields, setIntakeFields] = useState<IntakeFieldDraft[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+
+  const urlStep = searchParams.get("step");
+
+  useEffect(() => {
+    // #region debug-point A:onboarding-mount
+    fetch("http://127.0.0.1:7777/event", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: "onboarding-step1-reset",
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "onboarding-wizard-v2.tsx:mount",
+        msg: "[DEBUG] Onboarding mount",
+        data: {
+          urlStep,
+          step,
+          paymentReady,
+          selectedTier,
+          businessSlug,
+          hasSession: !!session?.user?.id,
+        },
+        ts: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [urlStep, step, paymentReady, selectedTier, businessSlug, session?.user?.id]);
   const [stripeStatus, setStripeStatus] = useState<null | {
     accountId: string | null;
     chargesEnabled: boolean;
@@ -367,6 +393,20 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       try {
         const res = await fetch("/api/billing/subscription");
         const json = await res.json();
+        // #region debug-point C:sub-load
+        fetch("http://127.0.0.1:7777/event", {
+          method: "POST",
+          body: JSON.stringify({
+            sessionId: "onboarding-step1-reset",
+            runId: "pre-fix",
+            hypothesisId: "C",
+            location: "onboarding-wizard-v2.tsx:subscription",
+            msg: "[DEBUG] Subscription fetch",
+            data: { ok: res.ok, status: res.status, plan: json?.data?.plan, subStatus: json?.data?.status },
+            ts: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
         if (!res.ok) return;
         const sub = json.data as null | { plan?: string; status?: string };
         if (!sub?.status) return;
@@ -410,6 +450,28 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   const submitBasics = () =>
     go(async () => {
+      // #region debug-point B:submit-basics-start
+      fetch("http://127.0.0.1:7777/event", {
+        method: "POST",
+        body: JSON.stringify({
+          sessionId: "onboarding-step1-reset",
+          runId: "pre-fix",
+          hypothesisId: "B",
+          location: "onboarding-wizard-v2.tsx:submitBasics",
+          msg: "[DEBUG] submitBasics start",
+          data: {
+            selectedTier,
+            paymentReady,
+            bizName: bizName.trim(),
+            phone: phone.trim(),
+            timezone,
+            industry,
+            urlStep,
+          },
+          ts: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       if (!selectedTier) throw new Error("Select a plan to continue");
       if (!bizName.trim()) throw new Error("Business name is required");
       if (!phone.trim()) throw new Error("Business phone is required");
@@ -433,6 +495,20 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         }),
       });
       const json = await res.json();
+      // #region debug-point B:submit-basics-response
+      fetch("http://127.0.0.1:7777/event", {
+        method: "POST",
+        body: JSON.stringify({
+          sessionId: "onboarding-step1-reset",
+          runId: "pre-fix",
+          hypothesisId: "B",
+          location: "onboarding-wizard-v2.tsx:submitBasics",
+          msg: "[DEBUG] submitBasics response",
+          data: { ok: res.ok, status: res.status, error: json?.error, traceId: json?.traceId, slug: json?.data?.slug },
+          ts: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       if (res.status === 401 || res.status === 403) {
         const callbackUrl = encodeURIComponent("/onboarding?step=1");
         window.location.assign(`/auth/login?callbackUrl=${callbackUrl}`);
@@ -454,9 +530,29 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               : "ENTERPRISE";
         const returnTo = encodeURIComponent("/onboarding?step=2");
         const cancelTo = encodeURIComponent("/onboarding?step=1");
-        window.location.assign(
-          `/api/billing/create-checkout?plan=${encodeURIComponent(plan)}&interval=monthly&trialDays=14&returnTo=${returnTo}&cancelTo=${cancelTo}`
+        // #region debug-point A:redirect-checkout
+        fetch("http://127.0.0.1:7777/event", {
+          method: "POST",
+          body: JSON.stringify({
+            sessionId: "onboarding-step1-reset",
+            runId: "pre-fix",
+            hypothesisId: "A",
+            location: "onboarding-wizard-v2.tsx:submitBasics",
+            msg: "[DEBUG] redirecting to checkout",
+            data: { plan, returnTo, cancelTo },
+            ts: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        const checkoutRes = await fetch(
+          `/api/billing/create-checkout?json=1&plan=${encodeURIComponent(plan)}&interval=monthly&returnTo=${returnTo}&cancelTo=${cancelTo}`,
+          { headers: { accept: "application/json" } }
         );
+        const checkoutJson = (await checkoutRes.json()) as { success: boolean; error?: string; data?: { url?: string | null } };
+        if (!checkoutRes.ok || !checkoutJson.success || !checkoutJson.data?.url) {
+          throw new Error(checkoutJson.error ?? "Unable to start checkout. Please contact support.");
+        }
+        window.location.assign(checkoutJson.data.url);
         return;
       }
 
