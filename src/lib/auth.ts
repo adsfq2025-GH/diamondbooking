@@ -257,8 +257,13 @@ export const config: NextAuthConfig = {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.id) {
         try {
+          const settings = await prisma.platformSettings.findUnique({
+            where: { id: 1 },
+            select: { defaultTrialDays: true },
+          });
+          const trialDays = settings?.defaultTrialDays ?? 14;
           const trialEnd = new Date();
-          trialEnd.setDate(trialEnd.getDate() + 14);
+          trialEnd.setDate(trialEnd.getDate() + trialDays);
 
           await prisma.subscription.upsert({
             where: { userId: user.id },

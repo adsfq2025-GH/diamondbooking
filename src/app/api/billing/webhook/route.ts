@@ -68,16 +68,15 @@ async function runIdempotentWebhookEvent<T>(
   work: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<T | null> {
   try {
-    return await prisma.$transaction(async (tx) => {
-      await tx.stripeWebhookEvent.create({
-        data: {
-          stripeEventId: event.id,
-          type: event.type,
-          livemode: event.livemode,
-          stripeCreated: new Date(event.created * 1000),
-        },
-      });
-      return await work(tx);
+    await prisma.stripeWebhookEvent.create({
+      data: {
+        stripeEventId: event.id,
+        type: event.type,
+        livemode: event.livemode,
+        stripeCreated: new Date(event.created * 1000),
+        payload: event as unknown as Prisma.InputJsonValue,
+        processed: false,
+      },
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -87,6 +86,24 @@ async function runIdempotentWebhookEvent<T>(
         target === "stripeEventId";
       if (isStripeEventId) return null;
     }
+    throw err;
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => work(tx));
+    await prisma.stripeWebhookEvent.update({
+      where: { stripeEventId: event.id },
+      data: { processed: true, processedAt: new Date(), errorMessage: null },
+    });
+    return result;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Webhook processing failed";
+    await prisma.stripeWebhookEvent
+      .update({
+        where: { stripeEventId: event.id },
+        data: { processed: false, processedAt: new Date(), errorMessage: msg },
+      })
+      .catch(() => {});
     throw err;
   }
 }

@@ -738,6 +738,11 @@ model StripeWebhookEvent {
   stripeCreated DateTime
   createdAt     DateTime @default(now())
 
+  payload      Json?
+  processed    Boolean  @default(false)
+  processedAt  DateTime?
+  errorMessage String?
+
   @@index([type])
   @@map("stripe_webhook_events")
 }

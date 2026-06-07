@@ -56,8 +56,13 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      const settings = await tx.platformSettings.findUnique({
+        where: { id: 1 },
+        select: { defaultTrialDays: true },
+      });
+      const trialDays = settings?.defaultTrialDays ?? 14;
       const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 14);
+      trialEnd.setDate(trialEnd.getDate() + trialDays);
 
       await tx.subscription.create({
         data: {

@@ -32,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/superadmin/audit-log",    label: "Audit Log",           icon: ScrollText                      },
   { href: "/superadmin/settings",     label: "Platform Settings",   icon: Settings                        },
   { href: "/superadmin/system",       label: "System Health",       icon: Activity                        },
+  { href: "/superadmin/stripe-diagnostics", label: "Stripe Diagnostics", icon: CreditCard                  },
 ];
 
 interface AdminSidebarProps {

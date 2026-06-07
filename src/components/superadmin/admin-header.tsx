@@ -16,6 +16,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/superadmin/audit-log": "Audit Log",
   "/superadmin/settings": "Platform Settings",
   "/superadmin/system": "System Health",
+  "/superadmin/stripe-diagnostics": "Stripe Diagnostics",
 };
 
 interface AdminHeaderProps {

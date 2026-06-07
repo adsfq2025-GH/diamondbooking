@@ -37,37 +37,8 @@ export async function POST(req: NextRequest) {
     const parsed = schema.safeParse(body);
 
     if (!parsed.success) {
-      // #region debug-point B:onboard-validate-fail
-      fetch("http://127.0.0.1:7777/event", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: "onboarding-step1-reset",
-          runId: "pre-fix",
-          hypothesisId: "B",
-          location: "api/business/onboard:validate",
-          msg: "[DEBUG] onboard validation failed",
-          data: { traceId, issue: parsed.error.issues[0]?.message },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message, traceId }, { status: 400 });
     }
-
-    // #region debug-point B:onboard-request
-    fetch("http://127.0.0.1:7777/event", {
-      method: "POST",
-      body: JSON.stringify({
-        sessionId: "onboarding-step1-reset",
-        runId: "pre-fix",
-        hypothesisId: "B",
-        location: "api/business/onboard:request",
-        msg: "[DEBUG] onboard request parsed",
-        data: { traceId, ownerId: session.user.id, name: parsed.data.name, slug: parsed.data.slug, industry: parsed.data.industry },
-        ts: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
 
     // Check if business already exists
     const existing = await prisma.business.findUnique({ where: { ownerId: session.user.id } });
@@ -108,20 +79,6 @@ export async function POST(req: NextRequest) {
           },
         });
       }
-      // #region debug-point D:onboard-updated
-      fetch("http://127.0.0.1:7777/event", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: "onboarding-step1-reset",
-          runId: "pre-fix",
-          hypothesisId: "D",
-          location: "api/business/onboard:update",
-          msg: "[DEBUG] onboard updated existing",
-          data: { traceId, businessId: updated.id, slug: updated.slug },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return NextResponse.json({ success: true, data: updated });
     }
 
@@ -177,54 +134,12 @@ export async function POST(req: NextRequest) {
       targetId: business.id,
       targetName: business.name,
     });
-    // #region debug-point D:onboard-created
-    fetch("http://127.0.0.1:7777/event", {
-      method: "POST",
-      body: JSON.stringify({
-        sessionId: "onboarding-step1-reset",
-        runId: "pre-fix",
-        hypothesisId: "D",
-        location: "api/business/onboard:create",
-        msg: "[DEBUG] onboard created business",
-        data: { traceId, businessId: business.id, slug: business.slug },
-        ts: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     return NextResponse.json({ success: true, data: business }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
-      // #region debug-point B:onboard-unauth
-      fetch("http://127.0.0.1:7777/event", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: "onboarding-step1-reset",
-          runId: "pre-fix",
-          hypothesisId: "B",
-          location: "api/business/onboard:error",
-          msg: "[DEBUG] onboard unauthorized",
-          data: { traceId },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return NextResponse.json({ success: false, error: "Session expired. Please sign in again.", traceId }, { status: 401 });
     }
     if (error instanceof Error && error.message === "FORBIDDEN") {
-      // #region debug-point B:onboard-forbidden
-      fetch("http://127.0.0.1:7777/event", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: "onboarding-step1-reset",
-          runId: "pre-fix",
-          hypothesisId: "B",
-          location: "api/business/onboard:error",
-          msg: "[DEBUG] onboard forbidden",
-          data: { traceId },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return NextResponse.json({ success: false, error: "You do not have permission to do that.", traceId }, { status: 403 });
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError) {

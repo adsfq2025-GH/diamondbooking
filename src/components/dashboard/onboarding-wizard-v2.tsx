@@ -277,32 +277,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const [addOns, setAddOns] = useState<AddOnDraft[]>([]);
   const [intakeFields, setIntakeFields] = useState<IntakeFieldDraft[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
-
-  const urlStep = searchParams.get("step");
-
-  useEffect(() => {
-    // #region debug-point A:onboarding-mount
-    fetch("http://127.0.0.1:7777/event", {
-      method: "POST",
-      body: JSON.stringify({
-        sessionId: "onboarding-step1-reset",
-        runId: "pre-fix",
-        hypothesisId: "A",
-        location: "onboarding-wizard-v2.tsx:mount",
-        msg: "[DEBUG] Onboarding mount",
-        data: {
-          urlStep,
-          step,
-          paymentReady,
-          selectedTier,
-          businessSlug,
-          hasSession: !!session?.user?.id,
-        },
-        ts: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [urlStep, step, paymentReady, selectedTier, businessSlug, session?.user?.id]);
   const [stripeStatus, setStripeStatus] = useState<null | {
     accountId: string | null;
     chargesEnabled: boolean;
@@ -450,29 +424,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   const submitBasics = () =>
     go(async () => {
-      // #region debug-point B:submit-basics-start
-      fetch("http://127.0.0.1:7777/event", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: "onboarding-step1-reset",
-          runId: "pre-fix",
-          hypothesisId: "B",
-          location: "onboarding-wizard-v2.tsx:submitBasics",
-          msg: "[DEBUG] submitBasics start",
-          data: {
-            selectedTier,
-            paymentReady,
-            bizName: bizName.trim(),
-            phone: phone.trim(),
-            timezone,
-            industry,
-            urlStep,
-          },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      if (!selectedTier) throw new Error("Select a plan to continue");
       if (!bizName.trim()) throw new Error("Business name is required");
       if (!phone.trim()) throw new Error("Business phone is required");
 
@@ -495,20 +446,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         }),
       });
       const json = await res.json();
-      // #region debug-point B:submit-basics-response
-      fetch("http://127.0.0.1:7777/event", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: "onboarding-step1-reset",
-          runId: "pre-fix",
-          hypothesisId: "B",
-          location: "onboarding-wizard-v2.tsx:submitBasics",
-          msg: "[DEBUG] submitBasics response",
-          data: { ok: res.ok, status: res.status, error: json?.error, traceId: json?.traceId, slug: json?.data?.slug },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (res.status === 401 || res.status === 403) {
         const callbackUrl = encodeURIComponent("/onboarding?step=1");
         window.location.assign(`/auth/login?callbackUrl=${callbackUrl}`);
@@ -520,41 +457,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       setLogoUrl(json.data.logoUrl ?? "");
       setWelcomeMessage(json.data.welcomeMessage ?? "");
       await updateSession({ businessId: json.data.id, businessSlug: json.data.slug });
-
-      if (!paymentReady) {
-        const plan =
-          selectedTier === "starter"
-            ? "STARTER"
-            : selectedTier === "pro"
-              ? "PROFESSIONAL"
-              : "ENTERPRISE";
-        const returnTo = encodeURIComponent("/onboarding?step=2");
-        const cancelTo = encodeURIComponent("/onboarding?step=1");
-        // #region debug-point A:redirect-checkout
-        fetch("http://127.0.0.1:7777/event", {
-          method: "POST",
-          body: JSON.stringify({
-            sessionId: "onboarding-step1-reset",
-            runId: "pre-fix",
-            hypothesisId: "A",
-            location: "onboarding-wizard-v2.tsx:submitBasics",
-            msg: "[DEBUG] redirecting to checkout",
-            data: { plan, returnTo, cancelTo },
-            ts: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-        const checkoutRes = await fetch(
-          `/api/billing/create-checkout?json=1&plan=${encodeURIComponent(plan)}&interval=monthly&returnTo=${returnTo}&cancelTo=${cancelTo}`,
-          { headers: { accept: "application/json" } }
-        );
-        const checkoutJson = (await checkoutRes.json()) as { success: boolean; error?: string; data?: { url?: string | null } };
-        if (!checkoutRes.ok || !checkoutJson.success || !checkoutJson.data?.url) {
-          throw new Error(checkoutJson.error ?? "Unable to start checkout. Please contact support.");
-        }
-        window.location.assign(checkoutJson.data.url);
-        return;
-      }
 
       setStep(2);
     });
@@ -869,8 +771,8 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
           {step === 1 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Basics & billing</h2>
-                <p className="text-sm text-gray-500">Choose a plan, set your business details, then save a payment method to start the free trial.</p>
+                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Basics</h2>
+                <p className="text-sm text-gray-500">Choose a plan (optional), then set your business details. You can add a payment method anytime during your trial.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1042,9 +944,19 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                   disabled={loading}
                   className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90 disabled:opacity-50"
                 >
-                  {paymentReady ? "Continue" : "Save & add payment method"}
+                  Continue
                   <ChevronRight className="w-4 h-4" />
                 </button>
+                {!paymentReady && (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/dashboard/billing")}
+                    disabled={loading}
+                    className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 text-[#1a1f36] hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Add payment method
+                  </button>
+                )}
               </div>
             </div>
           )}
