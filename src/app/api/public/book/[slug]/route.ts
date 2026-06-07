@@ -50,7 +50,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     where: { slug, isActive: true },
     include: {
       businessHours: true,
-      owner: { select: { id: true, email: true, subscription: { select: { plan: true, status: true, isComped: true, compExpiresAt: true } } } },
+      owner: {
+        select: {
+          id: true,
+          email: true,
+          subscription: { select: { plan: true, status: true, trialEnd: true, isComped: true, compExpiresAt: true } },
+        },
+      },
     },
   });
   if (!business) {
@@ -61,7 +67,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   const sub = business.owner.subscription;
   const comped = !!sub?.isComped && (!sub.compExpiresAt || sub.compExpiresAt.getTime() > Date.now());
   const subStatus = sub?.status;
-  if (subStatus && !comped && !["ACTIVE", "TRIALING"].includes(subStatus)) {
+  const trialActive = subStatus === "TRIALING" && (!sub?.trialEnd || sub.trialEnd.getTime() > Date.now());
+  if (subStatus && !comped && !(subStatus === "ACTIVE" || trialActive)) {
     return NextResponse.json(
       { success: false, error: "This business is not currently accepting bookings" },
       { status: 403 }

@@ -64,9 +64,15 @@ export default async function BookingPage({ params, searchParams }: Props) {
   // Check sub is active
   const owner = await prisma.user.findUnique({
     where: { id: business.ownerId },
-    include: { subscription: { select: { status: true } } },
+    include: { subscription: { select: { status: true, trialEnd: true, isComped: true, compExpiresAt: true } } },
   });
-  const subActive = ["ACTIVE", "TRIALING"].includes(owner?.subscription?.status ?? "");
+  const subStatus = owner?.subscription?.status ?? null;
+  const comped =
+    !!owner?.subscription?.isComped &&
+    (!owner.subscription.compExpiresAt || owner.subscription.compExpiresAt.getTime() > Date.now());
+  const trialActive =
+    subStatus === "TRIALING" && (!owner?.subscription?.trialEnd || owner.subscription.trialEnd.getTime() > Date.now());
+  const subActive = comped || subStatus === "ACTIVE" || trialActive;
 
   if (!subActive) {
     return (

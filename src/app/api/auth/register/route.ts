@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { createAuditLog } from "@/lib/audit";
+import { generateSlug } from "@/lib/utils";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
@@ -73,6 +74,21 @@ export async function POST(req: NextRequest) {
           trialEnd,
         },
       });
+
+      const existingBusiness = await tx.business.findUnique({ where: { ownerId: newUser.id }, select: { id: true } });
+      if (!existingBusiness) {
+        const base = generateSlug(`${name} business`) || "business";
+        const slug = `${base}-${newUser.id.slice(-6)}`;
+        await tx.business.create({
+          data: {
+            ownerId: newUser.id,
+            name: `${name}'s Business`,
+            slug,
+            timezone: "America/New_York",
+            onboardingComplete: false,
+          },
+        });
+      }
 
       return newUser;
     });

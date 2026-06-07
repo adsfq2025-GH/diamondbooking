@@ -101,17 +101,17 @@ const PLANS = [
     price: 29,
     desc: "Perfect for small businesses starting with online booking",
     features: [
-      "24/7 online client booking",
-      "Booking widget embed",
-      "Client database",
-      "Service providers with schedules",
-      "Booking website with CMS",
-      "Google Calendar sync",
-      "Email confirmations & reminders",
-      "Online payments (Stripe + PayPal)",
-      "SSL encryption & 2FA",
-      "Custom domain connection",
-      "Custom CSS design editing",
+      { text: "24/7 online client booking", built: true },
+      { text: "Booking widget embed", built: true },
+      { text: "Client database", built: true },
+      { text: "Service providers with schedules", built: true },
+      { text: "Booking website with CMS", built: true },
+      { text: "Email confirmations & reminders", built: true },
+      { text: "Online payments (Stripe)", built: true },
+      { text: "SSL encryption", built: true },
+      { text: "Google Calendar sync", built: false },
+      { text: "Custom domain connection", built: false },
+      { text: "Custom CSS design editing", built: false },
     ],
     featured: false,
   },
@@ -120,18 +120,18 @@ const PLANS = [
     price: 59,
     desc: "Advanced features for growing businesses",
     features: [
-      "Everything in Starter",
-      "Group bookings & recurring bookings",
-      "Appointment approval rules",
-      "Buffer time settings",
-      "Simultaneous booking limits",
-      "Waiting list feature",
-      "Intake forms & booking",
-      "Tips/gratuity collection",
-      "Service add-on purchases",
-      "Product sales during booking",
-      "Booking analytics dashboard",
-      "Review and testimonials display",
+      { text: "Everything in Starter", built: true },
+      { text: "Intake forms & booking questions", built: true },
+      { text: "Service add-on purchases", built: true },
+      { text: "Buffer time settings", built: true },
+      { text: "Simultaneous booking limits", built: true },
+      { text: "Appointment approval rules", built: true },
+      { text: "Booking analytics dashboard", built: true },
+      { text: "Group bookings & recurring bookings", built: false },
+      { text: "Waiting list feature", built: false },
+      { text: "Tips/gratuity collection", built: false },
+      { text: "Product sales during booking", built: false },
+      { text: "Review and testimonials display", built: false },
     ],
     featured: true,
   },
@@ -140,22 +140,18 @@ const PLANS = [
     price: 119,
     desc: "Complete automation and advanced integrations",
     features: [
-      "Everything in Professional",
-      "Zapier connector & API integrations",
-      "WhatsApp booking bot",
-      "Live booking bot",
-      "AI voice booking system",
-      "Subscription & package bundles",
-      "Loyalty program management",
-      "Automated workflows",
-      "Advanced employee scheduling",
-      "Multi-location management",
-      "Clean booking history controls",
-      "File upload for clients",
-      "Zoom/Google video bookings",
-      "Make-Me-Look-Busy masking",
-      "Advanced deposit automation",
-      "Full automation dashboard",
+      { text: "Everything in Professional", built: true },
+      { text: "Subscription & package bundles", built: true },
+      { text: "Automated workflows", built: true },
+      { text: "Advanced employee scheduling", built: true },
+      { text: "File upload for clients", built: true },
+      { text: "Zapier connector & API integrations", built: false },
+      { text: "WhatsApp booking bot", built: false },
+      { text: "AI voice booking system", built: false },
+      { text: "Loyalty program management", built: false },
+      { text: "Multi-location management", built: false },
+      { text: "Zoom/Google video bookings", built: false },
+      { text: "Advanced deposit automation", built: false },
     ],
     featured: false,
   },
@@ -464,9 +460,25 @@ export default function LandingPage() {
 
                   <ul className="mt-6 space-y-3">
                     {p.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <span className="text-primary/75">{f}</span>
+                      <li key={f.text} className="flex items-start gap-2 text-sm">
+                        <CheckCircle2
+                          className={[
+                            "mt-0.5 h-4 w-4 shrink-0",
+                            f.built ? "text-primary" : "text-primary/30",
+                          ].join(" ")}
+                        />
+                        <span
+                          className={
+                            f.built ? "text-primary/75" : "text-primary/50"
+                          }
+                        >
+                          {f.text}
+                          {!f.built && (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-accent/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary/60">
+                              Coming Soon
+                            </span>
+                          )}
+                        </span>
                       </li>
                     ))}
                   </ul>

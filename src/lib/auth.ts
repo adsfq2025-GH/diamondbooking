@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 import { z } from "zod";
+import { generateSlug } from "@/lib/utils";
 
 const authUrlForCookies = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
 let cookieDomain: string | undefined;
@@ -257,6 +258,31 @@ export const config: NextAuthConfig = {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.id) {
         try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { role: true, name: true },
+          });
+          if (dbUser?.role === "OWNER") {
+            const existingBusiness = await prisma.business.findUnique({
+              where: { ownerId: user.id },
+              select: { id: true },
+            });
+            if (!existingBusiness) {
+              const displayName = dbUser.name?.trim() ? dbUser.name.trim() : "My";
+              const base = generateSlug(`${displayName} business`) || "business";
+              const slug = `${base}-${user.id.slice(-6)}`;
+              await prisma.business.create({
+                data: {
+                  ownerId: user.id,
+                  name: `${displayName}'s Business`,
+                  slug,
+                  timezone: "America/New_York",
+                  onboardingComplete: false,
+                },
+              });
+            }
+          }
+
           const settings = await prisma.platformSettings.findUnique({
             where: { id: 1 },
             select: { defaultTrialDays: true },
