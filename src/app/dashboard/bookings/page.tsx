@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 interface SearchParams { status?: string; search?: string; page?: string }
 
 const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "destructive" | "secondary"> = {
-  CONFIRMED: "info", PENDING: "warning", COMPLETED: "success",
+  CONFIRMED: "info", PENDING: "warning", PENDING_PAYMENT: "warning", COMPLETED: "success",
   CANCELLED: "destructive", NO_SHOW: "secondary",
 };
 
@@ -79,7 +79,7 @@ export default async function BookingsPage({
             className="px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none"
           >
             <option value="">All statuses</option>
-            {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NO_SHOW"].map((s) => (
+            {["PENDING_PAYMENT", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NO_SHOW"].map((s) => (
               <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>
             ))}
           </select>

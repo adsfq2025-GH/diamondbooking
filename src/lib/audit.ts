@@ -44,6 +44,7 @@ export type AuditAction =
   | "ADMIN_BROADCAST_EMAIL_SENT"
   | "ADMIN_MAINTENANCE_TOGGLED"
   | "ADMIN_SETTINGS_CHANGED"
+  | "ADMIN_AI_SETTINGS_CHANGED"
   | "ADMIN_PLAN_MANUALLY_CHANGED";
 
 export type AuditTargetType =
@@ -146,6 +147,7 @@ export function getAuditActionLabel(action: AuditAction): string {
     ADMIN_BROADCAST_EMAIL_SENT: "Broadcast email sent",
     ADMIN_MAINTENANCE_TOGGLED: "Maintenance mode toggled",
     ADMIN_SETTINGS_CHANGED: "Platform settings changed",
+    ADMIN_AI_SETTINGS_CHANGED: "AI settings changed",
     ADMIN_PLAN_MANUALLY_CHANGED: "Plan manually changed by admin",
   };
   return labels[action] ?? action;

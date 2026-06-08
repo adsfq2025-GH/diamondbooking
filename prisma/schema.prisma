@@ -26,6 +26,7 @@ enum Role {
 
 enum BookingStatus {
   PENDING
+  PENDING_PAYMENT
   CONFIRMED
   CANCELLED
   COMPLETED
@@ -116,6 +117,8 @@ model User {
   // Relations
   business     Business?
   subscription Subscription?
+  stripeCustomer StripeCustomer?
+  billingHistory BillingHistory[]
   portalBusinessId String?
   portalBusiness   Business? @relation("PortalBusiness", fields: [portalBusinessId], references: [id], onDelete: SetNull)
 
@@ -239,6 +242,8 @@ model Business {
   stripeChargesEnabled   Boolean @default(false)
   stripePayoutsEnabled   Boolean @default(false)
   stripeDetailsSubmitted Boolean @default(false)
+  connectAccount StripeConnectAccount?
+  payouts PayoutHistory[]
 
   // Config
   timezone String @default("America/New_York")
@@ -534,6 +539,7 @@ model Booking {
   updatedAt           DateTime             @updatedAt
   PromotionRedemption PromotionRedemption?
   scheduledNotifications ScheduledNotification[]
+  payments BookingPayment[]
 
   @@index([businessId])
   @@index([date])
@@ -719,10 +725,107 @@ model Subscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  billingHistory BillingHistory[]
+
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
   @@index([plan, status])
   @@map("subscriptions")
+}
+
+model StripeCustomer {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId String @unique
+  livemode Boolean
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stripeCustomerId])
+  @@map("stripe_customers")
+}
+
+model BillingHistory {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subscriptionId String?
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  stripeInvoiceId String @unique
+  stripeSubscriptionId String?
+  stripeCustomerId String?
+
+  amountPaid Int
+  currency String
+  status String
+
+  periodStart DateTime?
+  periodEnd DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([stripeSubscriptionId])
+  @@map("billing_history")
+}
+
+model StripeConnectAccount {
+  id String @id @default(cuid())
+  businessId String @unique
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  stripeAccountId String @unique
+  chargesEnabled Boolean @default(false)
+  payoutsEnabled Boolean @default(false)
+  detailsSubmitted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stripeAccountId])
+  @@map("stripe_connect_accounts")
+}
+
+model BookingPayment {
+  id String @id @default(cuid())
+  bookingId String
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  type String
+  status String
+  amount Int
+  currency String @default("USD")
+
+  stripePaymentIntentId String? @unique
+  stripeCheckoutSessionId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bookingId])
+  @@map("booking_payments")
+}
+
+model PayoutHistory {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  stripePayoutId String @unique
+  amount Int
+  currency String @default("USD")
+  status String
+  arrivalDate DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId])
+  @@map("payout_history")
 }
 
 // ─────────────────────────────────────────────
@@ -801,6 +904,13 @@ model PlatformSettings {
 
   termsUrl   String?
   privacyUrl String?
+
+  aiEnabled              Boolean @default(false)
+  aiProvider             String  @default("openrouter")
+  aiModel                String  @default("openai/gpt-4o-mini")
+  aiAllowAiAssisted      Boolean @default(true)
+  aiAllowHybrid          Boolean @default(true)
+  aiWebsiteFetchEnabled  Boolean @default(true)
 
   // Super Admin notification preferences
   notifyNewSignup       Boolean @default(true)

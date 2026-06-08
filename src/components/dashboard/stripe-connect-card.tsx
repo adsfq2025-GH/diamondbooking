@@ -112,8 +112,14 @@ export function StripeConnectCard({
         const json = (await readJson(res)) as { data?: { config?: unknown } };
         const cfg = (json.data?.config && typeof json.data.config === "object" ? (json.data.config as Record<string, any>) : {}) as Record<string, any>;
         const payments = (cfg.payments && typeof cfg.payments === "object" ? (cfg.payments as Record<string, any>) : {}) as Record<string, any>;
-        const mode = payments.mode === "deposit" ? "deposit" : "full";
-        const pctRaw = typeof payments.depositPercent === "number" ? payments.depositPercent : 20;
+        const typeRaw = typeof payments.paymentType === "string" ? payments.paymentType : typeof payments.mode === "string" ? payments.mode : "full";
+        const mode = typeRaw === "deposit" ? "deposit" : "full";
+        const pctRaw =
+          typeof payments.depositPercentage === "number"
+            ? payments.depositPercentage
+            : typeof payments.depositPercent === "number"
+              ? payments.depositPercent
+              : 20;
         const pct = Number.isFinite(pctRaw) ? Math.max(1, Math.min(100, Math.floor(pctRaw))) : 20;
         setBaseConfig(cfg);
         setPaymentMode(mode);
@@ -132,8 +138,8 @@ export function StripeConnectCard({
     try {
       const payments =
         paymentMode === "deposit"
-          ? { mode: "deposit", depositPercent: Math.max(1, Math.min(100, Math.floor(depositPercent))) }
-          : { mode: "full" };
+          ? { paymentType: "deposit", depositPercentage: Math.max(1, Math.min(100, Math.floor(depositPercent))) }
+          : { paymentType: "full" };
 
       const res = await fetch("/api/business/config", {
         method: "PUT",

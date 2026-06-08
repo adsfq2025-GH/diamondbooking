@@ -139,6 +139,27 @@ export async function GET() {
         } catch (err) {}
         return;
       }
+      if (e.data.type === "db:payment-complete") {
+        try {
+          var evt2 = new CustomEvent("diamondbooking:payment-complete", { detail: e.data });
+          window.dispatchEvent(evt2);
+        } catch (err2) {}
+        return;
+      }
+      if (e.data.type === "db:lead-created") {
+        try {
+          var evt3 = new CustomEvent("diamondbooking:lead-created", { detail: e.data });
+          window.dispatchEvent(evt3);
+        } catch (err3) {}
+        return;
+      }
+      if (e.data.type === "db:appointment-confirmed") {
+        try {
+          var evt4 = new CustomEvent("diamondbooking:appointment-confirmed", { detail: e.data });
+          window.dispatchEvent(evt4);
+        } catch (err4) {}
+        return;
+      }
     }
     iframe.__dbOnMessage = onMessage;
     window.addEventListener("message", onMessage);

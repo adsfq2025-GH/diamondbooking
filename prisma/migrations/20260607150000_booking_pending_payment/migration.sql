@@ -1,0 +1,5 @@
+DO $$ BEGIN
+  ALTER TYPE "BookingStatus" ADD VALUE IF NOT EXISTS 'PENDING_PAYMENT';
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

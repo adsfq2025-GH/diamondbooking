@@ -13,6 +13,8 @@ import { scheduleRemindersForBooking } from "@/lib/automations/scheduler";
 import { buildBookingSms, sendSms } from "@/lib/sms";
 import { addDays } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import Stripe from "stripe";
+import { getPublicAppUrl } from "@/lib/widget-embed";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -32,6 +34,7 @@ const schema = z.object({
   isCommercial:  z.boolean().optional(),
   recurringInterval: z.string().optional(),
   promoCode:     z.string().trim().min(1).max(50).optional(),
+  embed: z.boolean().optional(),
 });
 
 function hash32(input: string) {
@@ -41,6 +44,17 @@ function hash32(input: string) {
     h = Math.imul(h, 16777619);
   }
   return h | 0;
+}
+
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
+  return new Stripe(key);
+}
+
+function toCents(amount: number) {
+  if (!Number.isFinite(amount)) return 0;
+  return Math.max(0, Math.round(amount * 100));
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -103,6 +117,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     isCommercial,
     recurringInterval,
     promoCode,
+          embed,
   } = parsed.data;
 
   // Verify service belongs to this business
@@ -302,6 +317,34 @@ export async function POST(req: NextRequest, { params }: Params) {
     config: config?.config ?? {},
   });
 
+  const cfgObj =
+    config?.config && typeof config.config === "object" ? (config.config as Record<string, any>) : ({} as Record<string, any>);
+  const paymentsCfg = cfgObj.payments && typeof cfgObj.payments === "object" ? (cfgObj.payments as Record<string, any>) : null;
+  const paymentTypeRaw =
+    typeof paymentsCfg?.paymentType === "string"
+      ? paymentsCfg.paymentType
+      : typeof paymentsCfg?.mode === "string"
+        ? paymentsCfg.mode
+        : null;
+  const paymentType = paymentTypeRaw === "deposit" ? "deposit" : paymentTypeRaw === "full" ? "full" : null;
+  const depositPercentageRaw =
+    typeof paymentsCfg?.depositPercentage === "number"
+      ? paymentsCfg.depositPercentage
+      : typeof paymentsCfg?.depositPercent === "number"
+        ? paymentsCfg.depositPercent
+        : 20;
+  const depositPercentage = Number.isFinite(depositPercentageRaw) ? Math.max(1, Math.min(100, Math.floor(depositPercentageRaw))) : 20;
+
+  const totalCents = toCents(Number(quote.total));
+  const shouldCollectPayment =
+    totalCents > 0 &&
+    !!business.stripeConnectAccountId &&
+    !!business.stripeChargesEnabled &&
+    (paymentType === "full" || paymentType === "deposit");
+
+  const chargeCents =
+    paymentType === "deposit" ? Math.max(1, Math.round((totalCents * depositPercentage) / 100)) : totalCents;
+
   const intakeJson = (intake ?? {}) as Prisma.InputJsonValue;
 
   type BookingWithRelations = Prisma.BookingGetPayload<{
@@ -322,7 +365,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         where: {
           businessId: business.id,
           staffId,
-          status: { in: ["CONFIRMED", "PENDING"] },
+          status: { in: ["CONFIRMED", "PENDING", "PENDING_PAYMENT"] },
           startTime: { lt: slotEnd },
           endTime: { gt: slotStart },
         },
@@ -341,7 +384,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           date: new Date(Date.UTC(slotStart.getUTCFullYear(), slotStart.getUTCMonth(), slotStart.getUTCDate())),
           startTime: slotStart,
           endTime: slotEnd,
-          status: business.autoConfirm ? "CONFIRMED" : "PENDING",
+          status: shouldCollectPayment ? "PENDING_PAYMENT" : business.autoConfirm ? "CONFIRMED" : "PENDING",
           notes: notes ?? null,
           totalPrice: quote.total,
           intakeData: intakeJson,
@@ -399,6 +442,94 @@ export async function POST(req: NextRequest, { params }: Params) {
     targetName: `${customerName} — ${service.name}`,
     metadata: { businessId: business.id, source: "booking_page" },
   });
+
+  if (shouldCollectPayment) {
+    try {
+      const stripe = getStripe();
+      const appUrl = getPublicAppUrl();
+      const destination = business.stripeConnectAccountId;
+      if (!destination) throw new Error("Payments are not enabled for this business");
+      const embedQs = embed ? "&embed=1" : "";
+      const successUrl = `${appUrl}/book/${business.slug}?payment=success&bookingId=${booking.id}&session_id={CHECKOUT_SESSION_ID}${embedQs}`;
+      const cancelUrl = `${appUrl}/book/${business.slug}?payment=cancel&bookingId=${booking.id}${embedQs}`;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        client_reference_id: booking.id,
+        customer_email: customerEmail.toLowerCase(),
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: service.currency.toLowerCase(),
+              unit_amount: chargeCents,
+              product_data: {
+                name: `${business.name} — ${service.name}`,
+              },
+            },
+          },
+        ],
+        payment_intent_data: {
+          transfer_data: { destination },
+          metadata: {
+            bookingId: booking.id,
+            businessId: business.id,
+            businessSlug: business.slug,
+          },
+        },
+        metadata: {
+          bookingId: booking.id,
+          businessId: business.id,
+          businessSlug: business.slug,
+        },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+
+      await prisma.bookingPayment.create({
+        data: {
+          bookingId: booking.id,
+          type: paymentType === "deposit" ? "deposit" : "full",
+          status: "CHECKOUT_CREATED",
+          amount: chargeCents,
+          currency: service.currency,
+          stripeCheckoutSessionId: session.id,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            bookingId: booking.id,
+            status: booking.status,
+            payment: {
+              required: true,
+              checkoutUrl: session.url,
+              amount: chargeCents,
+              currency: service.currency,
+              paymentType,
+              mode: paymentType,
+            },
+          },
+        },
+        { status: 201 }
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Payment setup failed";
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            bookingId: booking.id,
+            status: booking.status,
+            payment: { required: true, checkoutUrl: null, error: msg },
+          },
+        },
+        { status: 201 }
+      );
+    }
+  }
 
   const automations = getAutomationsConfig(config?.config ?? {});
 

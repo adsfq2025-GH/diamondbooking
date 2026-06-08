@@ -124,7 +124,7 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
       where: {
         businessId: business.id,
         staffId: staffMember.id,
-        status: { in: ["CONFIRMED", "PENDING"] },
+        status: { in: ["CONFIRMED", "PENDING", "PENDING_PAYMENT"] },
         startTime: { lt: windowEnd },
         endTime: { gt: windowStart },
       },

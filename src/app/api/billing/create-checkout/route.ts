@@ -11,9 +11,18 @@ function getStripe() {
 }
 
 const PLAN_PRICES: Record<string, { monthly?: string; yearly?: string }> = {
-  STARTER:      { monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,      yearly: process.env.STRIPE_PRICE_STARTER_YEARLY },
-  PROFESSIONAL: { monthly: process.env.STRIPE_PRICE_PRO_MONTHLY,          yearly: process.env.STRIPE_PRICE_PRO_YEARLY },
-  ENTERPRISE:   { monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY,   yearly: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY },
+  STARTER: {
+    monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY ?? process.env.STRIPE_PRICE_STARTER,
+    yearly: process.env.STRIPE_PRICE_STARTER_YEARLY,
+  },
+  PROFESSIONAL: {
+    monthly: process.env.STRIPE_PRICE_PRO_MONTHLY ?? process.env.STRIPE_PRICE_PRO,
+    yearly: process.env.STRIPE_PRICE_PRO_YEARLY,
+  },
+  ENTERPRISE: {
+    monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ?? process.env.STRIPE_PRICE_ENTERPRISE,
+    yearly: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY,
+  },
 };
 
 export async function GET(req: NextRequest) {

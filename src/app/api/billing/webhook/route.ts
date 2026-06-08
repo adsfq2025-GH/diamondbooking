@@ -18,10 +18,13 @@ function getStripe() {
 
 function buildStripePlanMap(): Record<string, string> {
   const entries: Array<[string | undefined, string]> = [
+    [process.env.STRIPE_PRICE_STARTER, "STARTER"],
     [process.env.STRIPE_PRICE_STARTER_MONTHLY, "STARTER"],
     [process.env.STRIPE_PRICE_STARTER_YEARLY, "STARTER"],
+    [process.env.STRIPE_PRICE_PRO, "PROFESSIONAL"],
     [process.env.STRIPE_PRICE_PRO_MONTHLY, "PROFESSIONAL"],
     [process.env.STRIPE_PRICE_PRO_YEARLY, "PROFESSIONAL"],
+    [process.env.STRIPE_PRICE_ENTERPRISE, "ENTERPRISE"],
     [process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY, "ENTERPRISE"],
     [process.env.STRIPE_PRICE_ENTERPRISE_YEARLY, "ENTERPRISE"],
   ];

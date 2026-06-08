@@ -45,7 +45,7 @@ async function getDashboardData(businessId: string) {
       where: {
         businessId,
         startTime: { gte: now },
-        status: { in: ["CONFIRMED", "PENDING"] },
+        status: { in: ["CONFIRMED", "PENDING", "PENDING_PAYMENT"] },
       },
       take: 8,
       orderBy: { startTime: "asc" },
@@ -72,6 +72,7 @@ async function getDashboardData(businessId: string) {
 const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "destructive" | "secondary"> = {
   CONFIRMED: "info",
   PENDING: "warning",
+  PENDING_PAYMENT: "warning",
   COMPLETED: "success",
   CANCELLED: "destructive",
   NO_SHOW: "secondary",

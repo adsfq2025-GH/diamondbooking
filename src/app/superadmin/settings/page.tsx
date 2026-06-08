@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { PlatformSettingsForm } from "@/components/superadmin/platform-settings-form";
 import { PlanConfigTable } from "@/components/superadmin/plan-config-table";
+import { AiSettingsCard } from "@/components/superadmin/ai-settings-card";
 
 export const metadata = { title: "Platform Settings" };
 export const dynamic = "force-dynamic";
@@ -86,6 +87,8 @@ export default async function SettingsPage() {
           </a>
         </div>
       </div>
+
+      <AiSettingsCard settings={settings} />
 
       {/* Subscription plans */}
       <div className="bg-card border border-border rounded-xl p-6">

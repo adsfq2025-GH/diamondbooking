@@ -16,6 +16,7 @@ type Params = { params: Promise<{ id: string }> };
 const STATUS_VARIANT: Record<string, "info" | "warning" | "success" | "destructive" | "secondary"> = {
   CONFIRMED: "info",
   PENDING: "warning",
+  PENDING_PAYMENT: "warning",
   COMPLETED: "success",
   CANCELLED: "destructive",
   NO_SHOW: "secondary",

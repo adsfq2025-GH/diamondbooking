@@ -31,7 +31,7 @@ export function BookingStatusActions({ bookingId, currentStatus }: BookingStatus
     { status: "CONFIRMED", label: "Confirm", icon: Check, show: ["PENDING"] },
     { status: "COMPLETED", label: "Mark Complete", icon: CheckCircle2, show: ["CONFIRMED"] },
     { status: "NO_SHOW", label: "Mark No-Show", icon: AlertCircle, show: ["CONFIRMED", "PENDING"] },
-    { status: "CANCELLED", label: "Cancel", icon: X, show: ["PENDING", "CONFIRMED"], danger: true },
+    { status: "CANCELLED", label: "Cancel", icon: X, show: ["PENDING_PAYMENT", "PENDING", "CONFIRMED"], danger: true },
   ].filter((a) => a.show.includes(currentStatus));
 
   if (ACTIONS.length === 0) return null;

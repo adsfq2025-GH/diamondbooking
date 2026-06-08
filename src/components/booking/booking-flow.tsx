@@ -47,6 +47,7 @@ import { formatTimeDisplay } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { useSearchParams } from "next/navigation";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ interface ServiceData {
 
 interface SlotData { startTime: string; endTime: string; startUTC: string; endUTC: string; staffId: string }
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface BookingSelection {
   service: ServiceData | null;
@@ -202,6 +203,7 @@ export function BookingFlow({
   config: unknown;
   embed?: boolean;
 }) {
+  const searchParams = useSearchParams();
   const primary = business.primaryColor || "#1a1f36";
   const cfg = (config ?? {}) as BookingConfig;
   const showIcons = cfg.ui?.showIcons !== false;
@@ -270,6 +272,10 @@ export function BookingFlow({
   const [slots, setSlots]     = useState<SlotData[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [bookingId, setBookingId]       = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState<null | { serviceName: string; startTime: string; endTime: string; customerEmail: string }>(null);
+  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
+  const [lastPaymentSessionId, setLastPaymentSessionId] = useState<string | null>(null);
   const [error, setError]     = useState("");
 
   const [intake, setIntake] = useState<Record<string, unknown>>({});
@@ -358,18 +364,97 @@ export function BookingFlow({
           isCommercial,
           recurringInterval: recurringInterval || undefined,
           promoCode: promoCode.trim() || undefined,
+          embed,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Booking failed");
-      setBookingId(json.data.bookingId);
-      setStep(5);
+      const id = String(json?.data?.bookingId ?? "");
+      setBookingId(id || null);
+      const status = typeof json?.data?.status === "string" ? json.data.status : null;
+      setBookingStatus(status);
+      const paymentRequired = !!json?.data?.payment?.required;
+      const url = typeof json?.data?.payment?.checkoutUrl === "string" ? json.data.payment.checkoutUrl : null;
+      setCheckoutUrl(url);
+      if (embed && id) {
+        window.parent.postMessage(
+          {
+            type: "db:lead-created",
+            bookingId: id,
+            businessSlug: business.slug,
+            status,
+            paymentRequired,
+          },
+          "*"
+        );
+      }
+      if (paymentRequired) {
+        setStep(5);
+        if (!url) {
+          setError(typeof json?.data?.payment?.error === "string" ? json.data.payment.error : "Payment collection is currently unavailable");
+        }
+      } else {
+        setStep(6);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const payment = searchParams.get("payment");
+    const returnedBookingId = searchParams.get("bookingId");
+    const sessionId = searchParams.get("session_id");
+
+    if (payment === "cancel" && returnedBookingId) {
+      setBookingId(returnedBookingId);
+      setCheckoutUrl(null);
+      setStep(5);
+      setError("Payment was cancelled. You can complete payment to confirm your booking.");
+      return;
+    }
+
+    if (payment !== "success" || !returnedBookingId || !sessionId) return;
+
+    let alive = true;
+    setLoading(true);
+    setError("");
+    (async () => {
+      try {
+        const res = await fetch("/api/public/payment/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId: returnedBookingId, sessionId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!alive) return;
+        if (!res.ok) throw new Error(json?.error ?? "Payment confirmation failed");
+        setBookingId(returnedBookingId);
+        setLastPaymentSessionId(sessionId);
+        setBookingStatus(typeof json?.data?.status === "string" ? json.data.status : null);
+        setConfirmed({
+          serviceName: String(json?.data?.serviceName ?? ""),
+          startTime: String(json?.data?.startTime ?? ""),
+          endTime: String(json?.data?.endTime ?? ""),
+          customerEmail: String(json?.data?.customerEmail ?? ""),
+        });
+        setStep(6);
+      } catch (e: unknown) {
+        if (!alive) return;
+        setBookingId(returnedBookingId);
+        setStep(5);
+        setError(e instanceof Error ? e.message : "Payment confirmation failed");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [searchParams]);
 
   // Auto-resize the parent iframe when embedded
   useEffect(() => {
@@ -463,6 +548,36 @@ export function BookingFlow({
     return formatYmdInTimeZone(sel.date, business.timezone, { month: "numeric", day: "numeric", year: "numeric" });
   }, [sel.date, business.timezone]);
 
+  const confirmedStart = sel.slot?.startUTC ?? confirmed?.startTime ?? "";
+  const confirmedEnd = sel.slot?.endUTC ?? confirmed?.endTime ?? "";
+  const confirmedServiceName = sel.service?.name ?? confirmed?.serviceName ?? "";
+  const confirmedEmail = sel.email || confirmed?.customerEmail || "";
+
+  const confirmedDateLabelLong = useMemo(() => {
+    if (sel.date) return dateLabelLong;
+    if (!confirmedStart) return "";
+    const dt = new Date(confirmedStart);
+    if (Number.isNaN(dt.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: business.timezone,
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    }).format(dt);
+  }, [sel.date, dateLabelLong, confirmedStart, business.timezone]);
+
+  const confirmedTimeLabel = useMemo(() => {
+    if (sel.slot) return formatTimeDisplay(sel.slot.startTime);
+    if (!confirmedStart) return "";
+    const dt = new Date(confirmedStart);
+    if (Number.isNaN(dt.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: business.timezone,
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(dt);
+  }, [sel.slot, confirmedStart, business.timezone]);
+
   const slotGroups = useMemo(() => {
     const toMinutes = (t: string) => {
       const [h, m] = t.split(":").map((n) => Number(n));
@@ -513,23 +628,38 @@ export function BookingFlow({
 
   useEffect(() => {
     if (!embed) return;
-    if (step !== 5) return;
+    if (step !== 6) return;
     if (!bookingId) return;
     window.parent.postMessage(
       { type: "db:booking-complete", bookingId, businessSlug: business.slug },
       "*"
     );
-  }, [embed, step, bookingId, business.slug]);
+    if (lastPaymentSessionId) {
+      window.parent.postMessage(
+        { type: "db:payment-complete", bookingId, businessSlug: business.slug, sessionId: lastPaymentSessionId },
+        "*"
+      );
+    }
+    if (bookingStatus === "CONFIRMED") {
+      window.parent.postMessage(
+        { type: "db:appointment-confirmed", bookingId, businessSlug: business.slug, status: bookingStatus },
+        "*"
+      );
+    }
+  }, [embed, step, bookingId, business.slug, lastPaymentSessionId, bookingStatus]);
 
   const downloadIcs = () => {
-    if (!sel.service || !sel.slot) return;
+    const startUtc = sel.slot?.startUTC ?? confirmed?.startTime;
+    const endUtc = sel.slot?.endUTC ?? confirmed?.endTime;
+    const serviceName = sel.service?.name ?? confirmed?.serviceName;
+    if (!startUtc || !endUtc || !serviceName) return;
     const uid = `${bookingId || "booking"}@${business.slug}`;
     const ics = makeIcs({
       uid,
-      summary: `${business.name} — ${sel.service.name}`,
+      summary: `${business.name} — ${serviceName}`,
       description: `Booking confirmation for ${business.name}`,
-      startUtc: sel.slot.startUTC,
-      endUtc: sel.slot.endUTC,
+      startUtc,
+      endUtc,
     });
     const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -1265,8 +1395,64 @@ export function BookingFlow({
           </div>
         )}
 
-        {/* STEP 5 — Success */}
-        {step === 5 && sel.service && sel.slot && (
+        {step === 5 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-gray-800">Payment</h2>
+            {error && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>
+            )}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
+              <div className="text-sm font-semibold text-gray-800">Your booking is reserved</div>
+              <div className="text-sm text-gray-500">Complete payment to confirm your appointment.</div>
+              {!!bookingId && (
+                <div className="text-xs text-gray-400">Reference #{bookingId.slice(0, 8).toUpperCase()}</div>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                if (!checkoutUrl) return;
+                window.location.assign(checkoutUrl);
+              }}
+              disabled={!checkoutUrl || loading}
+              className="w-full py-3.5 font-bold text-white rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: primary }}
+            >
+              {loading ? "Preparing…" : "Pay now"}
+            </button>
+
+            {!checkoutUrl && bookingId && (
+              <button
+                onClick={async () => {
+                  setError("");
+                  setLoading(true);
+                  try {
+                    const res = await fetch("/api/public/payment/retry", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ bookingId, embed }),
+                    });
+                    const json = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(json?.error ?? "Failed to generate payment link");
+                    const url = typeof json?.data?.checkoutUrl === "string" ? json.data.checkoutUrl : null;
+                    setCheckoutUrl(url);
+                    if (!url) throw new Error("Missing checkout URL");
+                  } catch (e: unknown) {
+                    setError(e instanceof Error ? e.message : "Failed to generate payment link");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="w-full py-3.5 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 border border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              >
+                {loading ? "Generating…" : "Generate payment link"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {step === 6 && (
           <div className="text-center py-8">
             <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
               style={{ background: `${primary}18` }}>
@@ -1274,14 +1460,14 @@ export function BookingFlow({
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">You&apos;re all booked!</h2>
             <p className="text-gray-500 mb-6">
-              A confirmation has been sent to <strong>{sel.email}</strong>
+              A confirmation has been sent to <strong>{confirmedEmail}</strong>
             </p>
 
             <div className="bg-white rounded-2xl border border-gray-100 p-5 text-left mb-6 space-y-2">
               {[
-                ["Service",  sel.service.name],
-                ["Date",     dateLabelLong],
-                ["Time",     formatTimeDisplay(sel.slot.startTime)],
+                ["Service",  confirmedServiceName || "—"],
+                ["Date",     confirmedDateLabelLong || "—"],
+                ["Time",     confirmedTimeLabel || "—"],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-gray-500">{label}</span>
@@ -1294,6 +1480,7 @@ export function BookingFlow({
               <button
                 type="button"
                 onClick={downloadIcs}
+                disabled={!confirmedStart || !confirmedEnd || !confirmedServiceName}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:border-gray-300"
               >
                 <FileText className="w-4 h-4" />
@@ -1323,7 +1510,7 @@ export function BookingFlow({
         )}
           </div>
 
-          {step < 5 && (
+          {step < 6 && (
             <div className={embed ? "sticky top-6" : "hidden lg:block sticky top-6"}>
               <div className="space-y-4">
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
