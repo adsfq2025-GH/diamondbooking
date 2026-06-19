@@ -367,20 +367,6 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       try {
         const res = await fetch("/api/billing/subscription");
         const json = await res.json();
-        // #region debug-point C:sub-load
-        fetch("http://127.0.0.1:7777/event", {
-          method: "POST",
-          body: JSON.stringify({
-            sessionId: "onboarding-step1-reset",
-            runId: "pre-fix",
-            hypothesisId: "C",
-            location: "onboarding-wizard-v2.tsx:subscription",
-            msg: "[DEBUG] Subscription fetch",
-            data: { ok: res.ok, status: res.status, plan: json?.data?.plan, subStatus: json?.data?.status },
-            ts: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (!res.ok) return;
         const sub = json.data as null | { plan?: string; status?: string };
         if (!sub?.status) return;

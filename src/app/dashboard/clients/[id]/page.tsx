@@ -80,10 +80,13 @@ export default async function ClientDetailsPage({ params }: Params) {
                   href={`/dashboard/bookings/${b.id}`}
                   className="flex items-center gap-4 py-3 hover:bg-secondary/30 transition-colors px-2 rounded-lg"
                 >
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: b.service.color }} />
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: (b as any)?.service?.color ?? "#E5E7EB" }}
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{b.service.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{b.staff.name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{(b as any)?.service?.name ?? "Service"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{(b as any)?.staff?.name ?? "Staff"}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-medium text-foreground">{formatCurrency(Number(b.totalPrice))}</p>
