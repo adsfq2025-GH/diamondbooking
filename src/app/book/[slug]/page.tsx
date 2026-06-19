@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { BookingFlow } from "@/components/booking/booking-flow";
 import type { Metadata } from "next";
+import { auth } from "@/lib/auth";
 
-type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ embed?: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ embed?: string; preview?: string }> };
+
+function isFutureDate(value: Date | null | undefined) {
+  return !value || value.getTime() > Date.now();
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -23,6 +28,7 @@ export default async function BookingPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
   const embed = sp?.embed === "1";
+  const preview = sp?.preview === "1";
 
   const business = await prisma.business.findUnique({
     where: { slug, isActive: true },
@@ -69,12 +75,17 @@ export default async function BookingPage({ params, searchParams }: Props) {
   const subStatus = owner?.subscription?.status ?? null;
   const comped =
     !!owner?.subscription?.isComped &&
-    (!owner.subscription.compExpiresAt || owner.subscription.compExpiresAt.getTime() > Date.now());
+    isFutureDate(owner.subscription.compExpiresAt);
   const trialActive =
-    subStatus === "TRIALING" && (!owner?.subscription?.trialEnd || owner.subscription.trialEnd.getTime() > Date.now());
+    subStatus === "TRIALING" && isFutureDate(owner?.subscription?.trialEnd);
   const subActive = comped || subStatus === "ACTIVE" || trialActive;
+  const session = preview ? await auth() : null;
+  const canPreviewInactiveWidget =
+    preview &&
+    !!session?.user &&
+    (session.user.businessId === business.id || session.user.role === "SUPER_ADMIN");
 
-  if (!subActive) {
+  if (!subActive && !canPreviewInactiveWidget) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <div className="text-center max-w-sm">

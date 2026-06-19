@@ -14,6 +14,7 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
   const [saveMessage, setSaveMessage] = useState("");
 
   const bookingUrl = useMemo(() => buildBookingUrl(slug), [slug]);
+  const previewUrl = useMemo(() => `${bookingUrl}?embed=1&preview=1`, [bookingUrl]);
   const snippet = useMemo(
     () =>
       buildWidgetEmbedSnippet(slug, {
@@ -213,7 +214,7 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
         >
           <iframe
             title="Widget preview"
-            src={`${bookingUrl}?embed=1`}
+            src={previewUrl}
             style={{ width: "100%", border: 0, minHeight: `${Number(minHeight) || 920}px` }}
             allow="payment; clipboard-write"
           />
@@ -222,4 +223,3 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
     </div>
   );
 }
-
