@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
@@ -8,7 +8,6 @@ import {
   CheckCheck,
   ChevronDown,
   ChevronRight,
-  Copy,
   HelpCircle,
   Plus,
   Sparkles,
@@ -195,7 +194,7 @@ function resolveIntakeTemplateKey(industry: string, market: "residential" | "com
   return industry;
 }
 
-export function OnboardingWizard({ userId: _ }: { userId: string }) {
+export function OnboardingWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, update: updateSession } = useSession();
@@ -276,6 +275,12 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
   const [pricingMode, setPricingMode] = useState<"simple" | "advanced">("simple");
   const [addOns, setAddOns] = useState<AddOnDraft[]>([]);
   const [intakeFields, setIntakeFields] = useState<IntakeFieldDraft[]>([]);
+  // Once the user hand-edits intake questions we stop auto-swapping the
+  // industry template so their work is never clobbered.
+  const intakeTouchedRef = useRef(false);
+  const markIntakeTouched = () => {
+    intakeTouchedRef.current = true;
+  };
   const [dragId, setDragId] = useState<string | null>(null);
   const [stripeStatus, setStripeStatus] = useState<null | {
     accountId: string | null;
@@ -340,16 +345,28 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
           primaryColor?: string;
           logoUrl?: string | null;
           welcomeMessage?: string | null;
+          businessHours?: Array<{ dayOfWeek: number; openTime: string; closeTime: string; isClosed: boolean }>;
           stripeConnectAccountId?: string | null;
           stripeChargesEnabled?: boolean;
           stripePayoutsEnabled?: boolean;
           stripeDetailsSubmitted?: boolean;
         };
         if (b.slug) setBusinessSlug(b.slug);
-        if (!bizName && b.name) setBizName(b.name);
+        // Don't pre-fill the auto-generated placeholder from registration
+        if (!bizName && b.name && !/'s Business$/.test(b.name)) setBizName(b.name);
         if (b.primaryColor) setPrimaryColor(b.primaryColor);
         if (!logoUrl && b.logoUrl) setLogoUrl(b.logoUrl);
         if (!welcomeMessage && b.welcomeMessage) setWelcomeMessage(b.welcomeMessage);
+        if (b.businessHours?.length) {
+          setHours(
+            DAYS_OF_WEEK.map((d) => {
+              const h = b.businessHours!.find((x) => x.dayOfWeek === d.value);
+              return h
+                ? { dayOfWeek: h.dayOfWeek, openTime: h.openTime, closeTime: h.closeTime, isClosed: h.isClosed }
+                : { dayOfWeek: d.value, openTime: "09:00", closeTime: "17:00", isClosed: d.value === 0 };
+            })
+          );
+        }
         setStripeStatus({
           accountId: b.stripeConnectAccountId ?? null,
           chargesEnabled: !!b.stripeChargesEnabled,
@@ -368,9 +385,13 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         const res = await fetch("/api/billing/subscription");
         const json = await res.json();
         if (!res.ok) return;
-        const sub = json.data as null | { plan?: string; status?: string };
+        const sub = json.data as null | { plan?: string; status?: string; stripeSubscriptionId?: string | null };
         if (!sub?.status) return;
-        if (sub.status === "TRIALING" || sub.status === "ACTIVE") setPaymentReady(true);
+        // A local trial has no payment method on file — only a Stripe-backed
+        // subscription (active, or trialing through Stripe) counts as ready.
+        if (sub.status === "ACTIVE" || (sub.status === "TRIALING" && sub.stripeSubscriptionId)) {
+          setPaymentReady(true);
+        }
         if (!selectedTier && sub.plan) {
           if (sub.plan === "STARTER") setSelectedTier("starter");
           if (sub.plan === "PROFESSIONAL") setSelectedTier("pro");
@@ -382,20 +403,93 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     void loadSubscription();
   }, [selectedTier]);
 
+  // Hydrate existing staff/services so a reload or a return from Stripe
+  // doesn't lose progress or create duplicates when steps are re-submitted.
   useEffect(() => {
+    const hydrate = async () => {
+      try {
+        const [staffRes, svcRes] = await Promise.all([fetch("/api/staff"), fetch("/api/services")]);
+        const staffJson = staffRes.ok ? await staffRes.json() : null;
+        const svcJson = svcRes.ok ? await svcRes.json() : null;
+
+        type ApiAvail = { dayOfWeek: number; openTime: string; closeTime: string; isClosed: boolean };
+        type ApiStaff = {
+          id: string; name: string | null; email: string | null; phone: string | null; role: string | null;
+          commissionPercent: number | null; payRate: unknown; payRateType: StaffPayRateType | null;
+          availability?: ApiAvail[];
+        };
+        type ApiService = {
+          id: string; name: string | null; price: unknown;
+          billingUnit: "PER_JOB" | "PER_HOUR" | null; minDurationMinutes: number | null;
+          staff?: Array<{ staff?: { id: string } }>;
+        };
+
+        const existingStaff: ApiStaff[] = Array.isArray(staffJson?.data) ? staffJson.data : [];
+        const existingServices: ApiService[] = Array.isArray(svcJson?.data) ? svcJson.data : [];
+
+        if (existingStaff.length) {
+          const drafts: StaffDraft[] = existingStaff.map((m) => ({
+            localId: m.id,
+            id: m.id,
+            name: m.name ?? "",
+            email: m.email ?? "",
+            phone: m.phone ?? "",
+            role: m.role ?? "",
+            commissionPercent: m.commissionPercent != null ? String(m.commissionPercent) : "",
+            payRate: m.payRate != null ? String(Number(m.payRate)) : "",
+            payRateType: m.payRateType ?? "HOURLY",
+            inviteNow: false,
+            invited: false,
+            availability: m.availability?.length
+              ? DAYS_OF_WEEK.map((d) => {
+                  const a = m.availability!.find((x) => x.dayOfWeek === d.value);
+                  return a
+                    ? { dayOfWeek: a.dayOfWeek, openTime: a.openTime, closeTime: a.closeTime, isClosed: a.isClosed }
+                    : { dayOfWeek: d.value, openTime: "09:00", closeTime: "17:00", isClosed: true };
+                })
+              : defaultAvail(),
+          }));
+          setStaff(drafts);
+          setExpandedStaff(null);
+        }
+
+        if (existingServices.length) {
+          const drafts: ServiceDraft[] = existingServices.map((s) => ({
+            localId: s.id,
+            id: s.id,
+            name: s.name ?? "",
+            price: s.price != null ? String(Number(s.price)) : "",
+            billingUnit: s.billingUnit ?? "PER_JOB",
+            minimumEnabled: !!s.minDurationMinutes,
+            minimumHours: s.minDurationMinutes ? String(Math.max(1, Math.round(s.minDurationMinutes / 60))) : "2",
+            staffLocalIds: (s.staff ?? []).map((x) => x.staff?.id).filter((x): x is string => !!x),
+          }));
+          setServices(drafts);
+        } else if (existingStaff.length) {
+          setServices((prev) => prev.map((sv) => ({ ...sv, staffLocalIds: existingStaff.map((m) => m.id) })));
+        }
+      } catch {
+      }
+    };
+    void hydrate();
+    // Run once on mount — hydration must not clobber in-progress edits later.
+  }, []);
+
+  useEffect(() => {
+    // Keep the industry template in sync until the user customizes the fields.
+    if (intakeTouchedRef.current) return;
     const key = resolveIntakeTemplateKey(industry, serviceMarket);
     const preset = INTAKE_TEMPLATES[key] ?? INTAKE_TEMPLATES.default;
-    setIntakeFields((prev) => {
-      if (prev.length) return prev;
-      return preset.map((x, i) => {
+    setIntakeFields(
+      preset.map((x, i) => {
         const fieldId = `${x.id}_${i}`;
         const options = (x.options ?? []).map((o, oi) => ({
           ...o,
           id: (o as IntakeOptionDraft).id ?? `${fieldId}_opt_${oi}`,
         }));
         return { ...x, id: fieldId, options };
-      });
-    });
+      })
+    );
   }, [industry, serviceMarket]);
 
   useEffect(() => {
@@ -447,6 +541,24 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
       setStep(2);
     });
 
+  const startPlanCheckout = () =>
+    go(async () => {
+      const plan = selectedTier === "pro" ? "PROFESSIONAL" : selectedTier === "elite" ? "ENTERPRISE" : "STARTER";
+      const returnTo = encodeURIComponent("/onboarding?step=1");
+      const res = await fetch(
+        `/api/billing/create-checkout?json=1&plan=${plan}&returnTo=${returnTo}&cancelTo=${returnTo}`,
+        { headers: { accept: "application/json" } }
+      );
+      if (res.status === 401 || res.status === 403) {
+        const callbackUrl = encodeURIComponent("/onboarding?step=1");
+        window.location.assign(`/auth/login?callbackUrl=${callbackUrl}`);
+        return;
+      }
+      const json = await res.json();
+      if (!res.ok || !json.data?.url) throw new Error(json.error ?? "Could not start checkout");
+      window.location.assign(json.data.url);
+    });
+
   const setHoursField = (day: number, k: keyof DayAvail, v: string | boolean | number) =>
     setHours((p) => p.map((h) => (h.dayOfWeek === day ? { ...h, [k]: v } : h)));
 
@@ -464,11 +576,15 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
   const submitAvailability = () =>
     go(async () => {
-      await fetch("/api/business/hours", {
+      const hoursRes = await fetch("/api/business/hours", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hours }),
       });
+      if (!hoursRes.ok) {
+        const hoursJson = await hoursRes.json().catch(() => ({}));
+        throw new Error(hoursJson.error ?? "Failed to save business hours");
+      }
 
       const staffToCreate = staff.filter((s) => s.name.trim());
       if (!staffToCreate.length) throw new Error("Add at least one team member");
@@ -484,7 +600,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
               email: s.email || undefined,
               phone: s.phone || undefined,
               role: s.role || undefined,
-              commissionPercent: s.commissionPercent ? Number(s.commissionPercent) : undefined,
+              commissionPercent: s.commissionPercent ? Math.round(Number(s.commissionPercent)) : undefined,
               payRate: s.payRate ? Number(s.payRate) : undefined,
               payRateType: s.payRateType,
               availability: s.availability,
@@ -536,6 +652,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
 
       const created = await Promise.all(
         toCreate.map(async (s) => {
+          if (s.id) return { localId: s.localId, id: s.id };
           const staffIds =
             s.staffLocalIds.length > 0
               ? s.staffLocalIds.map((id) => staffMap.get(id)).filter(Boolean)
@@ -609,26 +726,31 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         const config = {
           ...existingConfig,
           ...(nextAddOns.length ? { addOns: nextAddOns } : {}),
-          intakeFields: intakeFields
-            .filter((f) => f.label.trim())
-            .map((f, idx) => {
-              const baseKey = keyFromLabel(f.label);
-              const key = idx === 0 ? baseKey : `${baseKey}_${idx + 1}`;
-              const common = {
-                key,
-                label: f.label.trim(),
-                type: f.type,
-                required: f.required,
-                placeholder: f.placeholder || undefined,
-                category: f.category,
-              } as Record<string, unknown>;
-              if (f.type === "select") {
-                common.options = f.options
-                  .filter((o) => (o.label ?? "").trim())
-                  .map((o) => ({ value: o.value, label: o.label }));
-              }
-              return common;
-            }),
+          intakeFields: (() => {
+            const usedKeys = new Set<string>();
+            return intakeFields
+              .filter((f) => f.label.trim())
+              .map((f) => {
+                const baseKey = keyFromLabel(f.label);
+                let key = baseKey;
+                for (let n = 2; usedKeys.has(key); n++) key = `${baseKey}_${n}`;
+                usedKeys.add(key);
+                const common = {
+                  key,
+                  label: f.label.trim(),
+                  type: f.type,
+                  required: f.required,
+                  placeholder: f.placeholder || undefined,
+                  category: f.category,
+                } as Record<string, unknown>;
+                if (f.type === "select") {
+                  common.options = f.options
+                    .filter((o) => (o.label ?? "").trim())
+                    .map((o) => ({ value: o.value, label: o.label }));
+                }
+                return common;
+              });
+          })(),
           ...(customerTypes ? { customerTypes } : {}),
           theme: { ...existingTheme, accentColor },
           ui: { ...existingUi, showLivePricing: true, showIcons: true },
@@ -666,7 +788,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
         }
       } catch {
       }
-      await fetch("/api/business", {
+      const bizRes = await fetch("/api/business", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -675,7 +797,14 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
           logoUrl: logoUrl.trim() || undefined,
         }),
       });
-      await fetch("/api/business/onboard/complete", { method: "POST" });
+      if (!bizRes.ok) {
+        const bizJson = await bizRes.json().catch(() => ({}));
+        throw new Error(bizJson.error ?? "Failed to save widget design");
+      }
+      const completeRes = await fetch("/api/business/onboard/complete", { method: "POST" });
+      if (!completeRes.ok) {
+        throw new Error("Could not complete setup. Please try again.");
+      }
       router.push("/dashboard");
     });
 
@@ -684,17 +813,22 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
     return `${(idx / (STEPS.length - 1)) * 100}%`;
   }, [step]);
 
-  const addField = () =>
+  const addField = () => {
+    markIntakeTouched();
     setIntakeFields((p) => [
       ...p,
       { id: `f${Date.now()}`, category: "other", label: "", placeholder: "", type: "text", required: false, options: [] },
     ]);
+  };
 
-  const updateField = (id: string, patch: Partial<IntakeFieldDraft>) =>
+  const updateField = (id: string, patch: Partial<IntakeFieldDraft>) => {
+    markIntakeTouched();
     setIntakeFields((p) => p.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  };
 
   const reorder = (overId: string) => {
     if (!dragId || dragId === overId) return;
+    markIntakeTouched();
     setIntakeFields((p) => {
       const from = p.findIndex((x) => x.id === dragId);
       const to = p.findIndex((x) => x.id === overId);
@@ -936,7 +1070,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                 {!paymentReady && (
                   <button
                     type="button"
-                    onClick={() => router.push("/dashboard/billing")}
+                    onClick={startPlanCheckout}
                     disabled={loading}
                     className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 text-[#1a1f36] hover:bg-gray-50 disabled:opacity-50"
                   >
@@ -1412,7 +1546,7 @@ export function OnboardingWizard({ userId: _ }: { userId: string }) {
                                       <input type="checkbox" checked={f.required} onChange={(e) => updateField(f.id, { required: e.target.checked })} />
                                       Required
                                     </label>
-                                    <button type="button" onClick={() => setIntakeFields((p) => p.filter((x) => x.id !== f.id))} className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center mt-4 md:mt-0">
+                                    <button type="button" onClick={() => { markIntakeTouched(); setIntakeFields((p) => p.filter((x) => x.id !== f.id)); }} className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center mt-4 md:mt-0">
                                       <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>

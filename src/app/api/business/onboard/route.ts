@@ -43,11 +43,26 @@ export async function POST(req: NextRequest) {
     // Check if business already exists
     const existing = await prisma.business.findUnique({ where: { ownerId: session.user.id } });
     if (existing) {
+      // Resolve the requested slug, de-duplicating against other businesses
+      let nextSlug = existing.slug;
+      if (parsed.data.slug && parsed.data.slug !== existing.slug) {
+        const taken = await prisma.business.findFirst({
+          where: { slug: parsed.data.slug, id: { not: existing.id } },
+          select: { id: true },
+        });
+        if (!taken) {
+          nextSlug = parsed.data.slug;
+        } else if (!existing.slug.startsWith(`${parsed.data.slug}-`)) {
+          // Requested slug is owned by someone else and the current slug isn't
+          // already a variant of it — fall back to a suffixed variant.
+          nextSlug = `${parsed.data.slug}-${Math.random().toString(36).slice(2, 6)}`;
+        }
+      }
       const updated = await prisma.business.update({
         where: { id: existing.id },
         data: {
           name: parsed.data.name,
-          slug: parsed.data.slug ? parsed.data.slug : existing.slug,
+          slug: nextSlug,
           industry: parsed.data.industry,
           phone: parsed.data.phone,
           timezone: parsed.data.timezone,

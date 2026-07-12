@@ -29,7 +29,9 @@ function buildStripePlanMap(): Record<string, string> {
     [process.env.STRIPE_PRICE_ENTERPRISE_YEARLY, "ENTERPRISE"],
   ];
 
-  return Object.fromEntries(entries.filter(([k]) => !!k) as Array<[string, string]>);
+  return Object.fromEntries(
+    entries.flatMap(([priceId, plan]) => (priceId ? [[priceId, plan] as const] : []))
+  );
 }
 
 function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status) {
@@ -94,10 +96,21 @@ async function runIdempotentWebhookEvent<T>(
 
   try {
     const result = await prisma.$transaction(async (tx) => work(tx));
-    await prisma.stripeWebhookEvent.update({
-      where: { stripeEventId: event.id },
-      data: { processed: true, processedAt: new Date(), errorMessage: null },
-    });
+    try {
+      await prisma.stripeWebhookEvent.update({
+        where: { stripeEventId: event.id },
+        data: { processed: true, processedAt: new Date(), errorMessage: null },
+      });
+    } catch (updateErr) {
+      const msg = updateErr instanceof Error ? updateErr.message : "Failed to mark webhook event as processed";
+      await prisma.stripeWebhookEvent
+        .update({
+          where: { stripeEventId: event.id },
+          data: { processed: false, processedAt: new Date(), errorMessage: msg },
+        })
+        .catch(() => {});
+      throw updateErr;
+    }
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Webhook processing failed";
