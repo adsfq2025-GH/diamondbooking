@@ -49,6 +49,7 @@ const PUBLIC_ROUTES = [
 // Routes accessible without auth (prefix match)
 const PUBLIC_PREFIXES = [
   "/book/",       // public booking pages
+  "/widget.js",   // embeddable widget loader script (served cross-origin)
   "/api/public/", // public API
   "/api/auth/",   // auth endpoints
   "/api/billing/webhook", // Stripe webhooks

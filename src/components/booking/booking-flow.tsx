@@ -1074,31 +1074,6 @@ export function BookingFlow({
                 />
               </div>
 
-              {showLivePricing && (
-              <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 lg:hidden">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-[#1a1f36]">Pricing summary</div>
-                  {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
-                </div>
-                <div className="mt-3 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Discounts</span>
-                    <span className={discounts > 0 ? "font-semibold text-emerald-600" : "font-semibold text-gray-800"}>
-                      {discounts > 0 ? `-${formatCurrency(discounts, currency)}` : formatCurrency(0, currency)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm font-black">
-                    <span className="text-gray-700">TOTAL</span>
-                    <span style={{ color: primary }}>{formatCurrency(total, currency)}</span>
-                  </div>
-                </div>
-              </div>
-              )}
-
               <button
                 type="button"
                 onClick={() => {
