@@ -76,6 +76,40 @@ function isCompActive(sub: { isComped: boolean; compExpiresAt: Date | null }) {
   return isAfterNow(sub.compExpiresAt);
 }
 
+// While a business is in an active free trial, its limits mirror this tier so
+// every booking widget works like a paid plan. When the trial ends the owner
+// must pay; until then this is the effective plan for limit checks.
+const TRIAL_MIRRORS_PLAN: SubscriptionPlan = "PROFESSIONAL";
+
+type SubLike =
+  | { status: string; trialEnd: Date | null; plan: SubscriptionPlan; isComped: boolean; compExpiresAt: Date | null }
+  | null
+  | undefined;
+
+/**
+ * Is the subscription in an active free-trial window?
+ * (TRIALING with no trial end, or a trial end still in the future.)
+ */
+function isActiveTrial(sub: { status: string; trialEnd: Date | null } | null | undefined) {
+  if (!sub) return false;
+  return sub.status === "TRIALING" && (!sub.trialEnd || isAfterNow(sub.trialEnd));
+}
+
+/** An active comp grants unrestricted (superadmin-granted) access. */
+function hasActiveComp(sub: SubLike) {
+  return !!sub && isCompActive({ isComped: sub.isComped, compExpiresAt: sub.compExpiresAt });
+}
+
+/**
+ * The plan whose limits should apply right now:
+ * - active trial → mirror the Professional tier
+ * - otherwise → the subscription's actual plan (FREE once the trial lapses)
+ */
+function resolveEffectivePlan(sub: SubLike): SubscriptionPlan {
+  if (isActiveTrial(sub)) return TRIAL_MIRRORS_PLAN;
+  return (sub?.plan ?? "FREE") as SubscriptionPlan;
+}
+
 function applyFeatureOverrides<T extends Record<FeatureKey, boolean>>(
   base: T,
   overrides: unknown
@@ -123,9 +157,17 @@ export async function canAddStaff(businessId: string): Promise<{
 
   if (!business) throw new Error("Business not found");
 
-  const plan = (business.owner.subscription?.plan ?? "FREE") as SubscriptionPlan;
-  const limits = await getPlanLimits(plan);
   const current = business._count.staff;
+  const sub = business.owner.subscription;
+
+  // Active comp → unrestricted (superadmin grant).
+  if (hasActiveComp(sub)) {
+    return { allowed: true, current, limit: -1 };
+  }
+
+  // Active trial mirrors the Professional tier; otherwise the real plan applies.
+  const plan = resolveEffectivePlan(sub);
+  const limits = await getPlanLimits(plan);
 
   if (limits.maxStaff === -1) {
     return { allowed: true, current, limit: -1 };
@@ -162,9 +204,17 @@ export async function canAddService(businessId: string): Promise<{
 
   if (!business) throw new Error("Business not found");
 
-  const plan = (business.owner.subscription?.plan ?? "FREE") as SubscriptionPlan;
-  const limits = await getPlanLimits(plan);
   const current = business._count.services;
+  const sub = business.owner.subscription;
+
+  // Active comp → unrestricted (superadmin grant).
+  if (hasActiveComp(sub)) {
+    return { allowed: true, current, limit: -1 };
+  }
+
+  // Active trial mirrors the Professional tier; otherwise the real plan applies.
+  const plan = resolveEffectivePlan(sub);
+  const limits = await getPlanLimits(plan);
 
   if (limits.maxServices === -1) {
     return { allowed: true, current, limit: -1 };
@@ -198,7 +248,15 @@ export async function canAcceptBooking(businessId: string): Promise<{
 
   if (!business) throw new Error("Business not found");
 
-  const plan = (business.owner.subscription?.plan ?? "FREE") as SubscriptionPlan;
+  const sub = business.owner.subscription;
+
+  // Active comp → unrestricted (superadmin grant).
+  if (hasActiveComp(sub)) {
+    return { allowed: true, current: 0, limit: -1 };
+  }
+
+  // Active trial mirrors the Professional tier; otherwise the real plan applies.
+  const plan = resolveEffectivePlan(sub);
   const limits = await getPlanLimits(plan);
 
   if (limits.maxBookingsPerMonth === -1) {
@@ -268,10 +326,14 @@ export async function getUsageStats(businessId: string) {
     }),
   ]);
 
-  const plan = (business?.owner.subscription?.plan ?? "FREE") as SubscriptionPlan;
-  const limits = await getPlanLimits(plan);
   const sub = business?.owner.subscription;
-  const comped = sub ? isCompActive({ isComped: sub.isComped, compExpiresAt: sub.compExpiresAt }) : false;
+  const actualPlan = (sub?.plan ?? "FREE") as SubscriptionPlan;
+  // Limits shown reflect what actually applies right now: a trial mirrors the
+  // Professional tier, an active comp is unrestricted, otherwise the real plan.
+  const effectivePlan = resolveEffectivePlan(sub);
+  const limits = await getPlanLimits(effectivePlan);
+  const comped = hasActiveComp(sub);
+  const displayLimit = (value: number) => (comped ? -1 : value);
   const effectiveFeatures = applyFeatureOverrides(
     {
       removesBranding: !!limits.removesBranding,
@@ -284,10 +346,10 @@ export async function getUsageStats(businessId: string) {
   );
 
   return {
-    plan,
-    staff: { current: staffCount, limit: limits.maxStaff },
-    services: { current: serviceCount, limit: limits.maxServices },
-    bookingsThisMonth: { current: bookingCount, limit: limits.maxBookingsPerMonth },
+    plan: actualPlan,
+    staff: { current: staffCount, limit: displayLimit(limits.maxStaff) },
+    services: { current: serviceCount, limit: displayLimit(limits.maxServices) },
+    bookingsThisMonth: { current: bookingCount, limit: displayLimit(limits.maxBookingsPerMonth) },
     features: {
       ...effectiveFeatures,
       comped,

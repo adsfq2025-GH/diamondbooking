@@ -586,7 +586,12 @@ export function BookingFlow({
     const morning: SlotData[] = [];
     const afternoon: SlotData[] = [];
     const evening: SlotData[] = [];
+    // Staff is auto-assigned, so collapse duplicate times coming from different
+    // team members and show each start time once (keeping the first available).
+    const seenStart = new Set<string>();
     for (const s of slots) {
+      if (seenStart.has(s.startUTC)) continue;
+      seenStart.add(s.startUTC);
       const mins = toMinutes(s.startTime);
       if (mins < 12 * 60) morning.push(s);
       else if (mins < 17 * 60) afternoon.push(s);
@@ -833,45 +838,12 @@ export function BookingFlow({
                     </option>
                   ))}
                 </select>
-                {!!sel.service?.staff?.length && sel.service.staff.length > 1 && (
+                {!!sel.service?.staff?.length && (
                   <div className="text-xs text-gray-500">
                     A team member will be assigned automatically based on availability.
                   </div>
                 )}
               </div>
-
-              {sel.service && sel.service.staff.length > 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-[#1a1f36]">Preferred team member</div>
-                    <HelpTooltip
-                      ariaLabel="Help: Staff preference"
-                      content={
-                        <div className="space-y-2">
-                          <div className="text-sm font-semibold text-[#1a1f36]">Team member preference</div>
-                          <div className="text-sm text-gray-600">Choose a specific team member, or pick no preference to see the first available slots.</div>
-                        </div>
-                      }
-                    />
-                  </div>
-                  <select
-                    className={inp + " bg-white"}
-                    value={sel.staff?.id ?? "any"}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const nextStaff = id === "any" ? null : sel.service?.staff.find((s) => s.id === id) ?? null;
-                      setSel((p) => ({ ...p, staff: nextStaff, date: "", slot: null }));
-                    }}
-                  >
-                    <option value="any">No preference (Any available staff)</option>
-                    {sel.service.staff.map((s, idx) => (
-                      <option key={s.id} value={s.id}>
-                        Team member {idx + 1}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               {recurring && recurring.intervals.length > 0 && (
                 <div className="space-y-2">
