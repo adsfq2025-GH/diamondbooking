@@ -24,20 +24,64 @@ export function buildBookingUrl(slug: string) {
   return `${appUrl}/book/${slug}`;
 }
 
+export type WidgetEmbedMode = "inline" | "drawer";
+
 export function buildWidgetEmbedSnippet(
   slug: string,
-  opts?: { rootId?: string; borderRadius?: string; minHeight?: string | number; title?: string }
+  opts?: {
+    rootId?: string;
+    borderRadius?: string;
+    minHeight?: string | number;
+    title?: string;
+    mode?: WidgetEmbedMode;
+    side?: "left" | "right";
+    buttonLabel?: string;
+    buttonColor?: string;
+    buttonTextColor?: string;
+    width?: string | number;
+  }
 ) {
   const appUrl = getPublicAppUrl();
   const rootId = opts?.rootId?.trim() || "diamond-booking-widget";
   const radius = opts?.borderRadius?.trim();
   const title = opts?.title?.trim();
+  const mode: WidgetEmbedMode = opts?.mode === "drawer" ? "drawer" : "inline";
   const minHeight =
     typeof opts?.minHeight === "number"
       ? String(opts.minHeight)
       : typeof opts?.minHeight === "string"
         ? opts.minHeight.trim()
         : "";
+  const width =
+    typeof opts?.width === "number"
+      ? String(opts.width)
+      : typeof opts?.width === "string"
+        ? opts.width.trim()
+        : "";
+
+  if (mode === "drawer") {
+    const side = opts?.side === "left" ? "left" : "right";
+    const buttonLabel = opts?.buttonLabel?.trim() || "Book Now";
+    const buttonColor = opts?.buttonColor?.trim();
+    const buttonTextColor = opts?.buttonTextColor?.trim();
+    const attrs = [
+      `async`,
+      `id="db-widget"`,
+      `src="${appUrl}/widget.js"`,
+      `data-business="${slug}"`,
+      `data-mode="drawer"`,
+      `data-side="${side}"`,
+      `data-button-label="${buttonLabel}"`,
+      buttonColor ? `data-button-color="${buttonColor}"` : "",
+      buttonTextColor ? `data-button-text-color="${buttonTextColor}"` : "",
+      width ? `data-width="${width}"` : "",
+      title ? `data-title="${title}"` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    // Drawer mounts itself onto <body>; no container div needed.
+    return `<script ${attrs}></script>`;
+  }
 
   const attrs = [
     `async`,
