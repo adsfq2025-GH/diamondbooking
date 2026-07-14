@@ -1656,12 +1656,9 @@ export function OnboardingWizard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <FieldLabel label="Primary color" help="Used for buttons and key accents in the booking widget." />
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <FieldLabel label="Primary color" help="Used for buttons and key accents in the booking widget." />
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
@@ -1678,35 +1675,36 @@ export function OnboardingWizard() {
                     </div>
                   </div>
 
-                    <div className="space-y-1.5">
-                      <FieldLabel label="Accent color (optional)" help="Used for highlights like badges, dividers, and secondary emphasis." />
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={accentColor}
-                          onChange={(e) => setAccentColor(e.target.value)}
-                          className="h-10 w-12 rounded-lg border border-gray-200 bg-white"
-                        />
-                        <input
-                          className={inp}
-                          value={accentColor}
-                          onChange={(e) => setAccentColor(e.target.value)}
-                          placeholder="#f5c84c"
-                        />
-                      </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel label="Accent color (optional)" help="Used for highlights like badges, dividers, and secondary emphasis." />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={accentColor}
+                        onChange={(e) => setAccentColor(e.target.value)}
+                        className="h-10 w-12 rounded-lg border border-gray-200 bg-white"
+                      />
+                      <input
+                        className={inp}
+                        value={accentColor}
+                        onChange={(e) => setAccentColor(e.target.value)}
+                        placeholder="#f5c84c"
+                      />
                     </div>
+                  </div>
 
-                    <div className="space-y-1.5">
+                  <div className="space-y-1.5">
                     <FieldLabel label="Logo URL (optional)" help="Paste a direct image URL (PNG/JPG/WebP). This shows on your booking page." />
                     <input className={inp} value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" />
                   </div>
 
-                    <div className="space-y-1.5">
+                  <div className="space-y-1.5">
                     <FieldLabel label="Welcome message (optional)" help="Short sentence shown at the top of your booking page." />
                     <input className={inp} value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)} placeholder="e.g. Book your cleaning in 60 seconds" />
                   </div>
-                  </div>
+                </div>
 
+                <div className="pt-2 border-t border-gray-100">
                   {businessSlug ? (
                     <WidgetAccessCard slug={businessSlug} />
                   ) : (

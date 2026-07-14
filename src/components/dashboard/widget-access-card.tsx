@@ -35,7 +35,12 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
   const [buttonLabel, setButtonLabel] = useState("Book Now");
   const [buttonColor, setButtonColor] = useState("#0b5c8b");
   const [drawerWidth, setDrawerWidth] = useState("420");
+  const [animation, setAnimation] = useState("wiggle");
+  const [logoUrl, setLogoUrl] = useState("");
   const [drawerAllowed, setDrawerAllowed] = useState(false);
+
+  // Live preview device
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
 
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -53,11 +58,13 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
         title,
         mode: effectiveMode,
         side: drawerSide,
-        buttonLabel,
+        tabLabel: buttonLabel,
         buttonColor,
         width: drawerWidth,
+        animation,
+        logoUrl: logoUrl || undefined,
       }),
-    [slug, borderRadius, minHeight, title, effectiveMode, drawerSide, buttonLabel, buttonColor, drawerWidth]
+    [slug, borderRadius, minHeight, title, effectiveMode, drawerSide, buttonLabel, buttonColor, drawerWidth, animation, logoUrl]
   );
 
   const copy = async (type: "link" | "snippet", value: string) => {
@@ -69,9 +76,10 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const [cfgRes, subRes] = await Promise.all([
+        const [cfgRes, subRes, bizRes] = await Promise.all([
           fetch("/api/business/config"),
           fetch("/api/billing/subscription"),
+          fetch("/api/business"),
         ]);
 
         const cfgJson = (await cfgRes.json()) as { success: boolean; data?: { config?: unknown } };
@@ -88,8 +96,15 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
           if (typeof widget.buttonLabel === "string" && widget.buttonLabel.trim()) setButtonLabel(widget.buttonLabel);
           if (typeof widget.buttonColor === "string" && widget.buttonColor.trim()) setButtonColor(widget.buttonColor);
           if (typeof widget.width === "string" && widget.width.trim()) setDrawerWidth(widget.width);
+          if (typeof widget.animation === "string" && widget.animation.trim()) setAnimation(widget.animation);
           if (typeof ui.showIcons === "boolean") setShowIcons(ui.showIcons);
           if (typeof ui.showLivePricing === "boolean") setShowLivePricing(ui.showLivePricing);
+        }
+
+        try {
+          const bizJson = (await bizRes.json()) as { success?: boolean; data?: { logoUrl?: string | null } | null };
+          if (bizRes.ok && bizJson?.data?.logoUrl) setLogoUrl(bizJson.data.logoUrl);
+        } catch {
         }
 
         const subJson = (await subRes.json()) as {
@@ -127,6 +142,7 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
           buttonLabel,
           buttonColor,
           width: drawerWidth,
+          animation,
         },
         ui: {
           ...ui,
@@ -231,7 +247,7 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Button label</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Tab label</label>
               <input
                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background"
                 value={buttonLabel}
@@ -239,7 +255,7 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Button color</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Tab color</label>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
@@ -253,6 +269,29 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
                   onChange={(e) => setButtonColor(e.target.value)}
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Attention animation</label>
+              <select
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background"
+                value={animation}
+                onChange={(e) => setAnimation(e.target.value)}
+              >
+                <option value="none">None</option>
+                <option value="wiggle">Wiggle-bounce (glow)</option>
+                <option value="shake">Shake</option>
+                <option value="bounce">Bounce</option>
+                <option value="pulse">Pulse</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Panel header title</label>
+              <input
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Book Your Service"
+              />
             </div>
           </div>
         )}
@@ -354,31 +393,52 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
         <pre className="text-xs whitespace-pre-wrap break-all font-mono">{snippet}</pre>
       </div>
 
-      <div className="rounded-lg border border-border bg-background p-4 space-y-2">
-        <div className="text-xs font-medium text-muted-foreground">Live preview</div>
+      <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs font-medium text-muted-foreground">Live preview</div>
+          <div className="inline-flex rounded-lg border border-border overflow-hidden">
+            {(["desktop", "mobile"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setPreviewDevice(d)}
+                className={`px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                  previewDevice === d ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+        </div>
         {isDrawer && (
           <div className="text-xs text-muted-foreground">
-            In drawer mode a “{buttonLabel}” button sits fixed in the bottom-{drawerSide} corner of your site and slides
-            this panel out when clicked. Preview of the panel contents:
+            In drawer mode a vertical “{buttonLabel}” tab sits on the {drawerSide} edge of your site (vertically centered)
+            and slides this panel out when clicked. Preview of the panel contents:
           </div>
         )}
-        <div
-          className="w-full overflow-hidden border border-border bg-background"
-          style={{
-            borderRadius:
-              borderRadius === "sharp"
-                ? 4
-                : borderRadius === "pill"
-                  ? 50
-                  : 10,
-          }}
-        >
-          <iframe
-            title="Widget preview"
-            src={previewUrl}
-            style={{ width: "100%", border: 0, minHeight: `${Number(minHeight) || 920}px` }}
-            allow="payment; clipboard-write"
-          />
+        <div className={previewDevice === "mobile" ? "flex justify-center" : ""}>
+          <div
+            className="overflow-hidden border border-border bg-background"
+            style={{
+              width: previewDevice === "mobile" ? 390 : "100%",
+              maxWidth: "100%",
+              borderRadius:
+                borderRadius === "sharp"
+                  ? 4
+                  : borderRadius === "pill"
+                    ? 50
+                    : 10,
+            }}
+          >
+            <iframe
+              key={previewDevice}
+              title="Widget preview"
+              src={previewUrl}
+              style={{ width: "100%", border: 0, minHeight: `${Number(minHeight) || 920}px` }}
+              allow="payment; clipboard-write"
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -39,6 +39,9 @@ export function buildWidgetEmbedSnippet(
     buttonColor?: string;
     buttonTextColor?: string;
     width?: string | number;
+    tabLabel?: string;
+    animation?: string;
+    logoUrl?: string;
   }
 ) {
   const appUrl = getPublicAppUrl();
@@ -61,9 +64,11 @@ export function buildWidgetEmbedSnippet(
 
   if (mode === "drawer") {
     const side = opts?.side === "left" ? "left" : "right";
-    const buttonLabel = opts?.buttonLabel?.trim() || "Book Now";
+    const tabLabel = (opts?.tabLabel ?? opts?.buttonLabel)?.trim() || "Book Now";
     const buttonColor = opts?.buttonColor?.trim();
     const buttonTextColor = opts?.buttonTextColor?.trim();
+    const animation = opts?.animation?.trim();
+    const logoUrl = opts?.logoUrl?.trim();
     const attrs = [
       `async`,
       `id="db-widget"`,
@@ -71,9 +76,11 @@ export function buildWidgetEmbedSnippet(
       `data-business="${slug}"`,
       `data-mode="drawer"`,
       `data-side="${side}"`,
-      `data-button-label="${buttonLabel}"`,
+      `data-tab-label="${tabLabel}"`,
       buttonColor ? `data-button-color="${buttonColor}"` : "",
       buttonTextColor ? `data-button-text-color="${buttonTextColor}"` : "",
+      animation && animation !== "none" ? `data-animation="${animation}"` : "",
+      logoUrl ? `data-logo-url="${logoUrl}"` : "",
       width ? `data-width="${width}"` : "",
       title ? `data-title="${title}"` : "",
     ]
