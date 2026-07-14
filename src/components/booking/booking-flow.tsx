@@ -1074,21 +1074,26 @@ export function BookingFlow({
                 />
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (!sel.service) {
-                    setError("Please select a service first");
-                    return;
-                  }
-                  setError("");
-                  setStep(3);
-                }}
-                className="w-full py-3.5 font-bold text-white rounded-2xl transition-all flex items-center justify-center gap-2 lg:hidden"
-                style={{ background: primary }}
-              >
-                Find Availability <ChevronRight className="w-4 h-4" />
-              </button>
+              {/* Mobile CTA — only on the standalone booking page. In embed mode
+                  the sticky summary panel (with its own CTA) is always visible,
+                  so this would be a duplicate. */}
+              {!embed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!sel.service) {
+                      setError("Please select a service first");
+                      return;
+                    }
+                    setError("");
+                    setStep(3);
+                  }}
+                  className="w-full py-3.5 font-bold text-white rounded-2xl transition-all flex items-center justify-center gap-2 lg:hidden"
+                  style={{ background: primary }}
+                >
+                  Find Availability <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         )}
