@@ -21,7 +21,14 @@ function computeDrawerAllowed(sub: {
   return effectivePlan === "PROFESSIONAL" || effectivePlan === "ENTERPRISE";
 }
 
-export function WidgetAccessCard({ slug }: { slug: string }) {
+type WidgetDesign = {
+  primaryColor?: string;
+  accentColor?: string;
+  logoUrl?: string;
+  welcomeMessage?: string;
+};
+
+export function WidgetAccessCard({ slug, design }: { slug: string; design?: WidgetDesign }) {
   const [copied, setCopied] = useState<"link" | "snippet" | "">("");
   const [borderRadius, setBorderRadius] = useState("soft");
   const [minHeight, setMinHeight] = useState("920");
@@ -49,7 +56,23 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
   const effectiveMode: EmbedMode = drawerAllowed && embedMode === "drawer" ? "drawer" : "inline";
 
   const bookingUrl = useMemo(() => buildBookingUrl(slug), [slug]);
-  const previewUrl = useMemo(() => `${bookingUrl}?embed=1&preview=1`, [bookingUrl]);
+
+  // Debounce design edits so dragging a color picker doesn't reload the
+  // preview iframe on every frame.
+  const [debouncedDesign, setDebouncedDesign] = useState<WidgetDesign | undefined>(design);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedDesign(design), 300);
+    return () => window.clearTimeout(t);
+  }, [design?.primaryColor, design?.accentColor, design?.logoUrl, design?.welcomeMessage]);
+
+  const previewUrl = useMemo(() => {
+    const params = new URLSearchParams({ embed: "1", preview: "1" });
+    if (debouncedDesign?.primaryColor) params.set("pc", debouncedDesign.primaryColor);
+    if (debouncedDesign?.accentColor) params.set("ac", debouncedDesign.accentColor);
+    if (debouncedDesign?.logoUrl) params.set("logo", debouncedDesign.logoUrl);
+    if (debouncedDesign?.welcomeMessage) params.set("wm", debouncedDesign.welcomeMessage);
+    return `${bookingUrl}?${params.toString()}`;
+  }, [bookingUrl, debouncedDesign]);
   const snippet = useMemo(
     () =>
       buildWidgetEmbedSnippet(slug, {

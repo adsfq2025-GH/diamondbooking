@@ -690,8 +690,13 @@ export function BookingFlow({
         {!embed ? (
           <div className="relative max-w-lg mx-auto px-6 py-8 text-center">
             {business.logoUrl ? (
-              <Image src={business.logoUrl} alt={business.name} width={56} height={56}
-                className="w-14 h-14 rounded-2xl object-cover mx-auto mb-3 ring-4 ring-white/20" />
+              // User-supplied logo can be any domain — plain <img> avoids next/image host allowlisting.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={business.logoUrl}
+                alt={business.name}
+                className="w-14 h-14 rounded-2xl object-cover mx-auto mb-3 ring-4 ring-white/20 bg-white"
+              />
             ) : (
               <Image
                 src="/brand/logohead.webp"
@@ -708,8 +713,19 @@ export function BookingFlow({
           </div>
         ) : (
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-6 text-center">
+            {business.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={business.logoUrl}
+                alt={business.name}
+                className="h-14 w-14 rounded-2xl object-cover mx-auto mb-3 ring-1 ring-gray-100 bg-white"
+              />
+            )}
             <h1 className="text-2xl sm:text-3xl font-black text-[#0b5c8b]">Book your appointment</h1>
             <p className="text-sm text-gray-500 mt-1">{business.name}</p>
+            {business.welcomeMessage && (
+              <p className="text-sm text-gray-500 mt-1">{business.welcomeMessage}</p>
+            )}
           </div>
         )}
       </div>

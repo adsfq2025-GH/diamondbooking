@@ -1706,7 +1706,10 @@ export function OnboardingWizard() {
 
                 <div className="pt-2 border-t border-gray-100">
                   {businessSlug ? (
-                    <WidgetAccessCard slug={businessSlug} />
+                    <WidgetAccessCard
+                      slug={businessSlug}
+                      design={{ primaryColor, accentColor, logoUrl, welcomeMessage }}
+                    />
                   ) : (
                     <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border border-gray-200">Saving your business…</div>
                   )}

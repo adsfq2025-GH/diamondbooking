@@ -5,7 +5,18 @@ import { BookingFlow } from "@/components/booking/booking-flow";
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 
-type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ embed?: string; preview?: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{
+    embed?: string;
+    preview?: string;
+    // Live-preview design overrides (only honored when preview=1)
+    pc?: string; // primary color
+    ac?: string; // accent color
+    logo?: string; // logo URL
+    wm?: string; // welcome message
+  }>;
+};
 
 function isFutureDate(value: Date | null | undefined) {
   return !value || value.getTime() > Date.now();
@@ -97,6 +108,21 @@ export default async function BookingPage({ params, searchParams }: Props) {
     );
   }
 
+  // In preview mode, let the dashboard/onboarding pass unsaved design values via
+  // query params so the live preview reflects edits before they're saved.
+  const previewPrimary = preview && sp?.pc ? sp.pc : undefined;
+  const previewAccent = preview && sp?.ac ? sp.ac : undefined;
+  const previewLogo = preview && sp?.logo !== undefined ? sp.logo : undefined;
+  const previewWelcome = preview && sp?.wm !== undefined ? sp.wm : undefined;
+
+  const baseConfig = (businessConfig?.config ?? {}) as Record<string, unknown>;
+  const effectiveConfig = previewAccent
+    ? {
+        ...baseConfig,
+        theme: { ...((baseConfig.theme as Record<string, unknown>) ?? {}), accentColor: previewAccent },
+      }
+    : baseConfig;
+
   return (
     <BookingFlow
       business={{
@@ -104,10 +130,10 @@ export default async function BookingPage({ params, searchParams }: Props) {
         name:                business.name,
         slug:                business.slug,
         description:         business.description,
-        logoUrl:             business.logoUrl,
+        logoUrl:             previewLogo !== undefined ? (previewLogo || null) : business.logoUrl,
         coverImageUrl:       business.coverImageUrl,
-        primaryColor:        business.primaryColor,
-        welcomeMessage:      business.welcomeMessage,
+        primaryColor:        previewPrimary ?? business.primaryColor,
+        welcomeMessage:      previewWelcome !== undefined ? (previewWelcome || null) : business.welcomeMessage,
         phone:               business.phone,
         email:               business.email,
         timezone:            business.timezone,
@@ -118,7 +144,7 @@ export default async function BookingPage({ params, searchParams }: Props) {
         cancellationPolicy:  business.cancellationPolicy,
         businessHours:       business.businessHours,
       }}
-      config={businessConfig?.config ?? {}}
+      config={effectiveConfig}
       services={services.map((s) => ({
         id:          s.id,
         name:        s.name,
