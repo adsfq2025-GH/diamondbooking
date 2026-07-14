@@ -164,7 +164,7 @@ export async function GET() {
     var side = (opts && String(opts.side).toLowerCase() === "left") ? "left" : "right";
     var width = parsePxNumber(opts && opts.width, 420);
     var label = (opts && opts.buttonLabel) ? String(opts.buttonLabel) : "Book Now";
-    var btnColor = (opts && opts.buttonColor) ? String(opts.buttonColor) : "#1a1f36";
+    var btnColor = (opts && opts.buttonColor) ? String(opts.buttonColor) : "#0b5c8b";
     var btnText = (opts && opts.buttonTextColor) ? String(opts.buttonTextColor) : "#ffffff";
     var title = (opts && opts.title) ? String(opts.title) : "Book an appointment";
 
@@ -233,7 +233,7 @@ export async function GET() {
       "padding:12px 16px",
       "border-bottom:1px solid #eee",
       "font:600 15px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif",
-      "color:#1a1f36",
+      "color:#0b5c8b",
     ].join(";");
     var headTitle = document.createElement("div");
     headTitle.textContent = title;

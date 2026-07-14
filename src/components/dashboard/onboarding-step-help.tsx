@@ -13,7 +13,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for choosing a plan",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Choose your plan</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Choose your plan</div>
         <div className="space-y-2 text-sm">
           <div>
             <div className="font-semibold">What this does</div>
@@ -39,7 +39,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for business information",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Business information</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Business information</div>
         <div className="space-y-2 text-sm">
           <div>
             <div className="font-semibold">What this does</div>
@@ -65,7 +65,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for payment setup",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Payment setup</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Payment setup</div>
         <div className="space-y-2 text-sm">
           <div>
             <div className="font-semibold">What this does</div>
@@ -91,7 +91,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for setup overview",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Setup overview</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Setup overview</div>
         <div className="space-y-2 text-sm text-gray-600">
           <div>You’re about to set business hours, staff availability, services, pricing rules, and the widget design.</div>
           <div>Best practice: finish hours + services first so the booking page can show availability.</div>
@@ -103,7 +103,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for business hours",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Business hours</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Business hours</div>
         <div className="space-y-2 text-sm">
           <div>
             <div className="font-semibold">What this does</div>
@@ -129,7 +129,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for team setup",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Team & availability</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Team & availability</div>
         <div className="space-y-2 text-sm">
           <div>
             <div className="font-semibold">What this does</div>
@@ -155,7 +155,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for services setup",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Services</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Services</div>
         <div className="space-y-2 text-sm">
           <div>
             <div className="font-semibold">What this does</div>
@@ -181,7 +181,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for pricing and intake",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Pricing & intake</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Pricing & intake</div>
         <div className="space-y-2 text-sm">
           <div>
             <div className="font-semibold">What this does</div>
@@ -207,7 +207,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for widget customization",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Widget customization</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Widget customization</div>
         <div className="space-y-2 text-sm text-gray-600">
           <div>Pick colors, fonts, and display options. Customers will see this on your booking page and embedded widget.</div>
           <div>Best practice: match your website’s primary color and keep the layout clean.</div>
@@ -219,7 +219,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for embed code",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Booking link & embed code</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Booking link & embed code</div>
         <div className="space-y-2 text-sm text-gray-600">
           <div>Use the booking link to share directly, or paste the embed snippet into your website.</div>
           <div>Best practice: test the embed on your site and complete a test booking end-to-end.</div>
@@ -231,7 +231,7 @@ const ITEM: Record<number, Help> = {
     ariaLabel: "Help for final review",
     content: (
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-[#1a1f36]">Final review</div>
+        <div className="text-sm font-semibold text-[#0b5c8b]">Final review</div>
         <div className="space-y-2 text-sm text-gray-600">
           <div>Quick check before launch. You can always change settings later in the dashboard.</div>
           <div>Best practice: verify hours, services, and that your booking page shows time slots.</div>

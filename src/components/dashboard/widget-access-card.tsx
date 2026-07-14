@@ -33,7 +33,7 @@ export function WidgetAccessCard({ slug }: { slug: string }) {
   const [embedMode, setEmbedMode] = useState<EmbedMode>("inline");
   const [drawerSide, setDrawerSide] = useState<DrawerSide>("right");
   const [buttonLabel, setButtonLabel] = useState("Book Now");
-  const [buttonColor, setButtonColor] = useState("#1a1f36");
+  const [buttonColor, setButtonColor] = useState("#0b5c8b");
   const [drawerWidth, setDrawerWidth] = useState("420");
   const [drawerAllowed, setDrawerAllowed] = useState(false);
 

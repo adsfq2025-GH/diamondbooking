@@ -10,10 +10,10 @@ import {
   ChevronRight,
   HelpCircle,
   Plus,
-  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import {
   DAYS_OF_WEEK,
   INDUSTRY_DEFAULT_SERVICE_DURATION_MINUTES,
@@ -120,7 +120,7 @@ function FieldLabel({
         ariaLabel={`Help: ${label}`}
         content={
           <div className="space-y-2">
-            <div className="text-sm font-semibold text-[#1a1f36]">{label}</div>
+            <div className="text-sm font-semibold text-[#0b5c8b]">{label}</div>
             <div className="text-sm text-gray-600">{help}</div>
           </div>
         }
@@ -206,7 +206,7 @@ export function OnboardingWizard() {
   const inp =
     "w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white " +
     "placeholder:text-gray-400 focus:outline-none focus:ring-2 " +
-    "focus:ring-[#1a1f36]/20 focus:border-[#1a1f36] transition-all";
+    "focus:ring-[#0b5c8b]/20 focus:border-[#0b5c8b] transition-all";
 
   const go = async (fn: () => Promise<void>) => {
     setError("");
@@ -230,8 +230,8 @@ export function OnboardingWizard() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#1a1f36");
-  const [accentColor, setAccentColor] = useState("#d4a843");
+  const [primaryColor, setPrimaryColor] = useState("#0b5c8b");
+  const [accentColor, setAccentColor] = useState("#f5c84c");
   const [logoUrl, setLogoUrl] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
@@ -533,7 +533,7 @@ export function OnboardingWizard() {
       }
       if (!res.ok) throw new Error(json.error ?? "Failed to save business");
       setBusinessSlug(json.data.slug);
-      setPrimaryColor(json.data.primaryColor ?? "#1a1f36");
+      setPrimaryColor(json.data.primaryColor ?? "#0b5c8b");
       setLogoUrl(json.data.logoUrl ?? "");
       setWelcomeMessage(json.data.welcomeMessage ?? "");
       await updateSession({ businessId: json.data.id, businessSlug: json.data.slug });
@@ -667,7 +667,7 @@ export function OnboardingWizard() {
               billingUnit: s.billingUnit,
               minDurationMinutes:
                 s.billingUnit === "PER_HOUR" && s.minimumEnabled ? Number(s.minimumHours) * 60 : undefined,
-              color: "#1a1f36",
+              color: "#0b5c8b",
               staffIds,
             }),
           });
@@ -849,10 +849,14 @@ export function OnboardingWizard() {
   return (
     <div className="w-full max-w-5xl">
       <div className="text-center mb-6">
-        <div className="flex items-center justify-center gap-2 text-[#1a1f36] font-extrabold tracking-tight text-xl">
-          <Sparkles className="w-5 h-5 text-[#d4a843]" />
-          Diamond Booking
-        </div>
+        <Image
+          src="/brand/Vertical-new-logo.webp"
+          alt="Diamond Booking"
+          width={150}
+          height={160}
+          priority
+          className="h-20 w-auto mx-auto"
+        />
         <div className="text-sm text-gray-500 mt-1">Let’s get your booking page live — about 3 minutes</div>
       </div>
 
@@ -865,16 +869,16 @@ export function OnboardingWizard() {
               <div className="flex flex-col items-center gap-1.5">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                    done ? "bg-[#d4a843] text-[#1a1f36]" : active ? "bg-[#1a1f36] text-white ring-4 ring-[#1a1f36]/15" : "bg-gray-100 text-gray-400"
+                    done ? "bg-[#f5c84c] text-[#0b5c8b]" : active ? "bg-[#0b5c8b] text-white ring-4 ring-[#0b5c8b]/15" : "bg-gray-100 text-gray-400"
                   }`}
                 >
                   {done ? <Check className="w-3.5 h-3.5" /> : s.n}
                 </div>
-                <span className={`text-[10px] font-semibold hidden sm:block leading-none transition-colors ${active ? "text-[#1a1f36]" : done ? "text-[#d4a843]" : "text-gray-300"}`}>
+                <span className={`text-[10px] font-semibold hidden sm:block leading-none transition-colors ${active ? "text-[#0b5c8b]" : done ? "text-[#f5c84c]" : "text-gray-300"}`}>
                   {s.label}
                 </span>
               </div>
-              {i < STEPS.length - 1 && <div className={`w-6 sm:w-10 h-0.5 rounded-full mb-5 transition-colors duration-300 ${done ? "bg-[#d4a843]" : "bg-gray-100"}`} />}
+              {i < STEPS.length - 1 && <div className={`w-6 sm:w-10 h-0.5 rounded-full mb-5 transition-colors duration-300 ${done ? "bg-[#f5c84c]" : "bg-gray-100"}`} />}
             </div>
           );
         })}
@@ -882,7 +886,7 @@ export function OnboardingWizard() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-2xl shadow-gray-100/60 overflow-hidden">
         <div className="h-1 bg-gray-100">
-          <div className="h-full bg-gradient-to-r from-[#1a1f36] to-[#d4a843] transition-all duration-500" style={{ width: stepPct }} />
+          <div className="h-full bg-gradient-to-r from-[#0b5c8b] to-[#f5c84c] transition-all duration-500" style={{ width: stepPct }} />
         </div>
 
         <div className="p-7">
@@ -891,7 +895,7 @@ export function OnboardingWizard() {
           {step === 1 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Basics</h2>
+                <h2 className="text-xl font-bold text-[#0b5c8b] mb-1">Basics</h2>
                 <p className="text-sm text-gray-500">Choose a plan (optional), then set your business details. You can add a payment method anytime during your trial.</p>
               </div>
 
@@ -907,21 +911,21 @@ export function OnboardingWizard() {
                       key={p.key}
                       type="button"
                       onClick={() => setSelectedTier(p.key)}
-                      className={`text-left p-4 rounded-2xl border transition-all ${active ? "border-[#1a1f36] ring-4 ring-[#1a1f36]/10 bg-white" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                      className={`text-left p-4 rounded-2xl border transition-all ${active ? "border-[#0b5c8b] ring-4 ring-[#0b5c8b]/10 bg-white" : "border-gray-200 bg-white hover:border-gray-300"}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-bold text-[#1a1f36]">{p.name}</div>
+                          <div className="text-sm font-bold text-[#0b5c8b]">{p.name}</div>
                           <div className="text-xs text-gray-500 mt-0.5">{p.price}</div>
                         </div>
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${active ? "border-[#1a1f36] bg-[#1a1f36]" : "border-gray-300 bg-white"}`}>
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${active ? "border-[#0b5c8b] bg-[#0b5c8b]" : "border-gray-300 bg-white"}`}>
                           {active && <Check className="w-3.5 h-3.5 text-white" />}
                         </div>
                       </div>
                       <ul className="mt-3 space-y-1">
                         {p.features.map((f) => (
                           <li key={f} className="text-xs text-gray-600 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#d4a843]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#f5c84c]" />
                             {f}
                           </li>
                         ))}
@@ -956,12 +960,12 @@ export function OnboardingWizard() {
                 {(industry === "cleaning_service" || industry === "janitorial_service") && (
                   <div className="col-span-2 space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-sm font-bold text-[#1a1f36]">Do you serve residential or commercial clients?</div>
+                      <div className="text-sm font-bold text-[#0b5c8b]">Do you serve residential or commercial clients?</div>
                       <HelpTooltip
                         ariaLabel="Help: Residential vs commercial"
                         content={
                           <div className="space-y-2">
-                            <div className="text-sm font-semibold text-[#1a1f36]">Residential vs commercial</div>
+                            <div className="text-sm font-semibold text-[#0b5c8b]">Residential vs commercial</div>
                             <div className="text-sm text-gray-600">
                               This helps us pre-fill the right booking questions and pricing defaults. You can change it later.
                             </div>
@@ -976,7 +980,7 @@ export function OnboardingWizard() {
                         className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
                           serviceMarket === "residential" ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
                         }`}
-                        style={serviceMarket === "residential" ? { background: "#1a1f36" } : {}}
+                        style={serviceMarket === "residential" ? { background: "#0b5c8b" } : {}}
                       >
                         Residential
                       </button>
@@ -986,7 +990,7 @@ export function OnboardingWizard() {
                         className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
                           serviceMarket === "commercial" ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
                         }`}
-                        style={serviceMarket === "commercial" ? { background: "#1a1f36" } : {}}
+                        style={serviceMarket === "commercial" ? { background: "#0b5c8b" } : {}}
                       >
                         Commercial
                       </button>
@@ -996,7 +1000,7 @@ export function OnboardingWizard() {
                         className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
                           serviceMarket === "both" ? "text-white border-transparent" : "border-gray-200 text-gray-700 hover:border-gray-400 bg-white"
                         }`}
-                        style={serviceMarket === "both" ? { background: "#1a1f36" } : {}}
+                        style={serviceMarket === "both" ? { background: "#0b5c8b" } : {}}
                       >
                         Both
                       </button>
@@ -1062,7 +1066,7 @@ export function OnboardingWizard() {
                   type="button"
                   onClick={submitBasics}
                   disabled={loading}
-                  className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90 disabled:opacity-50"
+                  className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#0b5c8b] text-white hover:bg-[#0b5c8b]/90 disabled:opacity-50"
                 >
                   Continue
                   <ChevronRight className="w-4 h-4" />
@@ -1072,7 +1076,7 @@ export function OnboardingWizard() {
                     type="button"
                     onClick={startPlanCheckout}
                     disabled={loading}
-                    className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 text-[#1a1f36] hover:bg-gray-50 disabled:opacity-50"
+                    className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 text-[#0b5c8b] hover:bg-gray-50 disabled:opacity-50"
                   >
                     Add payment method
                   </button>
@@ -1084,16 +1088,16 @@ export function OnboardingWizard() {
           {step === 2 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Availability</h2>
+                <h2 className="text-xl font-bold text-[#0b5c8b] mb-1">Availability</h2>
                 <p className="text-sm text-gray-500">Set business hours and add at least one team member so the booking page shows available times.</p>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="text-sm font-semibold text-[#1a1f36]">Business hours</div>
+                  <div className="text-sm font-semibold text-[#0b5c8b]">Business hours</div>
                   <HelpTooltip
                     ariaLabel="Help: Business hours"
-                    content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Business hours</div><div className="text-sm text-gray-600">Customers can only book inside these windows.</div></div>}
+                    content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Business hours</div><div className="text-sm text-gray-600">Customers can only book inside these windows.</div></div>}
                   />
                 </div>
                 {hours.map((h) => {
@@ -1104,15 +1108,15 @@ export function OnboardingWizard() {
                       <button
                         type="button"
                         onClick={() => setHoursField(h.dayOfWeek, "isClosed", !h.isClosed)}
-                        className={`w-10 h-6 rounded-full relative transition-colors ${h.isClosed ? "bg-gray-200" : "bg-[#1a1f36]"}`}
+                        className={`w-10 h-6 rounded-full relative transition-colors ${h.isClosed ? "bg-gray-200" : "bg-[#0b5c8b]"}`}
                       >
                         <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${h.isClosed ? "translate-x-0.5" : "translate-x-4"}`} />
                       </button>
                       {!h.isClosed ? (
                         <div className="flex items-center gap-2 flex-1">
-                          <input type="time" value={h.openTime} onChange={(e) => setHoursField(h.dayOfWeek, "openTime", e.target.value)} className="flex-1 px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1a1f36]" />
+                          <input type="time" value={h.openTime} onChange={(e) => setHoursField(h.dayOfWeek, "openTime", e.target.value)} className="flex-1 px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#0b5c8b]" />
                           <span className="text-gray-400 text-xs shrink-0">to</span>
-                          <input type="time" value={h.closeTime} onChange={(e) => setHoursField(h.dayOfWeek, "closeTime", e.target.value)} className="flex-1 px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1a1f36]" />
+                          <input type="time" value={h.closeTime} onChange={(e) => setHoursField(h.dayOfWeek, "closeTime", e.target.value)} className="flex-1 px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#0b5c8b]" />
                         </div>
                       ) : (
                         <span className="text-sm text-gray-400">Closed</span>
@@ -1124,10 +1128,10 @@ export function OnboardingWizard() {
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="text-sm font-semibold text-[#1a1f36]">Team members</div>
+                  <div className="text-sm font-semibold text-[#0b5c8b]">Team members</div>
                   <HelpTooltip
                     ariaLabel="Help: Team members"
-                    content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Team members</div><div className="text-sm text-gray-600">Availability comes from staff schedules. If nobody is available, customers see no time slots.</div></div>}
+                    content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Team members</div><div className="text-sm text-gray-600">Availability comes from staff schedules. If nobody is available, customers see no time slots.</div></div>}
                   />
                 </div>
 
@@ -1137,7 +1141,7 @@ export function OnboardingWizard() {
                     return (
                       <div key={m.localId} className="rounded-xl border border-gray-100 overflow-hidden">
                         <div className="flex items-center gap-3 p-4 bg-gray-50/60 cursor-pointer" onClick={() => setExpandedStaff(open ? null : m.localId)}>
-                          <div className="w-9 h-9 rounded-full bg-[#1a1f36]/10 flex items-center justify-center text-sm font-bold text-[#1a1f36] shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-[#0b5c8b]/10 flex items-center justify-center text-sm font-bold text-[#0b5c8b] shrink-0">
                             {m.name ? m.name[0].toUpperCase() : <Users className="w-4 h-4" />}
                           </div>
                           <div className="flex-1 grid grid-cols-2 gap-2">
@@ -1196,7 +1200,7 @@ export function OnboardingWizard() {
                                 <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Invite this employee</div>
                                 <HelpTooltip
                                   ariaLabel="Help: Invite employee"
-                                  content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Invite employee</div><div className="text-sm text-gray-600">If you add an email, we can send an invite so they can access their own schedule later.</div></div>}
+                                  content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Invite employee</div><div className="text-sm text-gray-600">If you add an email, we can send an invite so they can access their own schedule later.</div></div>}
                                 />
                               </div>
                               <label className="text-sm flex items-center gap-2">
@@ -1211,7 +1215,7 @@ export function OnboardingWizard() {
                                   if (!m.id) return;
                                   void fetch(`/api/staff/${m.id}/invite`, { method: "POST" });
                                 }}
-                                className="text-xs font-bold text-[#1a1f36] hover:underline"
+                                className="text-xs font-bold text-[#0b5c8b] hover:underline"
                               >
                                 Resend invite
                               </button>
@@ -1222,7 +1226,7 @@ export function OnboardingWizard() {
                                 <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Weekly availability</div>
                                 <HelpTooltip
                                   ariaLabel="Help: Weekly availability"
-                                  content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Weekly availability</div><div className="text-sm text-gray-600">If a team member is “off”, they won’t be considered for time slots on that day.</div></div>}
+                                  content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Weekly availability</div><div className="text-sm text-gray-600">If a team member is “off”, they won’t be considered for time slots on that day.</div></div>}
                                 />
                               </div>
                               <div className="mt-2 space-y-2">
@@ -1234,15 +1238,15 @@ export function OnboardingWizard() {
                                       <button
                                         type="button"
                                         onClick={() => setStaffAvail(m.localId, a.dayOfWeek, "isClosed", !a.isClosed)}
-                                        className={`w-9 h-5 rounded-full relative cursor-pointer transition-colors duration-200 ${a.isClosed ? "bg-gray-200" : "bg-[#1a1f36]"}`}
+                                        className={`w-9 h-5 rounded-full relative cursor-pointer transition-colors duration-200 ${a.isClosed ? "bg-gray-200" : "bg-[#0b5c8b]"}`}
                                       >
                                         <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${a.isClosed ? "translate-x-0.5" : "translate-x-4"}`} />
                                       </button>
                                       {!a.isClosed ? (
                                         <div className="flex items-center gap-1.5 flex-1">
-                                          <input type="time" value={a.openTime} onChange={(e) => setStaffAvail(m.localId, a.dayOfWeek, "openTime", e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1a1f36]" />
+                                          <input type="time" value={a.openTime} onChange={(e) => setStaffAvail(m.localId, a.dayOfWeek, "openTime", e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#0b5c8b]" />
                                           <span className="text-gray-400 text-xs shrink-0">–</span>
-                                          <input type="time" value={a.closeTime} onChange={(e) => setStaffAvail(m.localId, a.dayOfWeek, "closeTime", e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1a1f36]" />
+                                          <input type="time" value={a.closeTime} onChange={(e) => setStaffAvail(m.localId, a.dayOfWeek, "closeTime", e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#0b5c8b]" />
                                         </div>
                                       ) : (
                                         <span className="text-xs text-gray-400">Off</span>
@@ -1280,7 +1284,7 @@ export function OnboardingWizard() {
                       ]);
                       setExpandedStaff(id);
                     }}
-                    className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#1a1f36]/30 hover:text-[#1a1f36] transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#0b5c8b]/30 hover:text-[#0b5c8b] transition-colors flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" /> Add another team member
                   </button>
@@ -1291,7 +1295,7 @@ export function OnboardingWizard() {
                 <button type="button" onClick={() => setStep(1)} className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
                   Back
                 </button>
-                <button type="button" onClick={submitAvailability} disabled={loading} className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90 disabled:opacity-50">
+                <button type="button" onClick={submitAvailability} disabled={loading} className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#0b5c8b] text-white hover:bg-[#0b5c8b]/90 disabled:opacity-50">
                   Continue
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1302,7 +1306,7 @@ export function OnboardingWizard() {
           {step === 3 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">Services & pricing</h2>
+                <h2 className="text-xl font-bold text-[#0b5c8b] mb-1">Services & pricing</h2>
                 <p className="text-sm text-gray-500">Add what customers can book. Duration is set to a recommended default for your industry and can be edited later.</p>
               </div>
 
@@ -1357,12 +1361,12 @@ export function OnboardingWizard() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <div className="text-sm font-semibold text-gray-800">Minimum hours</div>
-                                <HelpTooltip ariaLabel="Help: Minimum hours" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Minimum hours</div><div className="text-sm text-gray-600">Prevents bookings that are too short. Example: 2 hours minimum.</div></div>} />
+                                <HelpTooltip ariaLabel="Help: Minimum hours" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Minimum hours</div><div className="text-sm text-gray-600">Prevents bookings that are too short. Example: 2 hours minimum.</div></div>} />
                               </div>
                               <div className="text-xs text-gray-500">Optional. If enabled, customers must book at least this many hours.</div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <button type="button" onClick={() => setServiceField(s.localId, "minimumEnabled", !s.minimumEnabled)} className={`w-10 h-6 rounded-full relative transition-colors ${s.minimumEnabled ? "bg-[#1a1f36]" : "bg-gray-200"}`}>
+                              <button type="button" onClick={() => setServiceField(s.localId, "minimumEnabled", !s.minimumEnabled)} className={`w-10 h-6 rounded-full relative transition-colors ${s.minimumEnabled ? "bg-[#0b5c8b]" : "bg-gray-200"}`}>
                                 <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${s.minimumEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
                               </button>
                               <input className={inp + " w-24"} type="number" min="1" step="1" disabled={!s.minimumEnabled} value={s.minimumHours} onChange={(e) => setServiceField(s.localId, "minimumHours", e.target.value)} />
@@ -1397,7 +1401,7 @@ export function OnboardingWizard() {
                       },
                     ]);
                   }}
-                  className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#1a1f36]/30 hover:text-[#1a1f36] transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#0b5c8b]/30 hover:text-[#0b5c8b] transition-colors flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" /> Add another service
                 </button>
@@ -1406,7 +1410,7 @@ export function OnboardingWizard() {
               <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-[#1a1f36]">Pricing & intake</div>
+                    <div className="text-sm font-semibold text-[#0b5c8b]">Pricing & intake</div>
                     <div className="text-xs text-gray-500">Keep it simple: add a few optional add-ons and booking questions. Advanced rules are optional.</div>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -1421,9 +1425,9 @@ export function OnboardingWizard() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="text-sm font-semibold text-gray-800">Add-ons</div>
-                          <HelpTooltip ariaLabel="Help: Add-ons" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Add-ons</div><div className="text-sm text-gray-600">Optional upsells customers can add during booking (flat fee for now).</div></div>} />
+                          <HelpTooltip ariaLabel="Help: Add-ons" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Add-ons</div><div className="text-sm text-gray-600">Optional upsells customers can add during booking (flat fee for now).</div></div>} />
                         </div>
-                        <button type="button" onClick={() => setAddOns((p) => [...p, { id: `a${Date.now()}`, name: "", price: "", iconId: undefined }])} className="text-xs font-bold text-[#1a1f36] hover:underline">
+                        <button type="button" onClick={() => setAddOns((p) => [...p, { id: `a${Date.now()}`, name: "", price: "", iconId: undefined }])} className="text-xs font-bold text-[#0b5c8b] hover:underline">
                           + Add add-on
                         </button>
                       </div>
@@ -1478,9 +1482,9 @@ export function OnboardingWizard() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="text-sm font-semibold text-gray-800">Customer intake fields</div>
-                          <HelpTooltip ariaLabel="Help: Customer intake fields" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Customer intake fields</div><div className="text-sm text-gray-600">These are questions customers answer while booking. Drag to reorder.</div></div>} />
+                          <HelpTooltip ariaLabel="Help: Customer intake fields" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Customer intake fields</div><div className="text-sm text-gray-600">These are questions customers answer while booking. Drag to reorder.</div></div>} />
                         </div>
-                        <button type="button" onClick={addField} className="text-xs font-bold text-[#1a1f36] hover:underline">
+                        <button type="button" onClick={addField} className="text-xs font-bold text-[#0b5c8b] hover:underline">
                           + Add field
                         </button>
                       </div>
@@ -1505,14 +1509,14 @@ export function OnboardingWizard() {
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-2">
                                         <div className="text-xs font-semibold text-gray-700">Question</div>
-                                        <HelpTooltip ariaLabel="Help: Question label" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Question</div><div className="text-sm text-gray-600">This is exactly what customers see.</div></div>} />
+                                        <HelpTooltip ariaLabel="Help: Question label" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Question</div><div className="text-sm text-gray-600">This is exactly what customers see.</div></div>} />
                                       </div>
                                       <input className={inp} placeholder="e.g. Bedrooms" value={f.label} onChange={(e) => updateField(f.id, { label: e.target.value })} />
                                     </div>
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-2">
                                         <div className="text-xs font-semibold text-gray-700">Type</div>
-                                        <HelpTooltip ariaLabel="Help: Field type" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Type</div><div className="text-sm text-gray-600">Controls how customers answer (text, number, dropdown, yes/no).</div></div>} />
+                                        <HelpTooltip ariaLabel="Help: Field type" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Type</div><div className="text-sm text-gray-600">Controls how customers answer (text, number, dropdown, yes/no).</div></div>} />
                                       </div>
                                       <select
                                         className={inp + " appearance-none"}
@@ -1538,7 +1542,7 @@ export function OnboardingWizard() {
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-2">
                                         <div className="text-xs font-semibold text-gray-700">Placeholder</div>
-                                        <HelpTooltip ariaLabel="Help: Placeholder" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Placeholder</div><div className="text-sm text-gray-600">Example text customers see inside the input.</div></div>} />
+                                        <HelpTooltip ariaLabel="Help: Placeholder" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Placeholder</div><div className="text-sm text-gray-600">Example text customers see inside the input.</div></div>} />
                                       </div>
                                       <input className={inp} placeholder="e.g. 3" value={f.placeholder} onChange={(e) => updateField(f.id, { placeholder: e.target.value })} />
                                     </div>
@@ -1556,7 +1560,7 @@ export function OnboardingWizard() {
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                           <div className="text-xs font-semibold text-gray-700">Dropdown options</div>
-                                          <HelpTooltip ariaLabel="Help: Dropdown options" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#1a1f36]">Dropdown options</div><div className="text-sm text-gray-600">These are the choices customers can pick.</div></div>} />
+                                          <HelpTooltip ariaLabel="Help: Dropdown options" content={<div className="space-y-2"><div className="text-sm font-semibold text-[#0b5c8b]">Dropdown options</div><div className="text-sm text-gray-600">These are the choices customers can pick.</div></div>} />
                                         </div>
                                         <button
                                           type="button"
@@ -1568,7 +1572,7 @@ export function OnboardingWizard() {
                                               ],
                                             })
                                           }
-                                          className="text-xs font-bold text-[#1a1f36] hover:underline"
+                                          className="text-xs font-bold text-[#0b5c8b] hover:underline"
                                         >
                                           + Add option
                                         </button>
@@ -1626,7 +1630,7 @@ export function OnboardingWizard() {
                 <button type="button" onClick={() => setStep(2)} className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
                   Back
                 </button>
-                <button type="button" onClick={submitServices} disabled={loading} className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#1a1f36] text-white hover:bg-[#1a1f36]/90 disabled:opacity-50">
+                <button type="button" onClick={submitServices} disabled={loading} className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-[#0b5c8b] text-white hover:bg-[#0b5c8b]/90 disabled:opacity-50">
                   Continue
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1637,17 +1641,17 @@ export function OnboardingWizard() {
           {step === 4 && (
             <div className="space-y-6">
               <div className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d4a843] to-amber-300 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-200/60">
-                  <CheckCheck className="w-8 h-8 text-[#1a1f36]" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#f5c84c] to-amber-300 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-200/60">
+                  <CheckCheck className="w-8 h-8 text-[#0b5c8b]" />
                 </div>
-                <h2 className="text-xl font-bold text-[#1a1f36] mb-1">You’re live</h2>
+                <h2 className="text-xl font-bold text-[#0b5c8b] mb-1">You’re live</h2>
                 <p className="text-sm text-gray-500">Copy your booking link or embed the widget on your site.</p>
               </div>
 
               <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-5 space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-[#1a1f36]">Widget design</div>
+                    <div className="text-sm font-semibold text-[#0b5c8b]">Widget design</div>
                     <div className="text-xs text-gray-500">Set your brand color and logo. You can change this later in Settings.</div>
                   </div>
                 </div>
@@ -1669,7 +1673,7 @@ export function OnboardingWizard() {
                         className={inp}
                         value={primaryColor}
                         onChange={(e) => setPrimaryColor(e.target.value)}
-                        placeholder="#1a1f36"
+                        placeholder="#0b5c8b"
                       />
                     </div>
                   </div>
@@ -1687,7 +1691,7 @@ export function OnboardingWizard() {
                           className={inp}
                           value={accentColor}
                           onChange={(e) => setAccentColor(e.target.value)}
-                          placeholder="#d4a843"
+                          placeholder="#f5c84c"
                         />
                       </div>
                     </div>
@@ -1720,7 +1724,7 @@ export function OnboardingWizard() {
                 />
               </div>
 
-              <div className="p-4 bg-gradient-to-br from-[#1a1f36]/5 to-[#d4a843]/5 rounded-xl border border-[#d4a843]/20">
+              <div className="p-4 bg-gradient-to-br from-[#0b5c8b]/5 to-[#f5c84c]/5 rounded-xl border border-[#f5c84c]/20">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">Setup summary</p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
@@ -1731,7 +1735,7 @@ export function OnboardingWizard() {
                     "Customer questions (optional)",
                   ].map((item) => (
                     <div key={item} className="flex items-center gap-2 text-xs text-gray-700">
-                      <Check className="w-3.5 h-3.5 text-[#d4a843] shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-[#f5c84c] shrink-0" />
                       {item}
                     </div>
                   ))}
@@ -1742,7 +1746,7 @@ export function OnboardingWizard() {
                 <button type="button" onClick={() => setStep(3)} className="flex-1 py-2.5 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
                   Back
                 </button>
-                <button type="button" onClick={finish} disabled={loading} className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-gradient-to-r from-[#d4a843] to-amber-400 text-[#1a1f36] hover:shadow-lg hover:shadow-amber-200 disabled:opacity-50">
+                <button type="button" onClick={finish} disabled={loading} className="flex-1 py-2.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 bg-gradient-to-r from-[#f5c84c] to-amber-400 text-[#0b5c8b] hover:shadow-lg hover:shadow-amber-200 disabled:opacity-50">
                   Finish setup
                 </button>
               </div>

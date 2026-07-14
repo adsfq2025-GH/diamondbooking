@@ -66,10 +66,10 @@ export function OverviewCharts({ revenueData, signupData, planDistribution }: Ov
             <Line
               type="monotone"
               dataKey="mrr"
-              stroke="#d4a843"
+              stroke="#f5c84c"
               strokeWidth={2.5}
               dot={false}
-              activeDot={{ r: 4, fill: "#d4a843" }}
+              activeDot={{ r: 4, fill: "#f5c84c" }}
             />
           </LineChart>
         </ResponsiveContainer>

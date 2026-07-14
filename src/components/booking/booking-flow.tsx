@@ -204,11 +204,11 @@ export function BookingFlow({
   embed?: boolean;
 }) {
   const searchParams = useSearchParams();
-  const primary = business.primaryColor || "#1a1f36";
+  const primary = business.primaryColor || "#0b5c8b";
   const cfg = (config ?? {}) as BookingConfig;
   const showIcons = cfg.ui?.showIcons !== false;
   const showLivePricing = cfg.ui?.showLivePricing !== false;
-  const accent = cfg.theme?.accentColor ?? "#d4a843";
+  const accent = cfg.theme?.accentColor ?? "#f5c84c";
 
   const addOnIconMap = useMemo(
     () => ({
@@ -708,7 +708,7 @@ export function BookingFlow({
           </div>
         ) : (
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-6 text-center">
-            <h1 className="text-2xl sm:text-3xl font-black text-[#1a1f36]">Book your appointment</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-[#0b5c8b]">Book your appointment</h1>
             <p className="text-sm text-gray-500 mt-1">{business.name}</p>
           </div>
         )}
@@ -754,8 +754,8 @@ export function BookingFlow({
         {/* STEP 1 — Get pricing */}
         {step === 1 && (
           <div className={embed ? "space-y-5" : "space-y-4"}>
-            <div className={embed ? "bg-[#1a1f36]/5 rounded-2xl p-5 border border-gray-100" : ""}>
-              <h2 className="text-xl font-black text-[#1a1f36]">Get Pricing &amp; Book In 60 Seconds</h2>
+            <div className={embed ? "bg-[#0b5c8b]/5 rounded-2xl p-5 border border-gray-100" : ""}>
+              <h2 className="text-xl font-black text-[#0b5c8b]">Get Pricing &amp; Book In 60 Seconds</h2>
               <p className="text-sm text-gray-500 mt-1">
                 Pick your service and options to see live pricing, then find the best day and time.
               </p>
@@ -768,12 +768,12 @@ export function BookingFlow({
             <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-[#1a1f36]">Where will the service be taking place?</div>
+                  <div className="text-sm font-bold text-[#0b5c8b]">Where will the service be taking place?</div>
                   <HelpTooltip
                     ariaLabel="Help: Zip code"
                     content={
                       <div className="space-y-2">
-                        <div className="text-sm font-semibold text-[#1a1f36]">Zip code</div>
+                        <div className="text-sm font-semibold text-[#0b5c8b]">Zip code</div>
                         <div className="text-sm text-gray-600">Used for local pricing rules and service-area checks (if enabled).</div>
                       </div>
                     }
@@ -793,12 +793,12 @@ export function BookingFlow({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-[#1a1f36]">Select your desired type of service</div>
+                  <div className="text-sm font-bold text-[#0b5c8b]">Select your desired type of service</div>
                   <HelpTooltip
                     ariaLabel="Help: Service selection"
                     content={
                       <div className="space-y-2">
-                        <div className="text-sm font-semibold text-[#1a1f36]">Service selection</div>
+                        <div className="text-sm font-semibold text-[#0b5c8b]">Service selection</div>
                         <div className="text-sm text-gray-600">Choose what you want to book. Pricing and availability update automatically.</div>
                       </div>
                     }
@@ -848,12 +848,12 @@ export function BookingFlow({
               {recurring && recurring.intervals.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-[#1a1f36]">Frequency</div>
+                    <div className="text-sm font-bold text-[#0b5c8b]">Frequency</div>
                     <HelpTooltip
                       ariaLabel="Help: Frequency"
                       content={
                         <div className="space-y-2">
-                          <div className="text-sm font-semibold text-[#1a1f36]">Frequency</div>
+                          <div className="text-sm font-semibold text-[#0b5c8b]">Frequency</div>
                           <div className="text-sm text-gray-600">Recurring bookings can qualify for discounts.</div>
                         </div>
                       }
@@ -890,12 +890,12 @@ export function BookingFlow({
               {(customerTypes || intakeFields.length > 0) && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-[#1a1f36]">What needs to be done?</div>
+                    <div className="text-sm font-bold text-[#0b5c8b]">What needs to be done?</div>
                     <HelpTooltip
                       ariaLabel="Help: Booking questions"
                       content={
                         <div className="space-y-2">
-                          <div className="text-sm font-semibold text-[#1a1f36]">Booking questions</div>
+                          <div className="text-sm font-semibold text-[#0b5c8b]">Booking questions</div>
                           <div className="text-sm text-gray-600">These questions help estimate pricing and duration before you choose a time.</div>
                         </div>
                       }
@@ -934,7 +934,7 @@ export function BookingFlow({
                             ariaLabel={`Help: ${field.label}`}
                             content={
                               <div className="space-y-2">
-                                <div className="text-sm font-semibold text-[#1a1f36]">{field.label}</div>
+                                <div className="text-sm font-semibold text-[#0b5c8b]">{field.label}</div>
                                 <div className="text-sm text-gray-600">Answer based on your job so pricing can update accurately.</div>
                               </div>
                             }
@@ -1003,12 +1003,12 @@ export function BookingFlow({
               {addOns.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-[#1a1f36]">Select extras</div>
+                    <div className="text-sm font-bold text-[#0b5c8b]">Select extras</div>
                     <HelpTooltip
                       ariaLabel="Help: Extras"
                       content={
                         <div className="space-y-2">
-                          <div className="text-sm font-semibold text-[#1a1f36]">Extras</div>
+                          <div className="text-sm font-semibold text-[#0b5c8b]">Extras</div>
                           <div className="text-sm text-gray-600">Add-ons are optional items you can include with your booking.</div>
                         </div>
                       }
@@ -1059,7 +1059,7 @@ export function BookingFlow({
                     ariaLabel="Help: Email"
                     content={
                       <div className="space-y-2">
-                        <div className="text-sm font-semibold text-[#1a1f36]">Email</div>
+                        <div className="text-sm font-semibold text-[#0b5c8b]">Email</div>
                         <div className="text-sm text-gray-600">We’ll send your booking confirmation here.</div>
                       </div>
                     }
@@ -1283,7 +1283,7 @@ export function BookingFlow({
             {!!quote?.breakdown?.length && (
               <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-[#1a1f36]">Pricing breakdown</div>
+                  <div className="text-sm font-bold text-[#0b5c8b]">Pricing breakdown</div>
                   {quoteLoading && <div className="text-xs text-gray-400">Updating…</div>}
                 </div>
                 <div className="space-y-1">
@@ -1468,12 +1468,12 @@ export function BookingFlow({
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="text-sm font-bold text-[#1a1f36]">Booking Summary</div>
+                      <div className="text-sm font-bold text-[#0b5c8b]">Booking Summary</div>
                       <HelpTooltip
                         ariaLabel="Help: Booking summary"
                         content={
                           <div className="space-y-2">
-                            <div className="text-sm font-semibold text-[#1a1f36]">Booking summary</div>
+                            <div className="text-sm font-semibold text-[#0b5c8b]">Booking summary</div>
                             <div className="text-sm text-gray-600">Updates live as you select services, extras, and frequency.</div>
                           </div>
                         }
@@ -1543,7 +1543,7 @@ export function BookingFlow({
 
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-[#1a1f36]">Live Reviews</div>
+                    <div className="text-sm font-bold text-[#0b5c8b]">Live Reviews</div>
                     <button type="button" className="text-xs font-bold text-gray-400 hover:text-gray-600" aria-label="Reviews help">
                       <HelpCircle className="w-4 h-4" />
                     </button>
@@ -1564,7 +1564,7 @@ export function BookingFlow({
                 </div>
 
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-                  <div className="text-sm font-bold text-[#1a1f36]">Popular Questions</div>
+                  <div className="text-sm font-bold text-[#0b5c8b]">Popular Questions</div>
                   {[
                     "Are you insured and bonded?",
                     "How is pricing calculated?",
