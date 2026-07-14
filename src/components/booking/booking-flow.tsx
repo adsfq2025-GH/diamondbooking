@@ -131,9 +131,12 @@ function ymdToDateNoonUTC(dateStr: string) {
   return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 }
 
-function formatYmdInTimeZone(dateStr: string, timeZone: string, options: Intl.DateTimeFormatOptions) {
+function formatYmdInTimeZone(dateStr: string, tz: string, options: Intl.DateTimeFormatOptions) {
   const dt = ymdToDateNoonUTC(dateStr);
-  return new Intl.DateTimeFormat("en-US", { timeZone, ...options }).format(dt);
+  // NOTE: use an explicit `timeZone: tz` (not object shorthand) — the production
+  // minifier miscompiles `{ timeZone }` when this helper is inlined, producing a
+  // "timeZone is not defined" ReferenceError that crashes the calendar step.
+  return new Intl.DateTimeFormat("en-US", { timeZone: tz, ...options }).format(dt);
 }
 
 function toIcsUtc(tsUtc: string) {
@@ -166,8 +169,8 @@ function makeIcs(opts: { uid: string; summary: string; description?: string; sta
   return lines.join("\r\n");
 }
 
-function formatDateToYmdInTimeZone(dt: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(dt);
+function formatDateToYmdInTimeZone(dt: Date, tz: string) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(dt);
   const year = parts.find((p) => p.type === "year")?.value ?? "1970";
   const month = parts.find((p) => p.type === "month")?.value ?? "01";
   const day = parts.find((p) => p.type === "day")?.value ?? "01";
@@ -176,9 +179,9 @@ function formatDateToYmdInTimeZone(dt: Date, timeZone: string) {
 
 const WEEKDAY_TO_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-function weekdayIndexInTimeZone(dateStr: string, timeZone: string) {
+function weekdayIndexInTimeZone(dateStr: string, tz: string) {
   const dt = ymdToDateNoonUTC(dateStr);
-  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(dt);
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(dt);
   return WEEKDAY_TO_INDEX[weekday] ?? dt.getUTCDay();
 }
 
