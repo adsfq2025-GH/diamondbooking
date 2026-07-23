@@ -1,33 +1,42 @@
 // src/app/api/public/availability/[slug]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getAvailableSlots } from "@/lib/availability";
+import { z } from "zod";
 
 type Params = { params: Promise<{ slug: string }> };
+
+const querySchema = z.object({
+  date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+  serviceId: z.string().trim().min(1, "serviceId is required"),
+  staffId: z.string().trim().min(1).default("any"),
+  durationMinutes: z.coerce.number().int().positive().max(480).optional(),
+});
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { slug } = await params;
   const { searchParams } = req.nextUrl;
 
-  const date      = searchParams.get("date");
-  const serviceId = searchParams.get("serviceId");
-  const staffId   = searchParams.get("staffId") ?? "any";
-  const durationMinutesParam = searchParams.get("durationMinutes");
-  const durationMinutes = durationMinutesParam ? Number(durationMinutesParam) : undefined;
-
-  if (!date || !serviceId) {
+  const parsed = querySchema.safeParse({
+    date: searchParams.get("date"),
+    serviceId: searchParams.get("serviceId"),
+    staffId: searchParams.get("staffId") ?? "any",
+    durationMinutes: searchParams.get("durationMinutes") ?? undefined,
+  });
+  if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "date and serviceId are required" },
+      { success: false, error: parsed.error.issues[0]?.message ?? "Invalid availability request" },
       { status: 400 }
     );
   }
 
   try {
+    const { date, serviceId, staffId, durationMinutes } = parsed.data;
     const slots = await getAvailableSlots({
       businessSlug: slug,
       serviceId,
       staffId,
       date,
-      durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : undefined,
+      durationMinutes,
     });
     return NextResponse.json({ success: true, data: slots });
   } catch (err) {

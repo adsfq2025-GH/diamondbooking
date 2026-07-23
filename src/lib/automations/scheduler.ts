@@ -3,6 +3,10 @@ import { getAutomationsConfig } from "@/lib/automations/config";
 import { normalizePhoneE164 } from "@/lib/sms";
 import { NotificationType, Prisma } from "@prisma/client";
 
+function uniqueOffsets(offsets: number[]) {
+  return [...new Set(offsets.filter((offset) => Number.isInteger(offset) && offset > 0))].sort((a, b) => a - b);
+}
+
 export async function scheduleRemindersForBooking(args: { bookingId: string }) {
   const booking = await prisma.booking.findUnique({
     where: { id: args.bookingId },
@@ -28,74 +32,138 @@ export async function scheduleRemindersForBooking(args: { bookingId: string }) {
   });
   const config = getAutomationsConfig(businessConfig?.config ?? {});
 
-  if (!config.notifications.reminders.enabled) return;
-
   const toPhone = normalizePhoneE164(booking.customer.phone);
-  const now = Date.now();
+  const now = new Date();
+  const desiredOffsets = config.notifications.reminders.enabled ? uniqueOffsets(config.notifications.reminders.offsetsMinutes) : [];
+  const desiredKeys = desiredOffsets.map((offsetMinutes) => `offset:${offsetMinutes}`);
+  const reminderScheduledAt = (offsetMinutes: number) => {
+    const reminderTime = new Date(booking.startTime.getTime() - offsetMinutes * 60 * 1000);
+    return reminderTime.getTime() <= now.getTime() ? now : reminderTime;
+  };
 
-  for (const offsetMinutes of config.notifications.reminders.offsetsMinutes) {
-    const scheduledAt = new Date(booking.startTime.getTime() - offsetMinutes * 60 * 1000);
-    if (scheduledAt.getTime() <= now) continue;
-    const dedupeKey = `offset:${offsetMinutes}`;
-
-    if (config.notifications.email) {
-      await prisma.scheduledNotification.upsert({
-        where: { bookingId_type_channel_dedupeKey: { bookingId: booking.id, type: "BOOKING_REMINDER", channel: "EMAIL", dedupeKey } },
-        create: {
-          businessId: booking.businessId,
-          bookingId: booking.id,
-          customerId: booking.customerId,
-          channel: "EMAIL",
-          type: "BOOKING_REMINDER",
-          dedupeKey,
-          toEmail: booking.customer.email,
-          scheduledAt,
-          payload: {
-            offsetMinutes,
-          } as Prisma.InputJsonValue,
-        },
-        update: {
-          status: "PENDING",
-          scheduledAt,
-          toEmail: booking.customer.email,
-          payload: {
-            offsetMinutes,
-          } as Prisma.InputJsonValue,
-        },
-      });
+  if (config.notifications.email) {
+    if (desiredOffsets.length) {
+      for (const offsetMinutes of desiredOffsets) {
+        const dedupeKey = `offset:${offsetMinutes}`;
+        await prisma.scheduledNotification.upsert({
+          where: {
+            bookingId_type_channel_dedupeKey: {
+              bookingId: booking.id,
+              type: "BOOKING_REMINDER",
+              channel: "EMAIL",
+              dedupeKey,
+            },
+          },
+          create: {
+            businessId: booking.businessId,
+            bookingId: booking.id,
+            customerId: booking.customerId,
+            channel: "EMAIL",
+            type: "BOOKING_REMINDER",
+            dedupeKey,
+            toEmail: booking.customer.email,
+            scheduledAt: reminderScheduledAt(offsetMinutes),
+            payload: {
+              offsetMinutes,
+            } as Prisma.InputJsonValue,
+          },
+          update: {
+            status: "PENDING",
+            scheduledAt: reminderScheduledAt(offsetMinutes),
+            toEmail: booking.customer.email,
+            payload: {
+              offsetMinutes,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      }
     }
 
-    if (config.notifications.sms && toPhone) {
-      await prisma.scheduledNotification.upsert({
-        where: { bookingId_type_channel_dedupeKey: { bookingId: booking.id, type: "BOOKING_REMINDER", channel: "SMS", dedupeKey } },
-        create: {
-          businessId: booking.businessId,
-          bookingId: booking.id,
-          customerId: booking.customerId,
-          channel: "SMS",
-          type: "BOOKING_REMINDER",
-          dedupeKey,
-          toPhone,
-          scheduledAt,
-          payload: {
-            offsetMinutes,
-          } as Prisma.InputJsonValue,
-        },
-        update: {
-          status: "PENDING",
-          scheduledAt,
-          toPhone,
-          payload: {
-            offsetMinutes,
-          } as Prisma.InputJsonValue,
-        },
-      });
+    await prisma.scheduledNotification.updateMany({
+      where: {
+        bookingId: booking.id,
+        type: "BOOKING_REMINDER",
+        channel: "EMAIL",
+        status: { in: ["PENDING", "PROCESSING"] },
+        ...(desiredKeys.length ? { dedupeKey: { notIn: desiredKeys } } : {}),
+      },
+      data: { status: "CANCELLED", lockedAt: null, lastError: null },
+    });
+  } else {
+    await prisma.scheduledNotification.updateMany({
+      where: {
+        bookingId: booking.id,
+        type: "BOOKING_REMINDER",
+        channel: "EMAIL",
+        status: { in: ["PENDING", "PROCESSING"] },
+      },
+      data: { status: "CANCELLED", lockedAt: null, lastError: null },
+    });
+  }
+
+  if (config.notifications.sms && toPhone) {
+    if (desiredOffsets.length) {
+      for (const offsetMinutes of desiredOffsets) {
+        const dedupeKey = `offset:${offsetMinutes}`;
+        await prisma.scheduledNotification.upsert({
+          where: {
+            bookingId_type_channel_dedupeKey: {
+              bookingId: booking.id,
+              type: "BOOKING_REMINDER",
+              channel: "SMS",
+              dedupeKey,
+            },
+          },
+          create: {
+            businessId: booking.businessId,
+            bookingId: booking.id,
+            customerId: booking.customerId,
+            channel: "SMS",
+            type: "BOOKING_REMINDER",
+            dedupeKey,
+            toPhone,
+            scheduledAt: reminderScheduledAt(offsetMinutes),
+            payload: {
+              offsetMinutes,
+            } as Prisma.InputJsonValue,
+          },
+          update: {
+            status: "PENDING",
+            scheduledAt: reminderScheduledAt(offsetMinutes),
+            toPhone,
+            payload: {
+              offsetMinutes,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      }
     }
+
+    await prisma.scheduledNotification.updateMany({
+      where: {
+        bookingId: booking.id,
+        type: "BOOKING_REMINDER",
+        channel: "SMS",
+        status: { in: ["PENDING", "PROCESSING"] },
+        ...(desiredKeys.length ? { dedupeKey: { notIn: desiredKeys } } : {}),
+      },
+      data: { status: "CANCELLED", lockedAt: null, lastError: null },
+    });
+  } else {
+    await prisma.scheduledNotification.updateMany({
+      where: {
+        bookingId: booking.id,
+        type: "BOOKING_REMINDER",
+        channel: "SMS",
+        status: { in: ["PENDING", "PROCESSING"] },
+      },
+      data: { status: "CANCELLED", lockedAt: null, lastError: null },
+    });
   }
 }
 
 export async function cancelScheduledNotifications(args: { bookingId: string; types?: NotificationType[] }) {
-  const types: NotificationType[] = args.types?.length ? args.types : ["BOOKING_REMINDER", "BOOKING_FOLLOW_UP"];
+  const types: NotificationType[] = args.types?.length ? args.types : ["BOOKING_CONFIRMATION", "BOOKING_REMINDER", "BOOKING_FOLLOW_UP"];
   await prisma.scheduledNotification.updateMany({
     where: {
       bookingId: args.bookingId,

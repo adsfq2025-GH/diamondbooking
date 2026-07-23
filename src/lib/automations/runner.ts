@@ -10,7 +10,7 @@ export async function processDueNotifications(args: { limit: number; lockMinutes
 
   const due = await prisma.scheduledNotification.findMany({
     where: {
-      status: "PENDING",
+      status: { in: ["PENDING", "PROCESSING"] },
       scheduledAt: { lte: now },
       OR: [{ lockedAt: null }, { lockedAt: { lt: lockExpiry } }],
       attempts: { lt: args.maxAttempts },
@@ -26,7 +26,11 @@ export async function processDueNotifications(args: { limit: number; lockMinutes
 
   for (const row of due) {
     const claimed = await prisma.scheduledNotification.updateMany({
-      where: { id: row.id, status: "PENDING" },
+      where: {
+        id: row.id,
+        status: { in: ["PENDING", "PROCESSING"] },
+        OR: [{ lockedAt: null }, { lockedAt: { lt: lockExpiry } }],
+      },
       data: { status: "PROCESSING", lockedAt: now, attempts: { increment: 1 } },
     });
     if (claimed.count !== 1) continue;
@@ -34,22 +38,34 @@ export async function processDueNotifications(args: { limit: number; lockMinutes
     processed += 1;
 
     try {
-      await sendNotification(row.id);
+      const dispatchResult = await sendNotification(row.id);
       sent += 1;
-      await prisma.scheduledNotification.update({
-        where: { id: row.id },
-        data: { status: "SENT", sentAt: new Date(), lockedAt: null, lastError: null },
+      const finalize = await prisma.scheduledNotification.updateMany({
+        where: { id: row.id, status: "PROCESSING" },
+        data: {
+          status: "SENT",
+          sentAt: new Date(),
+          lockedAt: null,
+          lastError: null,
+          ...(dispatchResult.providerId ? { providerId: dispatchResult.providerId } : {}),
+        },
       });
+      if (finalize.count !== 1) {
+        console.warn(`[automations] Notification ${row.id} was sent but could not be finalized`);
+      }
     } catch (e: unknown) {
       failed += 1;
       const msg = e instanceof Error ? e.message : "Failed";
       const current = await prisma.scheduledNotification.findUnique({
         where: { id: row.id },
-        select: { attempts: true },
+        select: { attempts: true, status: true },
       });
+      if (current?.status === "CANCELLED") {
+        continue;
+      }
       const giveUp = (current?.attempts ?? 0) >= args.maxAttempts;
-      await prisma.scheduledNotification.update({
-        where: { id: row.id },
+      await prisma.scheduledNotification.updateMany({
+        where: { id: row.id, status: "PROCESSING" },
         data: {
           status: giveUp ? "FAILED" : "PENDING",
           lockedAt: null,
@@ -62,11 +78,12 @@ export async function processDueNotifications(args: { limit: number; lockMinutes
   return { processed, sent, failed };
 }
 
-async function sendNotification(id: string) {
+async function sendNotification(id: string): Promise<{ providerId?: string | null }> {
   const n = await prisma.scheduledNotification.findUnique({
     where: { id },
     select: {
       id: true,
+      status: true,
       channel: true,
       type: true,
       toEmail: true,
@@ -86,11 +103,13 @@ async function sendNotification(id: string) {
     },
   });
 
-  if (!n) return;
+  if (!n) throw new Error("Scheduled notification not found");
+  if (n.status !== "PROCESSING") throw new Error("Notification is no longer active");
   if (n.channel === "EMAIL" && !n.toEmail) throw new Error("Missing recipient email");
   if (n.channel === "SMS" && !n.toPhone) throw new Error("Missing recipient phone");
 
   const bookingUrl = APP_URL ? `${APP_URL}/book/${n.booking.business.slug}` : undefined;
+  const strictEmailOptions = { throwOnError: true } as const;
 
   if (n.channel === "EMAIL") {
     const data = {
@@ -105,11 +124,23 @@ async function sendNotification(id: string) {
       notes: n.booking.notes ?? undefined,
     };
 
-    if (n.type === "BOOKING_REMINDER") return sendBookingReminder(data);
-    if (n.type === "BOOKING_CANCELLATION") return sendCancellationEmail(data);
-    if (n.type === "BOOKING_FOLLOW_UP") return sendFollowUpEmail(data);
-    if (n.type === "BOOKING_CONFIRMATION") return sendBookingConfirmation(data);
-    return;
+    if (n.type === "BOOKING_REMINDER") {
+      await sendBookingReminder(data, strictEmailOptions);
+      return {};
+    }
+    if (n.type === "BOOKING_CANCELLATION") {
+      await sendCancellationEmail(data, strictEmailOptions);
+      return {};
+    }
+    if (n.type === "BOOKING_FOLLOW_UP") {
+      await sendFollowUpEmail(data, strictEmailOptions);
+      return {};
+    }
+    if (n.type === "BOOKING_CONFIRMATION") {
+      await sendBookingConfirmation(data, strictEmailOptions);
+      return {};
+    }
+    throw new Error(`Unsupported notification type: ${n.type}`);
   }
 
   if (n.channel === "SMS") {
@@ -125,10 +156,8 @@ async function sendNotification(id: string) {
     });
 
     const result = await sendSms({ to: n.toPhone!, body });
-    await prisma.scheduledNotification.update({
-      where: { id: n.id },
-      data: { providerId: result.providerId ?? undefined },
-    });
+    return { providerId: result.providerId ?? null };
   }
-}
 
+  throw new Error(`Unsupported notification channel: ${n.channel}`);
+}

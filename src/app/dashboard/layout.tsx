@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnerBusinessId } from "@/lib/owner-business";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { MaintenanceBanner } from "@/components/dashboard/maintenance-banner";
@@ -21,9 +22,10 @@ export default async function DashboardLayout({
   const inMaintenance = settings?.maintenanceMode ?? false;
 
   // Load business for sidebar
-  const business = session.user.businessId
+  const resolvedBusinessId = await resolveOwnerBusinessId(session.user.id, session.user.businessId);
+  const business = resolvedBusinessId
     ? await prisma.business.findUnique({
-        where: { id: session.user.businessId },
+        where: { id: resolvedBusinessId },
         select: { id: true, name: true, slug: true, logoUrl: true, onboardingComplete: true },
       })
     : null;

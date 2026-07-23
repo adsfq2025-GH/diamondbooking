@@ -25,6 +25,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
 
     if (!booking) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (booking.status === status) {
+      return NextResponse.json({ success: true, data: booking });
+    }
 
     const updated = await prisma.booking.update({
       where: { id },
@@ -41,11 +44,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
 
     if (status === "CANCELLED") {
-      await cancelScheduledNotifications({ bookingId: id });
+      await cancelScheduledNotifications({ bookingId: id, types: ["BOOKING_CONFIRMATION", "BOOKING_REMINDER", "BOOKING_FOLLOW_UP"] });
       await scheduleCancellationNotifications({ bookingId: id });
     }
     if (status === "COMPLETED") {
+      await cancelScheduledNotifications({ bookingId: id, types: ["BOOKING_CONFIRMATION", "BOOKING_REMINDER", "BOOKING_CANCELLATION"] });
       await scheduleFollowUpNotifications({ bookingId: id });
+    }
+    if (status === "NO_SHOW") {
+      await cancelScheduledNotifications({ bookingId: id, types: ["BOOKING_CONFIRMATION", "BOOKING_REMINDER", "BOOKING_CANCELLATION", "BOOKING_FOLLOW_UP"] });
     }
 
     return NextResponse.json({ success: true, data: updated });

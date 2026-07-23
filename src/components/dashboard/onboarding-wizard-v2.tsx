@@ -536,7 +536,12 @@ export function OnboardingWizard() {
       setPrimaryColor(json.data.primaryColor ?? "#0b5c8b");
       setLogoUrl(json.data.logoUrl ?? "");
       setWelcomeMessage(json.data.welcomeMessage ?? "");
-      await updateSession({ businessId: json.data.id, businessSlug: json.data.slug });
+      try {
+        await updateSession({ businessId: json.data.id, businessSlug: json.data.slug });
+      } catch {
+        // The rest of the flow can still proceed because server routes fall
+        // back to the owner record if the session token is still catching up.
+      }
 
       setStep(2);
     });
@@ -797,15 +802,21 @@ export function OnboardingWizard() {
           logoUrl: logoUrl.trim() || undefined,
         }),
       });
+      const bizJson = await bizRes.json().catch(() => ({}));
       if (!bizRes.ok) {
-        const bizJson = await bizRes.json().catch(() => ({}));
         throw new Error(bizJson.error ?? "Failed to save widget design");
       }
       const completeRes = await fetch("/api/business/onboard/complete", { method: "POST" });
       if (!completeRes.ok) {
-        throw new Error("Could not complete setup. Please try again.");
+        const completeJson = await completeRes.json().catch(() => ({}));
+        throw new Error(completeJson.error ?? "Could not complete setup. Please try again.");
       }
-      router.push("/dashboard");
+      try {
+        await updateSession({ businessId: bizJson?.data?.id, businessSlug: bizJson?.data?.slug ?? businessSlug });
+      } catch {
+      }
+      router.replace("/dashboard");
+      router.refresh();
     });
 
   const stepPct = useMemo(() => {

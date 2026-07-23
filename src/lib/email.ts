@@ -27,6 +27,10 @@ export interface BookingEmailData {
   notes?:        string;
 }
 
+type EmailSendOptions = {
+  throwOnError?: boolean;
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDateTime(date: Date, timezone: string): string {
@@ -44,7 +48,7 @@ function formatDateTime(date: Date, timezone: string): string {
 
 // ── Email: Booking confirmation to client ──────────────────────────────────────
 
-export async function sendBookingConfirmation(data: BookingEmailData) {
+export async function sendBookingConfirmation(data: BookingEmailData, options: EmailSendOptions = {}) {
   const dateStr = formatDateTime(data.startTime, data.timezone);
 
   try {
@@ -101,12 +105,13 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     });
   } catch (err) {
     console.error("[email] Booking confirmation failed:", err);
+    if (options.throwOnError) throw err;
   }
 }
 
 // ── Email: New booking notification to business owner ─────────────────────────
 
-export async function sendNewBookingNotification(data: BookingEmailData & { ownerEmail: string }) {
+export async function sendNewBookingNotification(data: BookingEmailData & { ownerEmail: string }, options: EmailSendOptions = {}) {
   const dateStr = formatDateTime(data.startTime, data.timezone);
 
   try {
@@ -136,12 +141,13 @@ export async function sendNewBookingNotification(data: BookingEmailData & { owne
     });
   } catch (err) {
     console.error("[email] New booking notification failed:", err);
+    if (options.throwOnError) throw err;
   }
 }
 
 // ── Email: Booking reminder (24h before) ─────────────────────────────────────
 
-export async function sendBookingReminder(data: BookingEmailData) {
+export async function sendBookingReminder(data: BookingEmailData, options: EmailSendOptions = {}) {
   const dateStr = formatDateTime(data.startTime, data.timezone);
 
   try {
@@ -167,10 +173,11 @@ export async function sendBookingReminder(data: BookingEmailData) {
     });
   } catch (err) {
     console.error("[email] Reminder failed:", err);
+    if (options.throwOnError) throw err;
   }
 }
 
-export async function sendFollowUpEmail(data: BookingEmailData) {
+export async function sendFollowUpEmail(data: BookingEmailData, options: EmailSendOptions = {}) {
   try {
     await getResend().emails.send({
       from: getFrom(),
@@ -191,12 +198,13 @@ export async function sendFollowUpEmail(data: BookingEmailData) {
     });
   } catch (err) {
     console.error("[email] Follow-up failed:", err);
+    if (options.throwOnError) throw err;
   }
 }
 
 // ── Email: Booking cancellation ───────────────────────────────────────────────
 
-export async function sendCancellationEmail(data: BookingEmailData) {
+export async function sendCancellationEmail(data: BookingEmailData, options: EmailSendOptions = {}) {
   try {
     await getResend().emails.send({
       from:    getFrom(),
@@ -216,6 +224,7 @@ export async function sendCancellationEmail(data: BookingEmailData) {
     });
   } catch (err) {
     console.error("[email] Cancellation email failed:", err);
+    if (options.throwOnError) throw err;
   }
 }
 

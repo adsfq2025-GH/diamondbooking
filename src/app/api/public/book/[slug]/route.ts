@@ -12,9 +12,10 @@ import { getAutomationsConfig } from "@/lib/automations/config";
 import { scheduleRemindersForBooking } from "@/lib/automations/scheduler";
 import { buildBookingSms, sendSms } from "@/lib/sms";
 import { addDays } from "date-fns";
-import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import Stripe from "stripe";
 import { getPublicAppUrl } from "@/lib/widget-embed";
+import { localDateDayOfWeek, localDateStringInTimeZone, localDateTimeToUtc } from "@/lib/booking-time";
+import { normalizeCustomerEmail, normalizeCustomerName, normalizeCustomerPhone } from "@/lib/customer-normalization";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -120,6 +121,11 @@ export async function POST(req: NextRequest, { params }: Params) {
           embed,
   } = parsed.data;
 
+  const normalizedCustomerName = normalizeCustomerName(customerName);
+  const normalizedCustomerEmail = normalizeCustomerEmail(customerEmail);
+  const normalizedCustomerPhone = normalizeCustomerPhone(customerPhone);
+  const normalizedNotes = notes?.trim() || undefined;
+
   // Verify service belongs to this business
   const service = await prisma.service.findFirst({
     where: { id: serviceId, businessId: business.id, isActive: true },
@@ -142,9 +148,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const tz = business.timezone;
-  const [y, m, d] = date.split("-").map((x) => Number(x));
-  if (!y || !m || !d) return NextResponse.json({ success: false, error: "Invalid date" }, { status: 400 });
-  const dateLocal = new Date(y, m - 1, d, 0, 0, 0, 0);
 
   const nowUtc = new Date();
   const minBookingTime = new Date(nowUtc.getTime() + business.minimumNoticeHours * 60 * 60 * 1000);
@@ -152,14 +155,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ success: false, error: "This time is too soon to book" }, { status: 400 });
   }
 
-  const nowLocal = toZonedTime(nowUtc, tz);
-  const todayLocalMidnight = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate(), 0, 0, 0, 0);
-  const maxLocalDate = addDays(todayLocalMidnight, business.advanceBookingDays);
-  if (toZonedTime(fromZonedTime(dateLocal, tz), tz) > maxLocalDate) {
+  const todayLocalDateString = localDateStringInTimeZone(nowUtc, tz);
+  const maxLocalDateString = localDateStringInTimeZone(
+    addDays(new Date(`${todayLocalDateString}T12:00:00Z`), business.advanceBookingDays),
+    tz
+  );
+  if (date > maxLocalDateString) {
     return NextResponse.json({ success: false, error: "This date is outside the booking window" }, { status: 400 });
   }
 
-  const dayOfWeek = toZonedTime(fromZonedTime(dateLocal, tz), tz).getDay();
+  const dayOfWeek = localDateDayOfWeek(date, tz);
   const staffAvail = staff.availability.find((a) => a.dayOfWeek === dayOfWeek);
   const bizHours = business.businessHours.find((h) => h.dayOfWeek === dayOfWeek);
   const dayHours = staffAvail ?? bizHours;
@@ -167,14 +172,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ success: false, error: "Selected date is not available" }, { status: 400 });
   }
 
-  const openUtc = fromZonedTime(
-    new Date(y, m - 1, d, Number(dayHours.openTime.split(":")[0] ?? 0), Number(dayHours.openTime.split(":")[1] ?? 0), 0, 0),
-    tz
-  );
-  const closeUtc = fromZonedTime(
-    new Date(y, m - 1, d, Number(dayHours.closeTime.split(":")[0] ?? 0), Number(dayHours.closeTime.split(":")[1] ?? 0), 0, 0),
-    tz
-  );
+  const openUtc = localDateTimeToUtc(date, dayHours.openTime, tz);
+  const closeUtc = localDateTimeToUtc(date, dayHours.closeTime, tz);
 
   if (slotStart < openUtc || slotEnd > closeUtc) {
     return NextResponse.json({ success: false, error: "Selected time is outside availability" }, { status: 400 });
@@ -198,13 +197,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Upsert customer (unique per business+email)
   const customer = await prisma.customer.upsert({
-    where: { businessId_email: { businessId: business.id, email: customerEmail.toLowerCase() } },
-    update: { name: customerName, phone: customerPhone ?? undefined },
+    where: { businessId_email: { businessId: business.id, email: normalizedCustomerEmail } },
+    update: { name: normalizedCustomerName, phone: normalizedCustomerPhone ?? undefined },
     create: {
       businessId: business.id,
-      name: customerName,
-      email: customerEmail.toLowerCase(),
-      phone: customerPhone ?? null,
+      name: normalizedCustomerName,
+      email: normalizedCustomerEmail,
+      phone: normalizedCustomerPhone ?? null,
     },
   });
 
@@ -388,7 +387,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           startTime: slotStart,
           endTime: slotEnd,
           status: shouldCollectPayment ? "PENDING_PAYMENT" : business.autoConfirm ? "CONFIRMED" : "PENDING",
-          notes: notes ?? null,
+          notes: normalizedNotes ?? null,
           totalPrice: quote.total,
           intakeData: intakeJson,
           pricingData: quote,
@@ -442,7 +441,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     action: "BOOKING_CREATED",
     targetType: "Booking",
     targetId: booking.id,
-    targetName: `${customerName} — ${service.name}`,
+    targetName: `${normalizedCustomerName} — ${service.name}`,
     metadata: { businessId: business.id, source: "booking_page" },
   });
 
@@ -459,7 +458,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         client_reference_id: booking.id,
-        customer_email: customerEmail.toLowerCase(),
+        customer_email: normalizedCustomerEmail,
         line_items: [
           {
             quantity: 1,
@@ -542,8 +541,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   await Promise.all([
     notifyEmailConfirmation
       ? sendBookingConfirmation({
-          customerName,
-          customerEmail,
+          customerName: normalizedCustomerName,
+          customerEmail: normalizedCustomerEmail,
           businessName: business.name,
           serviceName: booking.service.name,
           staffName: booking.staff.name,
@@ -555,8 +554,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       : Promise.resolve(),
     business.owner.email
       ? sendNewBookingNotification({
-          customerName,
-          customerEmail,
+          customerName: normalizedCustomerName,
+          customerEmail: normalizedCustomerEmail,
           businessName: business.name,
           serviceName: booking.service.name,
           staffName: booking.staff.name,
@@ -569,7 +568,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       : Promise.resolve(),
   ]);
 
-  if (notifySmsConfirmation && customerPhone) {
+    if (notifySmsConfirmation && normalizedCustomerPhone) {
     const bookingUrl = process.env.NEXT_PUBLIC_APP_URL
       ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/book/${business.slug}`
       : undefined;
@@ -580,15 +579,15 @@ export async function POST(req: NextRequest, { params }: Params) {
       staffName: booking.staff.name,
       startTime: booking.startTime,
       timezone: business.timezone,
-      customerName,
-      bookingUrl,
-    });
-    try {
-      await sendSms({ to: customerPhone, body });
-    } catch (e) {
-      console.error("[sms] Confirmation failed:", e instanceof Error ? e.message : e);
+        customerName: normalizedCustomerName,
+        bookingUrl,
+      });
+      try {
+        await sendSms({ to: normalizedCustomerPhone, body });
+      } catch (e) {
+        console.error("[sms] Confirmation failed:", e instanceof Error ? e.message : e);
+      }
     }
-  }
 
   await scheduleRemindersForBooking({ bookingId: booking.id });
 
@@ -601,8 +600,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       staffName:   booking.staff.name,
       startTime:   booking.startTime,
       endTime:     booking.endTime,
-      customerName,
-      customerEmail,
+      customerName: normalizedCustomerName,
+      customerEmail: normalizedCustomerEmail,
     },
   }, { status: 201 });
 }

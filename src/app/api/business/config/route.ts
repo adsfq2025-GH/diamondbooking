@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnerBusinessId } from "@/lib/owner-business";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -10,12 +11,13 @@ const updateSchema = z.object({
 
 export async function GET() {
   const session = await requireOwner();
-  if (!session.user.businessId) {
+  const businessId = await resolveOwnerBusinessId(session.user.id, session.user.businessId);
+  if (!businessId) {
     return NextResponse.json({ success: false, error: "Business not found" }, { status: 404 });
   }
 
   const cfg = await prisma.businessConfig.findUnique({
-    where: { businessId: session.user.businessId },
+    where: { businessId },
     select: { industryKey: true, config: true, pricingVersion: true, updatedAt: true },
   });
 
@@ -24,7 +26,8 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   const session = await requireOwner();
-  if (!session.user.businessId) {
+  const businessId = await resolveOwnerBusinessId(session.user.id, session.user.businessId);
+  if (!businessId) {
     return NextResponse.json({ success: false, error: "Business not found" }, { status: 404 });
   }
 
@@ -37,9 +40,14 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Config must be an object" }, { status: 400 });
   }
 
-  const updated = await prisma.businessConfig.update({
-    where: { businessId: session.user.businessId },
-    data: {
+  const updated = await prisma.businessConfig.upsert({
+    where: { businessId },
+    create: {
+      businessId,
+      industryKey: parsed.data.industryKey ?? "generic",
+      config: parsed.data.config as object,
+    },
+    update: {
       industryKey: parsed.data.industryKey,
       config: parsed.data.config as object,
       pricingVersion: { increment: 1 },

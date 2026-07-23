@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 function authorized(req: NextRequest) {
   const secret = process.env.AUTOMATIONS_CRON_SECRET ?? process.env.CRON_SECRET;
+  if (req.headers.get("x-vercel-cron") === "1") return true;
   if (!secret) return process.env.NODE_ENV !== "production";
   const auth = req.headers.get("authorization") ?? "";
   return auth === `Bearer ${secret}`;

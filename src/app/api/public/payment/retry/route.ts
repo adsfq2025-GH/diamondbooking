@@ -88,6 +88,37 @@ export async function POST(req: NextRequest) {
       paymentType === "deposit" ? Math.max(1, Math.round((totalCents * depositPercentage) / 100)) : totalCents;
 
     const stripe = getStripe();
+
+    const existingPayment = await prisma.bookingPayment.findFirst({
+      where: {
+        bookingId: booking.id,
+        status: "CHECKOUT_CREATED",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { stripeCheckoutSessionId: true },
+    });
+
+    if (existingPayment?.stripeCheckoutSessionId) {
+      try {
+        const session = await stripe.checkout.sessions.retrieve(existingPayment.stripeCheckoutSessionId);
+        if (session.status === "open" && session.url) {
+          return NextResponse.json({
+            success: true,
+            data: {
+              bookingId: booking.id,
+              checkoutUrl: session.url,
+              amount: chargeCents,
+              currency: booking.service.currency,
+              paymentType,
+              mode: paymentType,
+            },
+          });
+        }
+      } catch {
+        // If the old session is gone or expired, create a fresh one.
+      }
+    }
+
     const appUrl = getPublicAppUrl();
     const embedQs = embed ? "&embed=1" : "";
     const successUrl = `${appUrl}/book/${booking.business.slug}?payment=success&bookingId=${booking.id}&session_id={CHECKOUT_SESSION_ID}${embedQs}`;

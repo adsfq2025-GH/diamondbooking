@@ -19,6 +19,15 @@ function getStripe() {
   return new Stripe(key);
 }
 
+function hash32(input: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash | 0;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const parsed = schema.safeParse(await req.json());
@@ -67,16 +76,24 @@ export async function POST(req: NextRequest) {
     const stripePaymentIntentId =
       typeof session.payment_intent === "string"
         ? session.payment_intent
-        : session.payment_intent?.id
+      : session.payment_intent?.id
           ? session.payment_intent.id
           : null;
 
     const nextStatus = booking.business.autoConfirm ? "CONFIRMED" : "PENDING";
 
-    const [businessConfig, updated] = await prisma.$transaction(async (tx) => {
+    const [businessConfig, finalStatus, alreadyFinalized] = await prisma.$transaction(async (tx) => {
+      const lockKey = hash32(`booking:${bookingId}`);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey}::int)`;
+
       const businessConfig = await tx.businessConfig.findUnique({
         where: { businessId: booking.businessId },
         select: { config: true },
+      });
+
+      const currentBooking = await tx.booking.findUnique({
+        where: { id: bookingId },
+        select: { status: true },
       });
 
       await tx.bookingPayment.upsert({
@@ -96,13 +113,27 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      const updatedBooking =
-        booking.status === "PENDING_PAYMENT"
-          ? await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } })
-          : booking;
+      if (!currentBooking || currentBooking.status !== "PENDING_PAYMENT") {
+        return [businessConfig, currentBooking?.status ?? booking.status, true] as const;
+      }
 
-      return [businessConfig, updatedBooking] as const;
+      await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
+      return [businessConfig, nextStatus, false] as const;
     });
+
+    if (alreadyFinalized) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          bookingId,
+          status: finalStatus,
+          serviceName: booking.service.name,
+          startTime: booking.startTime.toISOString(),
+          endTime: booking.endTime.toISOString(),
+          customerEmail: booking.customer.email,
+        },
+      });
+    }
 
     await createAuditLog({
       action: "PAYMENT_SUCCEEDED",
@@ -171,7 +202,7 @@ export async function POST(req: NextRequest) {
       success: true,
       data: {
         bookingId,
-        status: updated.status,
+        status: finalStatus,
         serviceName: booking.service.name,
         startTime: booking.startTime.toISOString(),
         endTime: booking.endTime.toISOString(),

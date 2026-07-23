@@ -1,5 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { resolveOwnerBusinessId } from "@/lib/owner-business";
 import { portalBasePath, staffBasePath } from "@/lib/tenant-paths";
 
 function safeRelativePath(value: string | undefined) {
@@ -23,6 +25,16 @@ export default async function PostLoginPage({
   const role = session.user.role;
   const staffHome = staffBasePath(session.user.businessSlug);
   const portalHome = portalBasePath(session.user.businessSlug);
+  const ownerBusinessId =
+    role === "OWNER" ? await resolveOwnerBusinessId(session.user.id, session.user.businessId) : null;
+  const ownerOnboardingComplete = ownerBusinessId
+    ? (
+        await prisma.business.findUnique({
+          where: { id: ownerBusinessId },
+          select: { onboardingComplete: true },
+        })
+      )?.onboardingComplete ?? false
+    : false;
   const home =
     role === "SUPER_ADMIN"
       ? "/superadmin"
@@ -30,7 +42,9 @@ export default async function PostLoginPage({
         ? staffHome
         : role === "CUSTOMER"
           ? portalHome
-          : "/dashboard";
+          : ownerOnboardingComplete
+            ? "/dashboard"
+            : "/onboarding";
 
   const allowedPrefix =
     role === "SUPER_ADMIN"
@@ -39,7 +53,9 @@ export default async function PostLoginPage({
         ? staffHome
         : role === "CUSTOMER"
           ? portalHome
-          : "/dashboard";
+          : ownerOnboardingComplete
+            ? "/dashboard"
+            : "/onboarding";
 
   if (callbackUrl && callbackUrl.startsWith(allowedPrefix)) {
     redirect(callbackUrl);

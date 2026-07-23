@@ -2,19 +2,21 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnerBusinessId } from "@/lib/owner-business";
 import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard-v2";
 
 export const metadata = { title: "Set Up Your Business — Diamond Booking" };
 
 export default async function OnboardingPage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect("/auth/login?callbackUrl=%2Fonboarding");
   if (session.user.role === "SUPER_ADMIN") redirect("/superadmin");
 
   // Already onboarded?
-  if (session.user.businessId) {
+  const businessId = await resolveOwnerBusinessId(session.user.id, session.user.businessId);
+  if (businessId) {
     const business = await prisma.business.findUnique({
-      where: { id: session.user.businessId },
+      where: { id: businessId },
       select: { onboardingComplete: true },
     });
     if (business?.onboardingComplete) redirect("/dashboard");

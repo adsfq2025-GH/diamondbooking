@@ -3,7 +3,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { format, addMinutes, addDays, isBefore, isAfter } from "date-fns";
-import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import { toZonedTime } from "date-fns-tz";
+import { localDateDayOfWeek, localDateStringInTimeZone, localDateTimeToUtc } from "@/lib/booking-time";
 
 export interface SlotResult {
   startTime: string;   // "HH:mm" local time
@@ -21,17 +22,6 @@ export interface AvailabilityParams {
   staffId: string | "any";
   date: string; // "YYYY-MM-DD" in business local time
   durationMinutes?: number;
-}
-
-/**
- * Convert "HH:mm" time string + a Date (for the day) + timezone → UTC Date
- */
-function localTimeToUTC(timeStr: string, dateInTz: Date, timezone: string): Date {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  const localDate = new Date(dateInTz);
-  localDate.setHours(hours, minutes, 0, 0);
-  // Convert from business timezone to UTC
-  return fromZonedTime(localDate, timezone);
 }
 
 /**
@@ -65,12 +55,7 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
 
   // ── Parse the requested date in business timezone ──────────────────────────
   const tz = business.timezone;
-  const [y, m, d] = date.split("-").map((x) => Number(x));
-  if (!y || !m || !d) return [];
-  const dateLocal = new Date(y, m - 1, d, 0, 0, 0, 0);
-  const requestedUtcMidnight = fromZonedTime(dateLocal, tz);
-  const requestedLocal = toZonedTime(requestedUtcMidnight, tz);
-  const dayOfWeek = requestedLocal.getDay();
+  const dayOfWeek = localDateDayOfWeek(date, tz);
 
   // ── Determine which staff to check ────────────────────────────────────────
   const staffList =
@@ -98,12 +83,14 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
   // ── Time window constraints ────────────────────────────────────────────────
   const now = new Date();
   const minBookingTime = new Date(now.getTime() + business.minimumNoticeHours * 60 * 60 * 1000);
-  const nowLocal = toZonedTime(now, tz);
-  const todayLocalMidnight = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate(), 0, 0, 0, 0);
-  const maxLocalDate = addDays(todayLocalMidnight, business.advanceBookingDays);
+  const todayLocalDateString = localDateStringInTimeZone(now, tz);
+  const maxLocalDateString = localDateStringInTimeZone(
+    addDays(new Date(`${todayLocalDateString}T12:00:00Z`), business.advanceBookingDays),
+    tz
+  );
 
   // Can't book in the past or beyond advance window
-  if (isAfter(requestedLocal, maxLocalDate)) return [];
+  if (date > maxLocalDateString) return [];
 
   const slots: SlotResult[] = [];
 
@@ -116,8 +103,8 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Slo
     const dayHours = staffAvail ?? bizHours;
     if (!dayHours || dayHours.isClosed) continue;
 
-    const windowStart = localTimeToUTC(dayHours.openTime, dateLocal, tz);
-    const windowEnd   = localTimeToUTC(dayHours.closeTime, dateLocal, tz);
+    const windowStart = localDateTimeToUtc(date, dayHours.openTime, tz);
+    const windowEnd   = localDateTimeToUtc(date, dayHours.closeTime, tz);
 
     // ── Load existing bookings for this staff on this date ─────────────────
     const existingBookings = await prisma.booking.findMany({

@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       });
       const cfg = await prisma.businessConfig.findUnique({ where: { businessId: existing.id }, select: { id: true } });
       if (!cfg) {
-        const rawIndustryKey = (existing.industry as string | null) ?? "generic";
+        const rawIndustryKey = parsed.data.industry ?? (updated.industry as string | null) ?? "generic";
         const industryKey = resolveIndustryTemplateKey(rawIndustryKey);
         const template = await prisma.industryTemplate.findFirst({
           where: { key: industryKey, isActive: true },

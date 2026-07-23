@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnerBusinessId } from "@/lib/owner-business";
 import Stripe from "stripe";
 
 function getStripe() {
@@ -12,12 +13,13 @@ function getStripe() {
 export async function POST(req: NextRequest) {
   try {
     const session = await requireOwner();
-    if (!session.user.businessId) {
+    const businessId = await resolveOwnerBusinessId(session.user.id, session.user.businessId);
+    if (!businessId) {
       return NextResponse.json({ success: false, error: "No business found" }, { status: 400 });
     }
 
     const business = await prisma.business.findUnique({
-      where: { id: session.user.businessId },
+      where: { id: businessId },
       select: { id: true, stripeConnectAccountId: true },
     });
     if (!business?.stripeConnectAccountId) {
