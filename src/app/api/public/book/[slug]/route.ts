@@ -19,6 +19,17 @@ import { normalizeCustomerEmail, normalizeCustomerName, normalizeCustomerPhone }
 
 type Params = { params: Promise<{ slug: string }> };
 
+type PaymentsConfig = {
+  paymentType?: unknown;
+  mode?: unknown;
+  depositPercentage?: unknown;
+  depositPercent?: unknown;
+};
+
+type BusinessConfigShape = {
+  payments?: PaymentsConfig;
+};
+
 const schema = z.object({
   serviceId:     z.string(),
   staffId:       z.string(),
@@ -316,9 +327,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     config: config?.config ?? {},
   });
 
-  const cfgObj =
-    config?.config && typeof config.config === "object" ? (config.config as Record<string, any>) : ({} as Record<string, any>);
-  const paymentsCfg = cfgObj.payments && typeof cfgObj.payments === "object" ? (cfgObj.payments as Record<string, any>) : null;
+  const cfgObj = config?.config && typeof config.config === "object" ? (config.config as BusinessConfigShape) : {};
+  const paymentsCfg = cfgObj.payments ?? null;
   const paymentTypeRaw =
     typeof paymentsCfg?.paymentType === "string"
       ? paymentsCfg.paymentType

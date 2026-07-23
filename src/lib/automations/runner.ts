@@ -54,7 +54,6 @@ export async function processDueNotifications(args: { limit: number; lockMinutes
         console.warn(`[automations] Notification ${row.id} was sent but could not be finalized`);
       }
     } catch (e: unknown) {
-      failed += 1;
       const msg = e instanceof Error ? e.message : "Failed";
       const current = await prisma.scheduledNotification.findUnique({
         where: { id: row.id },
@@ -63,6 +62,7 @@ export async function processDueNotifications(args: { limit: number; lockMinutes
       if (current?.status === "CANCELLED") {
         continue;
       }
+      failed += 1;
       const giveUp = (current?.attempts ?? 0) >= args.maxAttempts;
       await prisma.scheduledNotification.updateMany({
         where: { id: row.id, status: "PROCESSING" },

@@ -2,12 +2,18 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnerBusinessId } from "@/lib/owner-business";
 
 export async function POST() {
   try {
     const session = await requireOwner();
+    const businessId = await resolveOwnerBusinessId(session.user.id, session.user.businessId);
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: "Business not found" }, { status: 404 });
+    }
+
     const business = await prisma.business.findUnique({
-      where: { ownerId: session.user.id },
+      where: { id: businessId },
       select: {
         id: true,
         onboardingComplete: true,
@@ -23,7 +29,7 @@ export async function POST() {
     }
 
     if (business.onboardingComplete) {
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, data: { businessId: business.id, onboardingComplete: true } });
     }
 
     const missing: string[] = [];
@@ -43,10 +49,10 @@ export async function POST() {
     }
 
     await prisma.business.update({
-      where: { ownerId: session.user.id },
+      where: { id: business.id },
       data: { onboardingComplete: true },
     });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: { businessId: business.id, onboardingComplete: true } });
   } catch {
     return NextResponse.json({ success: false, error: "Failed" }, { status: 500 });
   }

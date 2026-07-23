@@ -4,6 +4,17 @@ import Stripe from "stripe";
 import { z } from "zod";
 import { getPublicAppUrl } from "@/lib/widget-embed";
 
+type PaymentsConfig = {
+  paymentType?: unknown;
+  mode?: unknown;
+  depositPercentage?: unknown;
+  depositPercent?: unknown;
+};
+
+type BusinessConfigShape = {
+  payments?: PaymentsConfig;
+};
+
 const schema = z.object({
   bookingId: z.string().min(1),
   embed: z.boolean().optional(),
@@ -59,11 +70,8 @@ export async function POST(req: NextRequest) {
       select: { config: true },
     });
 
-    const cfgObj =
-      businessConfig?.config && typeof businessConfig.config === "object"
-        ? (businessConfig.config as Record<string, any>)
-        : ({} as Record<string, any>);
-    const paymentsCfg = cfgObj.payments && typeof cfgObj.payments === "object" ? (cfgObj.payments as Record<string, any>) : null;
+    const cfgObj = businessConfig?.config && typeof businessConfig.config === "object" ? (businessConfig.config as BusinessConfigShape) : {};
+    const paymentsCfg = cfgObj.payments ?? null;
     const paymentTypeRaw =
       typeof paymentsCfg?.paymentType === "string"
         ? paymentsCfg.paymentType

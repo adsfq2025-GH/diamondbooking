@@ -71,6 +71,11 @@ export async function scheduleRemindersForBooking(args: { bookingId: string }) {
             status: "PENDING",
             scheduledAt: reminderScheduledAt(offsetMinutes),
             toEmail: booking.customer.email,
+            attempts: 0,
+            sentAt: null,
+            lockedAt: null,
+            lastError: null,
+            providerId: null,
             payload: {
               offsetMinutes,
             } as Prisma.InputJsonValue,
@@ -131,6 +136,11 @@ export async function scheduleRemindersForBooking(args: { bookingId: string }) {
             status: "PENDING",
             scheduledAt: reminderScheduledAt(offsetMinutes),
             toPhone,
+            attempts: 0,
+            sentAt: null,
+            lockedAt: null,
+            lastError: null,
+            providerId: null,
             payload: {
               offsetMinutes,
             } as Prisma.InputJsonValue,
@@ -216,6 +226,11 @@ export async function scheduleCancellationNotifications(args: { bookingId: strin
         status: "PENDING",
         scheduledAt,
         toEmail: booking.customer.email,
+        attempts: 0,
+        sentAt: null,
+        lockedAt: null,
+        lastError: null,
+        providerId: null,
       },
     });
   }
@@ -238,6 +253,11 @@ export async function scheduleCancellationNotifications(args: { bookingId: strin
         status: "PENDING",
         scheduledAt,
         toPhone,
+        attempts: 0,
+        sentAt: null,
+        lockedAt: null,
+        lastError: null,
+        providerId: null,
       },
     });
   }
@@ -286,6 +306,11 @@ export async function scheduleFollowUpNotifications(args: { bookingId: string })
         status: "PENDING",
         scheduledAt,
         toEmail: booking.customer.email,
+        attempts: 0,
+        sentAt: null,
+        lockedAt: null,
+        lastError: null,
+        providerId: null,
       },
     });
   }
@@ -308,6 +333,11 @@ export async function scheduleFollowUpNotifications(args: { bookingId: string })
         status: "PENDING",
         scheduledAt,
         toPhone,
+        attempts: 0,
+        sentAt: null,
+        lockedAt: null,
+        lastError: null,
+        providerId: null,
       },
     });
   }
