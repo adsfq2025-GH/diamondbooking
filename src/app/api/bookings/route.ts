@@ -9,6 +9,7 @@ import { sendBookingConfirmation } from "@/lib/email";
 import { getAutomationsConfig } from "@/lib/automations/config";
 import { scheduleRemindersForBooking } from "@/lib/automations/scheduler";
 import { buildBookingSms, sendSms } from "@/lib/sms";
+import { localDateToUtcMidnight } from "@/lib/booking-time";
 
 const createSchema = z.object({
   serviceId: z.string(),
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
 
     const start = new Date(startTime);
     const end = new Date(start.getTime() + service.duration * 60 * 1000);
-    const dateUtc = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+    const dateUtc = localDateToUtcMidnight(parsed.data.date, business.timezone);
 
     const conflict = await prisma.booking.findFirst({
       where: {

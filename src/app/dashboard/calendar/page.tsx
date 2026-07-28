@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatDate, formatTime } from "@/lib/utils";
+import { formatDate, formatInTz } from "@/lib/utils";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,11 @@ export default async function CalendarPage({
 }) {
   const session = await auth();
   if (!session?.user?.businessId) redirect("/onboarding");
+
+  const business = await prisma.business.findUnique({
+    where: { id: session.user.businessId },
+    select: { timezone: true },
+  });
 
   const params = await searchParams;
   const selected = params.date ? new Date(params.date) : new Date();
@@ -94,8 +99,8 @@ export default async function CalendarPage({
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-medium text-foreground">{formatTime(b.startTime)}</p>
-                  <p className="text-xs text-muted-foreground">{formatTime(b.endTime)}</p>
+                  <p className="text-sm font-medium text-foreground">{formatInTz(b.startTime, business?.timezone ?? "UTC", "h:mm a")}</p>
+                  <p className="text-xs text-muted-foreground">{formatInTz(b.endTime, business?.timezone ?? "UTC", "h:mm a")}</p>
                 </div>
               </Link>
             ))}

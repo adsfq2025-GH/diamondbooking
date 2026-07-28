@@ -13,6 +13,11 @@ export default async function NewBookingPage() {
   const session = await auth();
   if (!session?.user?.businessId) redirect("/onboarding");
 
+  const business = await prisma.business.findUnique({
+    where: { id: session.user.businessId },
+    select: { timezone: true },
+  });
+
   const [services, staff] = await Promise.all([
     prisma.service.findMany({
       where: { businessId: session.user.businessId, isActive: true },
@@ -64,6 +69,7 @@ export default async function NewBookingPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <BookingForm
+            timezone={business?.timezone ?? "UTC"}
             services={services.map((s) => ({
               id: s.id,
               name: s.name,

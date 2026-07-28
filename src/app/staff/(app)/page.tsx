@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { staffBasePath } from "@/lib/tenant-paths";
+import { formatInTz } from "@/lib/utils";
 
 export const metadata = { title: "Staff Overview" };
 export const dynamic = "force-dynamic";
@@ -31,6 +32,10 @@ export default async function StaffHomePage() {
 
   const now = new Date();
   const basePath = staffBasePath(session.user.businessSlug);
+  const business = await prisma.business.findUnique({
+    where: { slug: session.user.businessSlug },
+    select: { timezone: true },
+  });
   const upcoming = await prisma.booking.findMany({
     where: { staffId: session.user.staffId, startTime: { gte: now } },
     orderBy: { startTime: "asc" },
@@ -73,7 +78,7 @@ export default async function StaffHomePage() {
                     <p className="text-xs text-muted-foreground truncate">{b.customer.name ?? b.customer.email}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-foreground">{new Date(b.startTime).toLocaleString()}</p>
+                    <p className="text-sm text-foreground">{formatInTz(b.startTime, business?.timezone ?? "UTC", "MMM d, yyyy h:mm a")}</p>
                     <p className="text-xs text-muted-foreground">{b.status}</p>
                   </div>
                 </div>
@@ -85,4 +90,3 @@ export default async function StaffHomePage() {
     </div>
   );
 }
-

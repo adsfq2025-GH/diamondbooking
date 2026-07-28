@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatInTz } from "@/lib/utils";
 
 export const metadata = { title: "My Bookings" };
 export const dynamic = "force-dynamic";
@@ -25,6 +26,11 @@ export default async function PortalBookingsPage() {
       </div>
     );
   }
+
+  const business = await prisma.business.findUnique({
+    where: { slug: session.user.businessSlug },
+    select: { timezone: true },
+  });
 
   const bookings = await prisma.booking.findMany({
     where: { customerId: session.user.customerId },
@@ -66,8 +72,8 @@ export default async function PortalBookingsPage() {
                     <p className="text-xs text-muted-foreground">{b.status}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm text-foreground">{new Date(b.startTime).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(b.endTime).toLocaleTimeString()}</p>
+                    <p className="text-sm text-foreground">{formatInTz(b.startTime, business?.timezone ?? "UTC", "MMM d, yyyy h:mm a")}</p>
+                    <p className="text-xs text-muted-foreground">{formatInTz(b.endTime, business?.timezone ?? "UTC", "h:mm a")}</p>
                   </div>
                 </div>
               ))}

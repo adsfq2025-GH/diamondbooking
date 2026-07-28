@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { portalBasePath } from "@/lib/tenant-paths";
+import { formatInTz } from "@/lib/utils";
 
 export const metadata = { title: "Client Portal" };
 export const dynamic = "force-dynamic";
@@ -31,6 +32,10 @@ export default async function PortalHomePage() {
 
   const now = new Date();
   const basePath = portalBasePath(session.user.businessSlug);
+  const business = await prisma.business.findUnique({
+    where: { slug: session.user.businessSlug },
+    select: { timezone: true },
+  });
   const upcoming = await prisma.booking.findMany({
     where: { customerId: session.user.customerId, startTime: { gte: now } },
     orderBy: { startTime: "asc" },
@@ -75,7 +80,7 @@ export default async function PortalHomePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-foreground">{new Date(b.startTime).toLocaleString()}</p>
+                    <p className="text-sm text-foreground">{formatInTz(b.startTime, business?.timezone ?? "UTC", "MMM d, yyyy h:mm a")}</p>
                     <p className="text-xs text-muted-foreground">{b.status}</p>
                   </div>
                 </div>

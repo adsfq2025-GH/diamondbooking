@@ -14,7 +14,7 @@ import { buildBookingSms, sendSms } from "@/lib/sms";
 import { addDays } from "date-fns";
 import Stripe from "stripe";
 import { getPublicAppUrl } from "@/lib/widget-embed";
-import { localDateDayOfWeek, localDateStringInTimeZone, localDateTimeToUtc } from "@/lib/booking-time";
+import { localDateDayOfWeek, localDateStringInTimeZone, localDateTimeToUtc, localDateToUtcMidnight } from "@/lib/booking-time";
 import { normalizeCustomerEmail, normalizeCustomerName, normalizeCustomerPhone } from "@/lib/customer-normalization";
 
 type Params = { params: Promise<{ slug: string }> };
@@ -393,7 +393,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           serviceId,
           staffId,
           customerId: customer.id,
-          date: new Date(Date.UTC(slotStart.getUTCFullYear(), slotStart.getUTCMonth(), slotStart.getUTCDate())),
+          date: localDateToUtcMidnight(date, tz),
           startTime: slotStart,
           endTime: slotEnd,
           status: shouldCollectPayment ? "PENDING_PAYMENT" : business.autoConfirm ? "CONFIRMED" : "PENDING",

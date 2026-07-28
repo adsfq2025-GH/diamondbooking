@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatCurrency, formatTime, cn } from "@/lib/utils";
+import { formatCurrency, formatInTz, cn } from "@/lib/utils";
 import { CalendarDays, Users, TrendingUp, DollarSign, Clock, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +84,7 @@ export default async function DashboardPage() {
 
   const business = await prisma.business.findUnique({
     where: { id: session.user.businessId },
-    select: { slug: true },
+    select: { slug: true, timezone: true },
   });
 
   const { stats, upcomingBookings } = await getDashboardData(session.user.businessId);
@@ -157,9 +157,11 @@ export default async function DashboardPage() {
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-medium text-foreground">{formatTime(booking.startTime)}</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {formatInTz(booking.startTime, business?.timezone ?? "UTC", "h:mm a")}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(booking.startTime).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                          {formatInTz(booking.startTime, business?.timezone ?? "UTC", "EEE, MMM d")}
                         </p>
                       </div>
                       <Badge variant={STATUS_VARIANT[booking.status] ?? "secondary"} className="shrink-0">

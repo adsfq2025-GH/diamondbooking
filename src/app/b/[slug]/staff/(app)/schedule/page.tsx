@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { staffBasePath } from "@/lib/tenant-paths";
+import { formatInTz } from "@/lib/utils";
 
 export const metadata = { title: "Staff Schedule" };
 export const dynamic = "force-dynamic";
@@ -35,6 +36,10 @@ export default async function TenantStaffSchedulePage({ params }: Props) {
   const now = new Date();
   const end = new Date();
   end.setDate(end.getDate() + 30);
+  const business = await prisma.business.findUnique({
+    where: { slug },
+    select: { timezone: true },
+  });
 
   const bookings = await prisma.booking.findMany({
     where: {
@@ -79,8 +84,8 @@ export default async function TenantStaffSchedulePage({ params }: Props) {
                     <p className="text-xs text-muted-foreground">{b.status}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm text-foreground">{new Date(b.startTime).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(b.endTime).toLocaleTimeString()}</p>
+                    <p className="text-sm text-foreground">{formatInTz(b.startTime, business?.timezone ?? "UTC", "MMM d, yyyy h:mm a")}</p>
+                    <p className="text-xs text-muted-foreground">{formatInTz(b.endTime, business?.timezone ?? "UTC", "h:mm a")}</p>
                   </div>
                 </div>
               ))}
@@ -91,4 +96,3 @@ export default async function TenantStaffSchedulePage({ params }: Props) {
     </div>
   );
 }
-

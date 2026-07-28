@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatInTz } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,6 +31,11 @@ export default async function BookingsPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? 1));
   const pageSize = 20;
+
+  const business = await prisma.business.findUnique({
+    where: { id: session.user.businessId },
+    select: { timezone: true },
+  });
 
   const where = {
     businessId: session.user.businessId,
@@ -131,7 +136,7 @@ export default async function BookingsPage({
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{booking.staff.name}</td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">
-                      {formatDateTime(booking.startTime)}
+                      {formatInTz(booking.startTime, business?.timezone ?? "UTC", "MMM d, yyyy 'at' h:mm a")}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={STATUS_VARIANT[booking.status] ?? "secondary"}>

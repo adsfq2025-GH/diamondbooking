@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDateTime, formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatInTz } from "@/lib/utils";
 import { BookingStatusActions } from "@/components/dashboard/booking-status-actions";
 
 export const metadata = { title: "Booking" };
@@ -40,6 +40,11 @@ export default async function BookingDetailsPage({ params }: Params) {
     redirect("/dashboard/bookings");
   }
 
+  const business = await prisma.business.findUnique({
+    where: { id: session.user.businessId },
+    select: { timezone: true },
+  });
+
   return (
     <div className="space-y-4 max-w-3xl">
       <div className="flex items-center justify-between">
@@ -71,11 +76,11 @@ export default async function BookingDetailsPage({ params }: Params) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-3 rounded-lg border border-border">
               <p className="text-xs text-muted-foreground">Start</p>
-              <p className="font-medium text-foreground">{formatDateTime(booking.startTime)}</p>
+              <p className="font-medium text-foreground">{formatInTz(booking.startTime, business?.timezone ?? "UTC", "MMM d, yyyy 'at' h:mm a")}</p>
             </div>
             <div className="p-3 rounded-lg border border-border">
               <p className="text-xs text-muted-foreground">End</p>
-              <p className="font-medium text-foreground">{formatDateTime(booking.endTime)}</p>
+              <p className="font-medium text-foreground">{formatInTz(booking.endTime, business?.timezone ?? "UTC", "MMM d, yyyy 'at' h:mm a")}</p>
             </div>
             <div className="p-3 rounded-lg border border-border">
               <p className="text-xs text-muted-foreground">Duration</p>

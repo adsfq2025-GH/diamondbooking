@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/use-toast";
+import { localDateTimeToUtc } from "@/lib/booking-time";
 
 type ServiceOption = {
   id: string;
@@ -19,9 +20,11 @@ type StaffOption = { id: string; name: string; isActive: boolean };
 export function BookingForm({
   services,
   staff,
+  timezone,
 }: {
   services: ServiceOption[];
   staff: StaffOption[];
+  timezone: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -47,10 +50,12 @@ export function BookingForm({
 
   const startTimeIso = useMemo(() => {
     if (!date || !time) return "";
-    const d = new Date(`${date}T${time}`);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString();
-  }, [date, time]);
+    try {
+      return localDateTimeToUtc(date, time, timezone).toISOString();
+    } catch {
+      return "";
+    }
+  }, [date, time, timezone]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
