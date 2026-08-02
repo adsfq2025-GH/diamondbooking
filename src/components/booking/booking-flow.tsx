@@ -357,6 +357,8 @@ export function BookingFlow({
           date:          sel.date,
           startTime:     slot.startUTC,
           endTime:       slot.endUTC,
+          localStartTime: slot.startTime,
+          localEndTime: slot.endTime,
           durationMinutes: sel.durationMinutes,
           customerName:  sel.name,
           customerEmail: sel.email,
@@ -397,6 +399,12 @@ export function BookingFlow({
           setError(typeof json?.data?.payment?.error === "string" ? json.data.payment.error : "Payment collection is currently unavailable");
         }
       } else {
+        setConfirmed({
+          serviceName: String(json?.data?.serviceName ?? sel.service.name),
+          startTime: String(json?.data?.startTime ?? slot.startUTC),
+          endTime: String(json?.data?.endTime ?? slot.endUTC),
+          customerEmail: String(json?.data?.customerEmail ?? sel.email),
+        });
         setStep(6);
       }
     } catch (e: unknown) {
@@ -551,8 +559,8 @@ export function BookingFlow({
     return formatYmdInTimeZone(sel.date, business.timezone, { month: "numeric", day: "numeric", year: "numeric" });
   }, [sel.date, business.timezone]);
 
-  const confirmedStart = sel.slot?.startUTC ?? confirmed?.startTime ?? "";
-  const confirmedEnd = sel.slot?.endUTC ?? confirmed?.endTime ?? "";
+  const confirmedStart = confirmed?.startTime ?? sel.slot?.startUTC ?? "";
+  const confirmedEnd = confirmed?.endTime ?? sel.slot?.endUTC ?? "";
   const confirmedServiceName = sel.service?.name ?? confirmed?.serviceName ?? "";
   const confirmedEmail = sel.email || confirmed?.customerEmail || "";
 
@@ -570,15 +578,15 @@ export function BookingFlow({
   }, [sel.date, dateLabelLong, confirmedStart, business.timezone]);
 
   const confirmedTimeLabel = useMemo(() => {
+    if (confirmedStart) {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: business.timezone,
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(confirmedStart));
+    }
     if (sel.slot) return formatTimeDisplay(sel.slot.startTime);
-    if (!confirmedStart) return "";
-    const dt = new Date(confirmedStart);
-    if (Number.isNaN(dt.getTime())) return "";
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone: business.timezone,
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(dt);
+    return "";
   }, [sel.slot, confirmedStart, business.timezone]);
 
   const slotGroups = useMemo(() => {

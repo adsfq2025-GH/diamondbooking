@@ -36,6 +36,8 @@ const schema = z.object({
   date:          z.string(), // YYYY-MM-DD
   startTime:     z.string(), // ISO UTC datetime
   endTime:       z.string(), // ISO UTC datetime
+  localStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  localEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   durationMinutes: z.number().int().min(5).max(480).optional(),
   customerName:  z.string().min(1).max(100),
   customerEmail: z.string().email(),
@@ -119,6 +121,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     date,
     startTime,
     endTime,
+    localStartTime,
+    localEndTime,
     durationMinutes,
     customerName,
     customerEmail,
@@ -150,8 +154,12 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
   if (!staff) return NextResponse.json({ success: false, error: "Staff member not available" }, { status: 404 });
 
-  const slotStart = new Date(startTime);
-  const slotEnd   = new Date(endTime);
+  const slotStart = localStartTime
+    ? localDateTimeToUtc(date, localStartTime, business.timezone)
+    : new Date(startTime);
+  const slotEnd = localEndTime
+    ? localDateTimeToUtc(date, localEndTime, business.timezone)
+    : new Date(endTime);
   const actualDurationMinutes = Math.round((slotEnd.getTime() - slotStart.getTime()) / 60_000);
 
   if (Number.isNaN(slotStart.getTime()) || Number.isNaN(slotEnd.getTime())) {
