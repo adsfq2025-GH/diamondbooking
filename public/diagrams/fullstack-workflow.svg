@@ -85,7 +85,7 @@
       <circle class="dot2" cx="22" cy="26" r="8"/>
       <text class="cardTitle" x="40" y="30">Install + run locally</text>
       <text class="cardText" x="18" y="56">npm ci → npm run dev</text>
-      <text class="cardText" x="18" y="76">Node 20.x required</text>
+      <text class="cardText" x="18" y="76">Node 24.x required</text>
       <text class="cardText" x="18" y="96">.env.example → .env</text>
     </g>
 
